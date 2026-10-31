@@ -1,0 +1,154 @@
+[
+ {
+  "profile": "Ramesh Sharma",
+  "messages": {
+   "total": 17,
+   "sent_to_cloud": 13,
+   "kept_on_phone": 4,
+   "rules_ms_total": 3.6,
+   "llm_calls": 3,
+   "bytes_up": 1762,
+   "bytes_down": 2505,
+   "tokens_est": 2327,
+   "rules_vs_llm_agreement": null
+  },
+  "scams": {
+   "seeded": 1,
+   "caught_by_rules": 1
+  },
+  "cab_rides": {
+   "rides": 8,
+   "llm_steps": 25,
+   "llm_steps_without_skill": 40,
+   "per_ride": [
+    5,
+    5,
+    5,
+    5,
+    5,
+    0,
+    0,
+    0
+   ],
+   "skill_status": [
+    "active"
+   ],
+   "tokens_est": 53825
+  },
+  "live_voice_mb_est": 614.4
+ },
+ {
+  "profile": "Sunita Verma",
+  "messages": {
+   "total": 13,
+   "sent_to_cloud": 13,
+   "kept_on_phone": 0,
+   "rules_ms_total": 1.0,
+   "llm_calls": 3,
+   "bytes_up": 1542,
+   "bytes_down": 2323,
+   "tokens_est": 2273,
+   "rules_vs_llm_agreement": null
+  },
+  "scams": {
+   "seeded": 1,
+   "caught_by_rules": 1
+  },
+  "cab_rides": {
+   "rides": 8,
+   "llm_steps": 25,
+   "llm_steps_without_skill": 40,
+   "per_ride": [
+    5,
+    5,
+    5,
+    5,
+    5,
+    0,
+    0,
+    0
+   ],
+   "skill_status": [
+    "active"
+   ],
+   "tokens_est": 53825
+  },
+  "live_voice_mb_est": 614.4
+ },
+ {
+  "profile": "Arjun Mehta",
+  "messages": {
+   "total": 9,
+   "sent_to_cloud": 5,
+   "kept_on_phone": 4,
+   "rules_ms_total": 0.4,
+   "llm_calls": 1,
+   "bytes_up": 638,
+   "bytes_down": 921,
+   "tokens_est": 808,
+   "rules_vs_llm_agreement": null
+  },
+  "scams": {
+   "seeded": 1,
+   "caught_by_rules": 1
+  },
+  "cab_rides": {
+   "rides": 8,
+   "llm_steps": 25,
+   "llm_steps_without_skill": 40,
+   "per_ride": [
+    5,
+    5,
+    5,
+    5,
+    5,
+    0,
+    0,
+    0
+   ],
+   "skill_status": [
+    "active"
+   ],
+   "tokens_est": 53825
+  },
+  "live_voice_mb_est": 614.4
+ },
+ {
+  "profile": "Kamla Devi",
+  "messages": {
+   "total": 9,
+   "sent_to_cloud": 9,
+   "kept_on_phone": 0,
+   "rules_ms_total": 0.7,
+   "llm_calls": 2,
+   "bytes_up": 1172,
+   "bytes_down": 1694,
+   "tokens_est": 1563,
+   "rules_vs_llm_agreement": null
+  },
+  "scams": {
+   "seeded": 1,
+   "caught_by_rules": 1
+  },
+  "cab_rides": {
+   "rides": 8,
+   "llm_steps": 25,
+   "llm_steps_without_skill": 40,
+   "per_ride": [
+    5,
+    5,
+    5,
+    5,
+    5,
+    0,
+    0,
+    0
+   ],
+   "skill_status": [
+    "active"
+   ],
+   "tokens_est": 53825
+  },
+  "live_voice_mb_est": 614.4
+ }
+]

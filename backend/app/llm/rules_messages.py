@@ -12,7 +12,10 @@ _CATEGORY_RULES: list[tuple[str, str]] = [
         "scam_suspected",
         r"\bkyc\b|blocked|suspend|disconnect|lottery|\bprize\b|\bwon\b|customs|digital arrest|"
         r"\bcbi\b|police|\.apk\b|\*\d{2,3}\*|scan (the )?qr|refund.*upi|aadhaar.*(update|link)|"
-        r"केवाईसी|ब्लॉक|लॉटरी|इनाम",
+        # A "relative in trouble" asking for money in secret ("accident ho gaya, 20,000 bhejo, kisi ko mat batana").
+        r"(accident|hospital|arrest|jail|emergency|musibat).{0,60}(bhejo|bhej do|send|transfer|paise|paisa|money)|"
+        r"(kisi ko|don'?t tell|do not tell).{0,12}(mat batana|batana mat|anyone)|naya number|new number|"
+        r"केवाईसी|ब्लॉक|लॉटरी|इनाम|किसी को मत बताना",
     ),
     ("appointment", r"appointment|\bdr\.\s|clinic|doctor|consultation|अपॉइंटमेंट"),
     (

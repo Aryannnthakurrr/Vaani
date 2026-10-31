@@ -326,3 +326,13 @@ def test_known_diabetes_turns_sweating_into_a_low_sugar_flag() -> None:
     ) == ["low_sugar"]
     assert safety_net.scan_with_conditions("mild cough since yesterday", ["type 2 diabetes"]) == []
     assert safety_net.scan_with_conditions("bahut paseena aa raha hai", []) == []
+
+
+def test_relative_in_trouble_scam_is_caught_by_rules() -> None:
+    from app.llm.rules_messages import classify_one
+    from app.schemas import MessageIn
+
+    sms = "Maa main Rohit, accident ho gaya hai, abhi 20,000 bhejo is number pe, kisi ko mat batana"
+    assert classify_one(MessageIn(id="1", sender="+918800112233", text=sms)).category == "scam_suspected"
+    ok = "Reminder: your appointment at Sir Ganga Ram Hospital is on Tuesday 9:30 am."
+    assert classify_one(MessageIn(id="2", sender="VK-GANGAR", text=ok)).category != "scam_suspected"

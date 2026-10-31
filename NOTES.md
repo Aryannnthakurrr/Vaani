@@ -659,3 +659,19 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   route. Both `PriceGuardTest` and `test_price_guard.py` run `fixtures/price_guard/cases.json`, so the copies can't
   drift: change them together.
 - Screenshots never leave the phone and OCR text is never logged; the activity log notes only the verdict.
+
+## Batch 5: profiles, metering, simulations (2026-11-01)
+
+- **Demo profiles** (`fixtures/profiles/profiles.json`, Settings → Demo profile): Ramesh (diabetes, knee
+  arthritis), Sunita (high blood pressure), Arjun (blind), Kamla (wheelchair, hard of hearing). A switch sets name,
+  language and appointment and replays seeded messages through the normal inbox path. The profile line reaches
+  the live conversation, the agent goal and the doctor intake. Cabs suggest a car for sore knees or an XL for a
+  wheelchair (yes/no), and a known diabetic who is sweaty or shaky gets the low-sugar red flag.
+- **Metering:** server `GET /usage` (per device: routes, bytes, Gemini calls and tokens); phone Settings →
+  Developer → Data used (per feature, WebSockets included). `models.yaml pricing` starts empty, so cost is never
+  guessed.
+- **Simulation:** `scripts/simulate_profiles.py` → `docs/SIMULATION.md`. Offline findings: the learned cab skill
+  cuts LLM steps by 38% over a month (and to zero per ride once active); message traffic is a few KB a month; **live
+  voice is about 614 MB a month at 5 min/day**, because raw PCM travels as base64 JSON, so Opus between phone and
+  server is the big bandwidth win. The run found the rules missed the "relative in an accident, send money, tell no
+  one" scam; that rule is now added and tested. `--live` adds rules-vs-LLM agreement (costs tokens).
