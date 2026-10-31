@@ -57,6 +57,15 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
 
     private var lastFingerprint: String? = null
 
+    override suspend fun fingerprint(): String? {
+        val svc = service() ?: return null
+        val (_, roots) = roots(svc)
+        val pkg = roots.firstOrNull()?.packageName?.toString() ?: AgentService.foreground.value
+        val collected = ArrayList<NodeRef>()
+        roots.forEach { walk(it, 0, collected) }
+        return TreeSerializer.fingerprint(ScreenSnapshot(pkg, null, false, collected.map { it.info }))
+    }
+
     /**
      * The app the task runs in (set by TaskRunner); kept as the screen being read while its window is visible, even
      * when one of Saathi's own windows (question card, caption) holds the focus.

@@ -80,10 +80,12 @@ async def _mock_session(ws: WebSocket, style: str) -> None:
                         }.get(style, "I can see a packet. Hold it steady."),
                     }
                 )
+                await ws.send_json({"type": "turn_complete"})
             if frames >= MOCK_FRAMES_BEFORE_CARD and not sent:
                 sent = True
                 await ws.send_json({"type": "product_card", "card": mock_card().model_dump()})
                 await ws.send_json({"type": "text", "text": _MOCK_LINES.get(style, _MOCK_LINES["en"])})
+                await ws.send_json({"type": "turn_complete"})
         elif kind == "end":
             return
 
@@ -102,6 +104,13 @@ async def _gemini_session(ws: WebSocket, settings: Settings, style: str, context
         ),
         tools=[types.Tool(function_declarations=[types.FunctionDeclaration(**UPDATE_CARD_TOOL)])],
         output_audio_transcription=types.AudioTranscriptionConfig(),
+        speech_config=types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                    voice_name=settings.route("camera_live").get("voice", "Sulafat")
+                )
+            )
+        ),
     )
     model = settings.route("camera_live")["model"]
     async with client.aio.live.connect(model=model, config=config) as session:
@@ -144,7 +153,12 @@ async def _forward(ws: WebSocket, session: Any, resp: Any, types: Any) -> None:
     content = getattr(resp, "server_content", None)
     transcript = getattr(getattr(content, "output_transcription", None), "text", None)
     if transcript:
-        await ws.send_json({"type": "text", "text": transcript})
+        await ws.send_json({"type": "text", "text": transcript})  # a fragment of the current turn
+    # The phone uses these to drop speech the user talked over and to start a fresh caption per reply.
+    if getattr(content, "interrupted", False):
+        await ws.send_json({"type": "interrupted"})
+    if getattr(content, "turn_complete", False):
+        await ws.send_json({"type": "turn_complete"})
     tool_call = getattr(resp, "tool_call", None)
     if tool_call:
         responses = []

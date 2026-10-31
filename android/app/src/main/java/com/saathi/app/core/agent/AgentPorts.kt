@@ -8,6 +8,12 @@ interface ScreenSource {
 
     /** Called after an action changed (or should have changed) the screen. Replay advances here. */
     fun onActionExecuted(action: AgentAction) = Unit
+
+    /**
+     * A cheap signature of what is on screen now (no screenshot, nothing remembered), used in guide mode to notice that
+     * the user has done the step. Null when the source can't tell (replay).
+     */
+    suspend fun fingerprint(): String? = null
 }
 
 /** Performs actions on the device. */

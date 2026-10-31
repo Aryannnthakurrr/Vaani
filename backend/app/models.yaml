@@ -24,7 +24,7 @@ link_verdict:        { model: gemma-4-31B-it,       thinking: minimal, fallback:
 digest_writer:       { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.4, timeout_s: 8 }
 # Skill compiler: runs rarely (only when a task has enough new runs), so it uses the strongest model.
 skill_compiler:      { model: qwen3.8-max,             thinking: high, fallback: gemini-3.5-flash-lite, temperature: 0.1, timeout_s: 180 }
-camera_live:         { model: gemini-3.8-live }       # Live API: 16 kHz PCM + JPEG in, 24 kHz PCM out
+camera_live:         { model: gemini-3.8-live, voice: Sulafat }  # Live API: 16 kHz PCM + JPEG in, 24 kHz PCM out; same voice as voice_live
 # The elder's spoken conversation (docs/LEARNING.md §2). Both IDs listed with bidiGenerateContent on the key, 2026-10-31.
 # Gemini Live runs the conversation and speaks in its own voice (no extra delay). Aoede, an English voice, sounded
 # poor in Hindi, so the warmer Sulafat is used. The language is not pinned: the prompt makes Saathi answer in

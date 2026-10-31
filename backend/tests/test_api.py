@@ -231,11 +231,13 @@ def test_live_camera_mock_sends_card_after_two_frames(client) -> None:
         ws.send_json({"type": "frame", "jpeg_b64": "AAAA"})
         first = ws.receive_json()
         assert first["type"] == "text"
+        assert ws.receive_json()["type"] == "turn_complete"  # each reply ends with one, so the phone can speak it
         ws.send_json({"type": "frame", "jpeg_b64": "AAAA"})
         card = ws.receive_json()
         assert card["type"] == "product_card"
         assert card["card"]["mrp"] == 140 and card["card"]["expiry_status"] == "soon"
         assert "MRP" in ws.receive_json()["text"]
+        assert ws.receive_json()["type"] == "turn_complete"
         ws.send_json({"type": "end"})
 
 

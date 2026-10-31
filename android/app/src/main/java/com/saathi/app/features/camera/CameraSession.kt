@@ -47,11 +47,16 @@ class CameraSession(private val c: AppContainer) {
 
     fun start() {
         val url = c.backend.liveCameraUrl()
+        online = url != null
         _caption.value = tr(style, "Hold the pack in front of the camera.", "पैकेट कैमरे के सामने रखिए।", "Packet camera ke saamne rakhiye.")
-        if (url != null) {
-            player = PcmPlayer()
-            socket = LiveSocket(url, style.wire, ::onEvent, shopperContext()).also { it.connect() }
-            startMic()
+        // Finish the welcome line before the model starts talking, so the two voices never overlap.
+        c.scope.launch {
+            sayLocal(_caption.value)
+            if (url != null) {
+                player = PcmPlayer()
+                socket = LiveSocket(url, style.wire, ::onEvent, shopperContext()).also { it.connect() }
+                startMic()
+            }
         }
         watchdog = c.scope.launch {
             while (isActive) {
@@ -59,7 +64,16 @@ class CameraSession(private val c: AppContainer) {
                 if (System.currentTimeMillis() - lastActivity > INACTIVITY_MS) { stop(); _ended.value = true }
             }
         }
-        c.scope.launch { c.speaker.say(_caption.value, style) }
+    }
+
+    /** Speaks on the phone (Sarvam) with the microphone muted meanwhile, so the model doesn't hear it. */
+    private suspend fun sayLocal(text: String) {
+        localSpeaking = true
+        try {
+            c.speaker.say(text, style)
+        } finally {
+            localSpeaking = false
+        }
     }
 
     /** Called by the analyzer for every camera frame; throttled to ~1 fps and downscaled to 768 px. */
@@ -72,7 +86,7 @@ class CameraSession(private val c: AppContainer) {
         val s = socket
         if (s != null) {
             s.sendFrame(jpeg(bmp))
-        } else if (framesSent == 2) {
+        } else if (!online && framesSent == 2) {
             simulate()
         }
     }
@@ -87,19 +101,34 @@ class CameraSession(private val c: AppContainer) {
         lastActivity = System.currentTimeMillis()
         when (e) {
             is LiveEvent.Card -> _card.value = merge(_card.value, e.card)
+            // Text arrives in fragments of the reply being spoken: build one caption per turn.
             is LiveEvent.Text -> {
-                _caption.value = e.text
-                // The relay sends text-only replies in mock mode; speak them on the device.
-                if (player == null || !hasAudio) c.scope.launch { c.speaker.say(e.text, style) }
+                turnText.append(e.text)
+                _caption.value = turnText.toString().trim()
             }
-            is LiveEvent.Audio -> { hasAudio = true; player?.write(e.pcm) }
+            is LiveEvent.Audio -> { audioThisTurn = true; player?.write(e.pcm) }
+            LiveEvent.TurnComplete -> {
+                // Only text-only replies (mock mode, offline demo) are spoken on the phone, once, as a whole.
+                val text = turnText.toString().trim()
+                if (!audioThisTurn && text.isNotEmpty()) c.scope.launch { sayLocal(text) }
+                turnText.clear()
+                audioThisTurn = false
+            }
+            LiveEvent.Interrupted -> {
+                player?.flush()
+                turnText.clear()
+                audioThisTurn = false
+            }
             is LiveEvent.Error -> _caption.value = tr(style, "Connection lost. Please try again.", "कनेक्शन टूट गया। फिर से कोशिश कीजिए।",
                 "Connection toot gaya. Phir se try kijiye.")
             LiveEvent.Closed -> Unit
         }
     }
 
-    @Volatile private var hasAudio = false
+    private val turnText = StringBuilder()
+    @Volatile private var audioThisTurn = false
+    @Volatile private var localSpeaking = false
+    @Volatile private var online = false
 
     /** Offline demo: what the backend mock returns, computed locally. */
     private fun simulate() {
@@ -110,6 +139,7 @@ class CameraSession(private val c: AppContainer) {
             "This is Parle-G Gold, 1 kilo. The printed MRP is ₹140. It expires on ${expiry.dayOfMonth} ${expiry.month.name.lowercase().replaceFirstChar { it.uppercase() }}, in 5 days. Please use it soon.",
             "यह पारले-जी गोल्ड है, 1 किलो। छपा हुआ एमआरपी ₹140 है। यह 5 दिन में एक्सपायर हो जाएगा। जल्दी इस्तेमाल कीजिए।",
             "Yeh Parle-G Gold hai, 1 kilo. Printed MRP ₹140 hai. Yeh 5 din mein expire ho jayega. Jaldi use kijiye.")))
+        onEvent(LiveEvent.TurnComplete)
     }
 
     private fun merge(old: ProductCard?, new: ProductCard) = if (old == null) new else ProductCard(
@@ -130,7 +160,8 @@ class CameraSession(private val c: AppContainer) {
         }
         val line = listOfNotNull(card.name, card.quantity, card.mrpText?.let { tr(style, "Printed MRP $it.", "छपा एमआरपी $it।", "Printed MRP $it.") }, status)
             .joinToString(". ")
-        c.scope.launch { c.speaker.say(line, style) }
+        player?.flush() // "read again" replaces whatever the model was saying
+        c.scope.launch { sayLocal(line) }
     }
 
     @SuppressLint("MissingPermission")
@@ -146,7 +177,10 @@ class CameraSession(private val c: AppContainer) {
             try {
                 while (isActive) {
                     val n = rec.read(buf, 0, buf.size)
-                    if (n > 0 && !muted.value) socket?.sendAudio(buf.copyOf(n))
+                    // Half-duplex: no mic audio while either voice is speaking, or the model hears itself and
+                    // answers its own words (the overlapping replies users heard). Talk once it stops.
+                    val talking = localSpeaking || player?.speaking == true
+                    if (n > 0 && !muted.value && !talking) socket?.sendAudio(buf.copyOf(n))
                 }
             } finally {
                 runCatching { rec.stop() }

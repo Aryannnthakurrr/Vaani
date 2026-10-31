@@ -12,12 +12,16 @@ import com.saathi.app.core.voice.tr
 import com.saathi.app.util.Packages
 import com.saathi.app.util.SaathiJson
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
@@ -191,11 +195,9 @@ class AgentLoop(
                     s("Tap the $app icon.", "$app वाले आइकन पर टैप कीजिए।", "$app wale icon par tap kijiye.")
                 } else action.instruction.orEmpty()
                 ui.showHighlight(node?.let { currentBounds(it) }, instruction, if (shortcut != null) null else action.gesture)
-                ui.say(instruction)
                 logLine(goal, action, snap.pkg, "Showed you: $instruction", "ok")
-                if (!performer.awaitUserInteraction(GUIDE_WAIT_MS)) {
-                    ui.say(s("Take your time. ", "आराम से कीजिए। ", "Aaram se kijiye. ") + instruction)
-                    performer.awaitUserInteraction(GUIDE_WAIT_MS)
+                if (!sayAndAwaitStep(instruction)) {
+                    sayAndAwaitStep(s("Take your time. ", "आराम से कीजिए। ", "Aaram se kijiye. ") + instruction)
                 }
                 ui.clearHighlight()
                 // A swipe keeps the list moving for a moment; reading the screen mid-fling gives stale positions
@@ -278,6 +280,41 @@ class AgentLoop(
             if (speaking && isActive) cue.join() else cue.cancel()
         }
     }
+
+    /**
+     * Guide mode: speaks the instruction while already watching for the user to do it, and returns as soon as they
+     * have (a tap, a new window, or the screen changing and staying changed), cutting the speech short. Listening only
+     * after the instruction finished used to miss taps made while Saathi was still talking, so it repeated "tap …"
+     * for 30 s on a screen the user had already left. False when nothing happened within [GUIDE_WAIT_MS].
+     */
+    private suspend fun sayAndAwaitStep(instruction: String): Boolean = coroutineScope {
+        val before = screen.fingerprint()
+        val byEvent = async(start = CoroutineStart.UNDISPATCHED) { performer.awaitUserInteraction(GUIDE_WAIT_MS) }
+        // No fingerprint (replay): only the interaction event decides.
+        val byScreen = async { if (before == null) awaitCancellation() else screenMovedOn(before) }
+        val speech = launch { ui.say(instruction) }
+        val done = select {
+            byEvent.onAwait { it }
+            byScreen.onAwait { it }
+        }
+        byEvent.cancel()
+        byScreen.cancel()
+        if (done) speech.cancel() else speech.join()
+        done
+    }
+
+    /** True once the screen differs from [before] on two polls in a row (one blip, like a clock tick, isn't enough). */
+    private suspend fun screenMovedOn(before: String): Boolean = withTimeoutOrNull(GUIDE_WAIT_MS) {
+        var previous: String? = null
+        var moved = false
+        while (!moved) {
+            delay(GUIDE_POLL_MS)
+            val now = screen.fingerprint() ?: continue
+            moved = now != before && now == previous
+            previous = now
+        }
+        moved
+    } ?: false
 
     /** One quiet retry: a single slow or dropped model call should not end the user's task. */
     private suspend fun nextActionWithRetry(request: AgentStepRequest): AgentAction {
@@ -365,6 +402,7 @@ class AgentLoop(
         const val MAX_SAME_SCREEN = 3
         const val HISTORY = 6
         const val GUIDE_WAIT_MS = 30_000L
+        const val GUIDE_POLL_MS = 600L
         const val OUTCOME_TIMEOUT_MS = 5_000L
         /** Gemini answers in 2–3 s when healthy and 10–20 s under load (NOTES, 2026-10-31). */
         const val SLOW_STEP_MS = 6_000L

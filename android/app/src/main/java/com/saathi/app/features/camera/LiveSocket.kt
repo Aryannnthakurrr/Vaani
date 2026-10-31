@@ -26,6 +26,10 @@ sealed interface LiveEvent {
     data class Text(val text: String) : LiveEvent
     data class Audio(val pcm: ByteArray, val sampleRate: Int) : LiveEvent
     data class Error(val message: String) : LiveEvent
+    /** The user spoke over the reply: drop what hasn't played yet. */
+    data object Interrupted : LiveEvent
+    /** The model finished one reply; the next Text starts a new caption. */
+    data object TurnComplete : LiveEvent
     data object Closed : LiveEvent
 }
 
@@ -106,13 +110,18 @@ class LiveSocket(
                 LiveEvent.Audio(Base64.decode(it, Base64.DEFAULT), obj["sample_rate"]?.jsonPrimitive?.int ?: 24_000)
             }
             "error" -> LiveEvent.Error(obj["message"]?.jsonPrimitive?.contentOrNull ?: "error")
+            "interrupted" -> LiveEvent.Interrupted
+            "turn_complete" -> LiveEvent.TurnComplete
             else -> null
         }
     }
 }
 
-/** Streams 16-bit mono PCM from the Live model to the speaker. */
-class PcmPlayer(sampleRate: Int = 24_000) {
+/**
+ * Streams 16-bit mono PCM from the Live model to the speaker, and knows when it is still talking so the microphone
+ * can stay quiet meanwhile (otherwise the model hears its own voice through the speaker and answers itself).
+ */
+class PcmPlayer(private val sampleRate: Int = 24_000) {
     private val track = AudioTrack.Builder()
         .setAudioAttributes(AudioAttributes.Builder().setUsage(com.saathi.app.core.voice.Speaker.SPEECH_USAGE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
@@ -123,12 +132,30 @@ class PcmPlayer(sampleRate: Int = 24_000) {
         .build()
         .also { it.play() }
 
+    /** Wall-clock time when everything written so far will have finished playing. */
+    @Volatile private var playsUntil = 0L
+
     fun write(pcm: ByteArray) {
+        val now = System.currentTimeMillis()
+        playsUntil = maxOf(playsUntil, now) + pcm.size * 1000L / (2L * sampleRate)
         track.write(pcm, 0, pcm.size)
+    }
+
+    /** True while speech is playing, plus a short tail for the room's echo to die down. */
+    val speaking: Boolean get() = System.currentTimeMillis() < playsUntil + ECHO_TAIL_MS
+
+    /** Drops queued speech at once (the user interrupted). */
+    fun flush() {
+        runCatching { track.pause(); track.flush(); track.play() }
+        playsUntil = 0L
     }
 
     fun release() {
         runCatching { track.stop() }
         track.release()
+    }
+
+    private companion object {
+        const val ECHO_TAIL_MS = 350L
     }
 }
