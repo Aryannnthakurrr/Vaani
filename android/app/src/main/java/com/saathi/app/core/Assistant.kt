@@ -122,7 +122,7 @@ class Assistant(private val c: AppContainer) {
             _state.value = AssistantState.LISTENING
             OverlayService.start(c.context, OverlayService.ACTION_MIC_ON)
             OverlayService.controller?.showCaption(c.phrases.text("listening", style), "🎤")
-            val heard = try { speech.listen() } finally { OverlayService.start(c.context, OverlayService.ACTION_MIC_OFF) }
+            val heard = try { speech.listen(cue = true) } finally { OverlayService.start(c.context, OverlayService.ACTION_MIC_OFF) }
             if (heard == null || heard.transcript.isBlank()) {
                 c.speaker.sayPhrase("didnt_understand", style)
                 OverlayService.controller?.hideCaption()
@@ -157,6 +157,7 @@ class Assistant(private val c: AppContainer) {
         when {
             task != null -> { ui.say(reply); runTask(task, intent.slots, preferredApp(utterance)) }
             intent.intent == "guide" -> { ui.say(reply); runGuide(utterance) }
+            intent.intent == "care" -> { c.speaker.say(reply, replyStyle); c.care.start(); openScreen("care") }
             intent.intent == "camera" -> { c.speaker.say(reply, replyStyle); openScreen("camera") }
             intent.intent == "digest" -> { openScreen("digest"); c.digest.speak() }
             intent.intent == "settings" -> { c.speaker.say(reply, replyStyle); openScreen("settings") }

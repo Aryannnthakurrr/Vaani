@@ -5,6 +5,7 @@ import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.voice.Answer
 import com.saathi.app.core.voice.SpeechInput
 import com.saathi.app.core.voice.Speaker
+import com.saathi.app.core.voice.SpokenAnswer
 import com.saathi.app.core.voice.YesNo
 import com.saathi.app.core.voice.tr
 import kotlinx.coroutines.CompletableDeferred
@@ -45,21 +46,27 @@ class OverlayAgentUi(
     fun offerAnswer(text: String): Boolean = pendingText?.complete(text) == true
 
     /**
-     * Asks by voice and on screen at once: the user may speak (two tries) or type in the answer box.
-     * Whichever comes first wins. After two silent tries the box stays open until answered; Cancel returns null.
+     * Asks by voice and on screen at once: the user may speak or type in the answer box; whichever comes first
+     * wins. The question is spoken with a cue, and each listen starts with a beep. Silence re-prompts rather than
+     * ending the listening ([SpokenAnswer]); after about a minute the box stays open until answered. Cancel → null.
      */
     override suspend fun ask(question: String): String? = coroutineScope {
         val typed = CompletableDeferred<String?>().also { pendingText = it }
         val box = overlay()?.showAnswerBox(question) ?: CompletableDeferred()
         val byVoice = async {
             speaker.say(question, style())
-            repeat(2) {
-                overlay()?.showCaption(question, s("Listening… or type below", "सुन रहा हूँ… या नीचे लिखिए", "Sun raha hoon… ya neeche likhiye"))
-                val heard = speech.listen()?.transcript
-                if (!heard.isNullOrBlank()) return@async heard
-                speaker.sayPhrase("didnt_understand", style())
+            speaker.sayPhrase("answer_cue", style())
+            val heard = SpokenAnswer.freeText(
+                listen = {
+                    overlay()?.showCaption(question, s("Listening… or type below", "सुन रहा हूँ… या नीचे लिखिए", "Sun raha hoon… ya neeche likhiye"))
+                    speech.listen(cue = true)?.transcript
+                },
+                reprompt = { speaker.sayPhrase("still_listening", style()) },
+            )
+            heard ?: run {
+                speaker.sayPhrase("waiting_for_tap", style())
+                awaitCancellation() // no voice: wait for the typed answer
             }
-            awaitCancellation() // no voice: wait for the typed answer
         }
         val answer = select {
             box.onAwait { it }
@@ -101,22 +108,20 @@ class OverlayAgentUi(
     }
 
     /**
-     * Speaks the summary and listens; heard-but-unclear twice → no (SPEC §6.6). Hearing nothing at all
-     * (silence, no recognizer) leaves the decision to the on-screen buttons, which stay until answered.
+     * Speaks the summary and "please say yes or no", then listens after a beep. Silence re-prompts and listens
+     * again; heard-but-unclear twice → no (SPEC §6.6). About a minute of silence leaves the decision to the
+     * on-screen buttons, which stay until answered.
      */
     private suspend fun voiceYesNo(summary: String): Boolean {
         speaker.say(summary, style())
-        var unclear = 0
-        while (unclear < 2) {
-            if (unclear > 0) speaker.sayPhrase("ask_yes_no_again", style())
-            val heard = speech.listen()?.transcript ?: awaitCancellation()
-            when (YesNo.parse(heard)) {
-                Answer.YES -> return true
-                Answer.NO -> return false
-                Answer.UNCLEAR -> unclear++
-            }
-        }
-        return false
+        speaker.sayPhrase("ask_yes_no_again", style())
+        val answer = SpokenAnswer.yesNo(
+            listen = { speech.listen(cue = true)?.transcript },
+            reprompt = { speaker.sayPhrase("ask_yes_no_again", style()) },
+        )
+        if (answer != null) return answer
+        speaker.sayPhrase("waiting_for_tap", style())
+        awaitCancellation()
     }
 
     override suspend fun waitForUserDone(prompt: String): Boolean = coroutineScope {

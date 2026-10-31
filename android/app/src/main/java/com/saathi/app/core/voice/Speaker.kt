@@ -48,15 +48,15 @@ class Speaker(
         if (text.isBlank()) return
         _caption.value = text
         val audio = cloudAudio(text, style)
-        if (audio != null && playFile(audio, AudioAttributes.USAGE_ASSISTANT)) return
-        speakOnDevice(text, style, AudioAttributes.USAGE_ASSISTANT)
+        if (audio != null && playFile(audio, SPEECH_USAGE)) return
+        speakOnDevice(text, style, SPEECH_USAGE)
     }
 
     /** Speaks a safety phrase from the bundled table. Never touches the network. */
     suspend fun sayPhrase(key: String, style: ReplyStyle, inCall: Boolean = false) {
         val text = phrases.text(key, style)
         _caption.value = text
-        val usage = if (inCall) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_ASSISTANT
+        val usage = if (inCall) AudioAttributes.USAGE_VOICE_COMMUNICATION else SPEECH_USAGE
         val res = phrases.clipRes(key, style)
         if (res != 0 && playRes(res, usage)) return
         speakOnDevice(text, style, usage)
@@ -72,7 +72,8 @@ class Speaker(
     }
 
     private suspend fun cloudAudio(text: String, style: ReplyStyle): File? {
-        val file = File(cacheDir, hash("$text|$style|bulbul|0.9") + ".wav")
+        // The voice is part of the key: changing it in models.yaml must not replay audio cached in the old voice.
+        val file = File(cacheDir, hash("$text|$style|aparna_hi_customer|1.0") + ".wav")
         if (file.exists()) return file.also { it.setLastModified(System.currentTimeMillis()) }
         // Bulbul takes ~1 s for a short line and longer for a whole digest, so the wait scales with length.
         val budgetMs = (4_000L + text.length * 15L).coerceAtMost(12_000L)
@@ -158,6 +159,11 @@ class Speaker(
         MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }.take(32)
 
     companion object {
+        /**
+         * Speech plays on the media volume. Samsung keeps a separate, hidden "assistant" volume that was at 1/15 on a
+         * test phone, so USAGE_ASSISTANT made Saathi nearly silent while the media volume was at maximum.
+         */
+        const val SPEECH_USAGE = AudioAttributes.USAGE_MEDIA
         private const val TAG = "SaathiSpeaker"
         private const val CACHE_BYTES = 50L * 1024 * 1024
     }

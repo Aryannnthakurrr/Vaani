@@ -12,6 +12,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.saathi.app.core.overlay.OverlayService
 import com.saathi.app.features.calls.ClinicCallScreen
+import com.saathi.app.features.care.CareScreen
+import com.saathi.app.features.care.EmergencyScreen
 import com.saathi.app.features.camera.CameraScreen
 import com.saathi.app.ui.ActivityLogScreen
 import com.saathi.app.ui.AlertsScreen
@@ -54,6 +56,8 @@ class MainActivity : ComponentActivity() {
                     composable("settings") { SettingsScreen(c, back) { nav.navigate("onboarding") } }
                     composable("camera") { CameraScreen(c, back) }
                     composable("clinic_call") { ClinicCallScreen(c, back) }
+                    composable("care") { CareScreen(c, back) }
+                    composable("emergency") { EmergencyScreen(c, back) }
                 }
             }
         }

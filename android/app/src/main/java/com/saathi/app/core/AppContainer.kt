@@ -59,4 +59,6 @@ class AppContainer(val context: Context) {
     val calendar by lazy { CalendarWriter(context) }
     val welfare by lazy { WelfareManager(this) }
     val assistant by lazy { Assistant(this) }
+    val care by lazy { com.saathi.app.features.care.CareFlow(this) }
+    val emergency by lazy { com.saathi.app.features.care.EmergencyFlow(this) }
 }

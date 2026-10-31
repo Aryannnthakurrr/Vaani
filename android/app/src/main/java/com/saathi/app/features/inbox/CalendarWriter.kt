@@ -15,20 +15,32 @@ class CalendarWriter(private val context: Context) {
     private fun granted(p: String) = ContextCompat.checkSelfPermission(context, p) == PackageManager.PERMISSION_GRANTED
 
     /** Returns the event id, or null without permission, without a writable calendar, or without a start time. */
-    fun insert(appt: Appointment): Long? {
+    fun insert(appt: Appointment): Long? = insertEvent(
+        title = appt.doctor?.let { "Appointment: $it" } ?: "Doctor appointment",
+        location = listOfNotNull(appt.clinic, appt.address).joinToString(", "),
+        description = listOfNotNull(
+            appt.phone?.let { "Clinic phone: $it" }, appt.fee?.let { "Fee: $it" }, "Booked with Saathi",
+        ).joinToString("\n"),
+        startIso = appt.startIso,
+        endIso = null,
+    )
+
+    /** Any appointment event; [endIso] defaults to 30 minutes after the start. Alerts 1 day and 2 hours before. */
+    fun insertEvent(title: String, location: String, description: String, startIso: String?, endIso: String?): Long? {
         if (!granted(Manifest.permission.WRITE_CALENDAR) || !granted(Manifest.permission.READ_CALENDAR)) return null
-        val start = ReminderPlanner.parseStart(appt.startIso, java.time.ZoneId.systemDefault()) ?: return null
+        val zone = java.time.ZoneId.systemDefault()
+        val start = ReminderPlanner.parseStart(startIso, zone) ?: return null
         val calendarId = writableCalendar() ?: return null
         val startMs = start.toInstant().toEpochMilli()
+        val endMs = ReminderPlanner.parseStart(endIso, zone)?.toInstant()?.toEpochMilli()?.takeIf { it > startMs }
+            ?: (startMs + 30 * 60_000L)
         val values = ContentValues().apply {
             put(CalendarContract.Events.CALENDAR_ID, calendarId)
             put(CalendarContract.Events.DTSTART, startMs)
-            put(CalendarContract.Events.DTEND, startMs + 30 * 60_000L)
-            put(CalendarContract.Events.TITLE, appt.doctor?.let { "Appointment: $it" } ?: "Doctor appointment")
-            put(CalendarContract.Events.EVENT_LOCATION, listOfNotNull(appt.clinic, appt.address).joinToString(", "))
-            put(CalendarContract.Events.DESCRIPTION, listOfNotNull(
-                appt.phone?.let { "Clinic phone: $it" }, appt.fee?.let { "Fee: $it" }, "Booked with Saathi",
-            ).joinToString("\n"))
+            put(CalendarContract.Events.DTEND, endMs)
+            put(CalendarContract.Events.TITLE, title)
+            put(CalendarContract.Events.EVENT_LOCATION, location)
+            put(CalendarContract.Events.DESCRIPTION, description)
             put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
             put(CalendarContract.Events.HAS_ALARM, 1)
         }

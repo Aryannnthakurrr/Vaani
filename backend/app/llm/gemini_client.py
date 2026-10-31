@@ -137,6 +137,15 @@ class GeminiClient:
             text = text.strip("`").removeprefix("json").strip()
         return text, (len(system) + len(user) + len(text)) // 4
 
+    async def structured(
+        self, route: str, system: str, prompt: str, schema: type[BaseModel]
+    ) -> BaseModel | None:
+        try:
+            return await self._json(route, system, [prompt], schema)
+        except Exception as exc:
+            log.info("%s fallback to rules: %s", route, type(exc).__name__)
+            return None
+
     # ------------------------------------------------------------------ agent
     async def agent_step(self, req: AgentStepRequest) -> dict[str, Any]:
         fails = sum(1 for h in req.history[-2:] if h.action.get("action") in {"fail", "back"})

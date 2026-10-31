@@ -217,6 +217,7 @@ Intent = Literal[
     "book_house_help",
     "shop_online",
     "book_doctor",
+    "care",
     "guide",
     "camera",
     "digest",

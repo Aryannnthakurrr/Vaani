@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from pydantic import BaseModel
+
 from app.config import Settings
 from app.llm.clinic_call import ClinicCallRequest, ClinicCallTurn
 from app.sandbox.url_checks import UrlFacts
@@ -34,6 +36,12 @@ class LLMClient(Protocol):
     ) -> LinkVerdict: ...
 
     async def clinic_call_turn(self, req: ClinicCallRequest) -> ClinicCallTurn: ...
+
+    async def structured(
+        self, route: str, system: str, prompt: str, schema: type[BaseModel]
+    ) -> BaseModel | None:
+        """One JSON answer for `route` (models.yaml), or None so the caller uses its rule-based fallback."""
+        ...
 
 
 _client: LLMClient | None = None

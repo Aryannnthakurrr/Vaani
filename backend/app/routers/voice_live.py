@@ -21,6 +21,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.config import Settings, get_settings
 from app.llm.prompts import render
 from app.memory import format_memories, get_memory
+from app.speech.revoice import Revoicer
 
 log = logging.getLogger("saathi.voice_live")
 router = APIRouter()
@@ -211,7 +212,17 @@ async def _gemini_session(ws: WebSocket, relay: Relay, settings: Settings, style
             async with client.aio.live.connect(model=model, config=config) as session:
                 connected = True
                 log.info("voice session model=%s", model)
-                await _pump(ws, relay, session, types)
+                # Speak in the hospital-call voice (Sarvam) unless the route asks for Gemini's own voice.
+                revoice = (
+                    Revoicer(ws, settings, style)
+                    if route.get("speak_with", "sarvam") == "sarvam" and settings.sarvam_enabled
+                    else None
+                )
+                try:
+                    await _pump(ws, relay, session, types, revoice)
+                finally:
+                    if revoice:
+                        revoice.close()
                 return
         except (WebSocketDisconnect, TimeoutError):
             raise
@@ -221,7 +232,9 @@ async def _gemini_session(ws: WebSocket, relay: Relay, settings: Settings, style
             log.warning("voice model %s failed to connect (%s); trying fallback", model, type(exc).__name__)
 
 
-async def _pump(ws: WebSocket, relay: Relay, session: Any, types: Any) -> None:
+async def _pump(
+    ws: WebSocket, relay: Relay, session: Any, types: Any, revoice: Revoicer | None = None
+) -> None:
     async def upstream() -> None:
         while True:
             msg = json.loads(await asyncio.wait_for(ws.receive_text(), INACTIVITY_S))
@@ -264,11 +277,17 @@ async def _pump(ws: WebSocket, relay: Relay, session: Any, types: Any) -> None:
                     said = getattr(getattr(content, "output_transcription", None), "text", None)
                     if said:
                         await relay.transcript("saathi", said)
+                        if revoice:
+                            revoice.feed(said)
                     if getattr(content, "interrupted", False):
+                        if revoice:
+                            revoice.interrupt()
                         await ws.send_json({"type": "interrupted"})
                     if getattr(content, "turn_complete", False):
+                        if revoice:
+                            revoice.flush()
                         await relay.close_line()
-                if resp.data:
+                if resp.data and revoice is None:  # with revoicing, Gemini's own audio is dropped
                     await ws.send_json(
                         {
                             "type": "audio",

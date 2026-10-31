@@ -101,7 +101,7 @@ class LiveSocket(private val url: String, private val replyStyle: String, privat
 /** Streams 16-bit mono PCM from the Live model to the speaker. */
 class PcmPlayer(sampleRate: Int = 24_000) {
     private val track = AudioTrack.Builder()
-        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
+        .setAudioAttributes(AudioAttributes.Builder().setUsage(com.saathi.app.core.voice.Speaker.SPEECH_USAGE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
         .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(sampleRate)
             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())

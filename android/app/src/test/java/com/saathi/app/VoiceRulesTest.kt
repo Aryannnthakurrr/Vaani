@@ -61,6 +61,7 @@ class VoiceRulesTest {
         assertEquals("Apollo Hospital", LocalIntentRules.route("Book a cab to Apollo Hospital please").slots.destination)
         assertEquals("guide", LocalIntentRules.route("Mujhe ye photo Aarav ko bhejni hai, kaise karun?").intent)
         assertEquals("book_doctor", LocalIntentRules.route("I need a heart doctor").intent)
+        assertEquals("care", LocalIntentRules.route("Mujhe bukhar hai aur chakkar aa raha hai").intent)
         assertEquals("cardiologist", LocalIntentRules.route("I need a heart doctor").slots.specialty)
         assertEquals("shop_online", LocalIntentRules.route("order parle g biscuits").intent)
         assertEquals("camera", LocalIntentRules.route("check the expiry of this packet").intent)

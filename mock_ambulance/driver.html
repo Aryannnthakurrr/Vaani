@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambulance crew view</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  body { margin: 0; font: 16px/1.4 system-ui, sans-serif; background: #111; color: #eee; }
+  header { background: #b71c1c; padding: 14px 16px; font-weight: 700; font-size: 22px; }
+  .wrap { display: grid; grid-template-columns: minmax(280px, 420px) 1fr; min-height: calc(100vh - 56px); }
+  .side { padding: 14px 16px; overflow: auto; }
+  #map { min-height: 420px; }
+  .card { background: #222; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .label { color: #aaa; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+  .big { font-size: 20px; font-weight: 600; }
+  pre { white-space: pre-wrap; font-size: 13px; }
+  a.btn { display: inline-block; background: #1565c0; color: #fff; padding: 10px 14px; border-radius: 8px; text-decoration: none; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header id="title">NEW EMERGENCY</header>
+<div class="wrap">
+  <div class="side">
+    <div class="card"><div class="label">Status</div><div class="big" id="status">…</div><div id="eta"></div></div>
+    <div class="card"><div class="label">Priority · service</div><div class="big" id="prio"></div></div>
+    <div class="card"><div class="label">Address</div><div class="big" id="addr"></div><div id="landmark"></div>
+      <p><a class="btn" id="nav" target="_blank">Navigate</a></p></div>
+    <div class="card"><div class="label">ATMIST handover</div><div id="atmist"></div></div>
+    <details class="card"><summary>Full triage note</summary><pre id="note"></pre></details>
+  </div>
+  <div id="map"></div>
+</div>
+<script>
+const ID = "__DISPATCH_ID__", KEY = "__KEY__";
+const headers = {"X-Api-Key": KEY};
+const map = L.map("map").setView([20.6, 78.9], 5);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
+let amb = null, route = null;
+
+function decode(s) {
+  const pts = []; let i = 0, lat = 0, lng = 0;
+  while (i < s.length) {
+    for (const axis of [0, 1]) {
+      let shift = 0, result = 0, b;
+      do { b = s.charCodeAt(i++) - 63; result |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      const d = (result & 1) ? ~(result >> 1) : (result >> 1);
+      if (axis === 0) lat += d; else lng += d;
+    }
+    pts.push([lat / 1e5, lng / 1e5]);
+  }
+  return pts;
+}
+const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c]));
+
+async function load() {
+  const req = await (await fetch(`/v1/dispatch/${ID}/request`, {headers})).json();
+  const c = req.clinical || {}, a = c.atmist || {}, loc = req.location || {};
+  document.getElementById("prio").textContent = `${req.priority} · ${req.service_level} · ${(req.incident || {}).category || ""}`;
+  document.getElementById("addr").textContent = loc.address || `${loc.lat}, ${loc.lng}`;
+  document.getElementById("landmark").textContent = [loc.landmark && `Landmark: ${loc.landmark}`, loc.floor && `Floor ${loc.floor}`].filter(Boolean).join(" · ");
+  document.getElementById("nav").href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
+  document.getElementById("atmist").innerHTML = [
+    ["A — Age", a.age], ["T — Time of onset", a.time_of_onset], ["M — Mechanism / complaint", a.mechanism_or_complaint],
+    ["I — Injuries / illness", a.injuries_or_illness], ["S — Signs", a.signs], ["T — Treatment so far", a.treatment_so_far],
+  ].map(([k, v]) => `<div><span class="label">${k}</span><div class="big">${esc(v || "unknown")}</div></div>`).join("");
+  document.getElementById("note").textContent = c.triage_note_text || "";
+  L.marker([loc.lat, loc.lng]).addTo(map).bindPopup("Patient");
+  map.setView([loc.lat, loc.lng], 14);
+}
+
+async function poll() {
+  const d = await (await fetch(`/v1/dispatch/${ID}`, {headers})).json();
+  document.getElementById("status").textContent = d.status.replaceAll("_", " ");
+  document.getElementById("eta").textContent = d.eta_sec != null ? `ETA ${Math.ceil(d.eta_sec / 60)} min · ${(d.distance_m / 1000).toFixed(1)} km` : "";
+  if (d.route_polyline && !route) { route = L.polyline(decode(d.route_polyline), {color: "#e53935", weight: 5}).addTo(map); map.fitBounds(route.getBounds(), {padding: [30, 30]}); }
+  if (d.location) {
+    const p = [d.location.lat, d.location.lng];
+    if (!amb) amb = L.circleMarker(p, {radius: 10, color: "#fff", fillColor: "#e53935", fillOpacity: 1}).addTo(map).bindPopup("Ambulance");
+    else amb.setLatLng(p);
+  }
+}
+load().then(poll); setInterval(poll, 1000);
+</script>
+</body>
+</html>

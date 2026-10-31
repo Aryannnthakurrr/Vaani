@@ -23,7 +23,7 @@ data class RealCallStart(
     @SerialName("reply_style") val replyStyle: String,
 )
 
-/** Live state of a real Twilio call, polled from `GET /calls/clinic/real/{id}`. */
+/** Live state of a real (Bolna) call, polled from `GET /calls/clinic/real/{id}`. */
 @Serializable
 data class RealCallState(
     val id: String,
@@ -36,12 +36,12 @@ data class RealCallState(
     val error: String? = null,
 )
 
-/** Thrown with the backend's plain-language reason (e.g. Twilio not configured, number not allowed). */
+/** Thrown with the backend's plain-language reason (e.g. Bolna not configured, number not allowed). */
 class RealCallUnavailable(message: String) : Exception(message)
 
 /**
- * Talks to the backend's real-call routes (backend `routers/telephony.py`). Twilio dials the clinic and the backend
- * runs the conversation; the app starts the call, polls the transcript and can hang up.
+ * Talks to the backend's real-call routes (backend `routers/telephony.py`). A Bolna voice agent dials the clinic
+ * and runs the conversation; the app starts the call, polls the transcript and can hang up.
  */
 class RealCallClient(private val settings: () -> Settings) {
     private val http = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS).build()

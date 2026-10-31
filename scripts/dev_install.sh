@@ -21,7 +21,7 @@ ashell appops set $PKG SYSTEM_ALERT_WINDOW allow
 ashell appops set $PKG SCHEDULE_EXACT_ALARM allow || true
 ashell dumpsys deviceidle whitelist +$PKG >/dev/null || true
 for p in RECORD_AUDIO CAMERA READ_PHONE_STATE READ_CALL_LOG RECEIVE_SMS READ_SMS \
-         READ_CONTACTS READ_CALENDAR WRITE_CALENDAR POST_NOTIFICATIONS ANSWER_PHONE_CALLS ACCESS_COARSE_LOCATION; do
+         READ_CONTACTS READ_CALENDAR WRITE_CALENDAR POST_NOTIFICATIONS ANSWER_PHONE_CALLS ACCESS_COARSE_LOCATION ACCESS_FINE_LOCATION; do
   ashell pm grant $PKG android.permission.$p 2>/dev/null || true
 done
 "$ADB" reverse tcp:8000 tcp:8000 || true   # a real device reaches the local backend at localhost:8000

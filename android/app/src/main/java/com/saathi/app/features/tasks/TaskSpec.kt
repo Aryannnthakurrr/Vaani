@@ -56,10 +56,14 @@ object Tasks {
 
     val UBER = TaskSpec(
         id = "book_cab", pkg = Packages.UBER, scenario = "uber_book", required = listOf(destination),
-        goal = { "Book the cheapest non-shared Uber ride to ${it.destination}." },
+        // "Cab" means a car: the cheapest Uber option is usually Moto (a bike), which users asking for a cab don't want.
+        goal = { "Book the cheapest Uber car (not a bike or auto) to ${it.destination}." },
         addendum = "Landmarks: 'Where to?' search box, ride list with fares, a 'Confirm …' button. " +
             "If Uber opens straight on the ride list, the drop-off was set by a deep link: check it matches the goal " +
             "(search again if not), then pick the ride. " +
+            "Pick a car only: Uber Go, Go Sedan, Premier, UberXL or similar. Ignore Moto, Bike and Auto rows completely; " +
+            "don't read them out, compare them or tap them. If the selected row is a bike or auto, tap the cheapest car " +
+            "row straight away. " +
             "Stop after the ride is requested and a driver/vehicle/'arriving' line is visible; read driver, car and ETA.",
         deeplink = { slots, places ->
             slots.destination?.takeIf { it.isNotBlank() }?.let { d -> places.find(d)?.let { DeepLinks.uber(d, it.lat, it.lng) } }

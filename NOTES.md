@@ -454,3 +454,100 @@ project, with the elder served by voice and the family by Telegram plus the fami
   right date and first audio in 2.2 s including the tool round trip.
 - Live voice: no camera frames on `/live/voice` (the camera keeps `/live/camera`); not yet tried on the emulator
   with real microphone audio, only text turns through the relay.
+
+## Voice-first answers for blind and low-vision users (2026-10-31, night)
+
+Every agent message, question and confirm summary was already spoken as well as shown, and the confirm sheet
+already raced voice against the Yes/No buttons. What failed people who can't see the screen was the answering:
+- **One silent turn ended the listening.** `voiceYesNo` gave up after the first ~6 s of silence and `ask` after two,
+  leaving only buttons or a text box. Both now use `core/voice/SpokenAnswer` (pure, `SpokenAnswerTest`): silence
+  re-prompts and listens again, up to 6 silent turns (~1 minute), then Saathi says "waiting_for_tap" and the
+  buttons/box stay. Unclear-twice → no is unchanged (SPEC §6.6). The buttons work the whole time.
+- **No "your turn" signal.** `SpeechInput.listen(cue = true)` plays a 150 ms tone (media stream) before recording;
+  the tone ends before the Vad starts, so it is never transcribed. Used for questions, yes/no and tap-to-talk.
+  `waitForUserDone`'s repeated listening stays silent.
+- **Spoken cues:** the confirm summary is followed by "Please say yes or no"; questions by "answer_cue";
+  silence by "still_listening" / "ask_yes_no_again". New phrases in `assets/phrases.json` have no bundled clips
+  yet (on-device TTS until `scripts/render_alert_clips.py` is run with a Sarvam key).
+- **Slow steps:** when `/agent/step` takes over 6 s (`AgentLoop.SLOW_STEP_MS`), Saathi says "One moment" so the
+  silence during Gemini's 10–20 s answers is not mistaken for a hang; a started cue finishes before the next line.
+- Not done: TalkBack-specific work (live regions, focus order on the overlays) — Saathi voices its own overlays,
+  and a live region would make TalkBack read every line twice. The Compose screens (Home, Settings, digest list)
+  rely on TalkBack for now.
+
+## Symptom-to-care: intake, emergency path and hospital calling (2026-10-31, night)
+
+Built from the team's workflow spec; the design, API and setup are in [docs/CARE.md](docs/CARE.md).
+- **Verified here (no keys needed):** backend `test_care.py` covers the §3.6 acceptance (11 red-flag scripts → A at
+  once, 4 everyday complaints → B, the note always has EMERGENCY ASSESSMENT), negations, red flags in follow-up
+  answers, slot parsing ("kal 11 baje"), ranking, and Path B end to end with fake calls (one "no", one unanswered →
+  backup, booking → calendar fields). `test_care_dispatch.py` covers the dispatch request (P1/ALS, ATMIST), the mock
+  API errors (400/401/404/409/503), a simulated drive to `ARRIVED_AT_SCENE` with a falling ETA, cancelling, and the
+  unreachable-dispatch → call-108 fallback. Android: `CareReducerTest`. 204 backend and 121 Android tests pass.
+- **Not yet run for real:** Places/Routes (no `GOOGLE_MAPS_API_KEY` yet), Bolna inquiry/booking agents (not created),
+  the phone screens on a device, the siren volume, and the Leaflet map in the WebView.
+- **Deviations:** Bolna instead of Twilio ConversationRelay, so answers are extracted after each call (no live
+  `record_answer`, no IVR digits); polling instead of WebSockets (1 s); the calendar is written on the phone (no
+  Google OAuth or `.ics`); Leaflet + OSM in a WebView instead of the Maps SDK; the mock stops at `ARRIVED_AT_SCENE`.
+- **Intent change:** `care` is now the first intent rule on both sides. "call an ambulance" used to route to `guide`.
+- **Safety:** `CALL_ALLOWED_NUMBERS` still gates every outbound call; "Call 108" opens the dialler and never dials by
+  itself; the safety net can only raise urgency; symptoms and transcripts are never logged (only event types).
+- **Gaps:** a voice "I'm OK" during the siren (the mic can't hear over it, so the screen's largest button cancels);
+  the hospital leg of the ambulance simulation; deploying `mock_ambulance` to the droplet (`deploy/` doesn't run it
+  yet); clips for the new spoken phrases.
+
+## Silent speech on Samsung, slow Uber confirm (2026-10-31, night)
+
+- **No sound:** speech used `USAGE_ASSISTANT`, which Samsung routes to a separate, hidden assistant volume (1/15 on
+  the test S21 FE, media at 15/15). All speech (Speaker, Live voice, camera) now uses `Speaker.SPEECH_USAGE` =
+  `USAGE_MEDIA`, so the normal volume keys control it. The siren stays on the alarm stream; in-call warnings stay on
+  voice communication.
+- **Slow step before the Uber confirm:** after choosing Uber Go, `gemini-3.5-flash` took 16 s, returned invalid JSON,
+  took 12 s more on the retry, then timed out at 20 s on the next step, where `flash-lite` answered in 1.4 s.
+  `agent_step` now tries flash-lite first (12 s limit), with flash as fallback; `agent_step_hard` is unchanged.
+- **"Cab" means a car:** the Uber goal asked for the cheapest ride, which is usually Moto (a bike). It now asks for the
+  cheapest car and tells the agent to ignore Moto, Bike and Auto rows.
+
+## Doctor tile → hospital-calling demo channel (2026-10-31, night)
+
+- The Home **Doctor** tile now starts the symptom-to-care flow instead of the Practo task (Practo stays reachable by
+  voice: "book a heart doctor").
+- **Demo channel** (`DEMO_MODE=1`, no `GOOGLE_MAPS_API_KEY`, no `DEMO_PHONE_MAP`): no location or map step (a default
+  demo location if the phone has none); three stand-in hospitals that fit the note's specialty (`places.demo_hospitals`,
+  e.g. heart centres for chest pain), all labelled "(demo)"; every call dials the first number in
+  `CALL_ALLOWED_NUMBERS`. Calls to the same number run **one after another** with no backups, because one phone can't
+  take three calls at once.
+- The inquiry agent now also asks whether the needed consultation, tests or procedures (`{needs}`) are available.
+- Bolna agents created on 2026-10-31: inquiry and booking ids are in the local `.env`.
+
+## One voice everywhere: the hospital-call voice (2026-10-31, night)
+
+- Users found the app's voice poor next to the Bolna call agent's. The call agent speaks with Sarvam **Bulbul
+  v4-flash, speaker `aparna_hi_customer`** ("Aparna (Customer)"), Hindi, default pace (`scripts/bolna_agent.py`).
+- The app now uses exactly that voice everywhere. Turn-based replies use it in every reply style (`models.yaml tts`:
+  speaker `aparna_hi_customer`, `hi-IN`, pace 1.0; checked against Sarvam in EN, HI and Hinglish, 0.6–1.7 s). The
+  bundled safety clips were re-rendered: 66 OGG files, 2.1 MB, including the four new prompts. The phone's speech
+  cache key includes the voice, so old audio isn't replayed.
+- Live conversation: Gemini Live still listens, takes turns and calls tools, but its own audio (voice "Aoede") is
+  dropped. `app/speech/revoice.py` re-speaks its output transcription sentence by sentence in the Sarvam voice, and an
+  interruption drops anything not yet played. `voice_live.speak_with: gemini` restores Gemini's audio. Cost: about 1 s
+  more before the first words (one Sarvam call per sentence).
+- Still not in this voice: camera mode (Gemini Live audio) and the phone's on-device fallback when Sarvam fails.
+- The mock ambulance now simulates the hospital leg through `COMPLETED`; tracking and the phone follow it to the end.
+
+## Twilio removed; masking for the real hospital path (2026-10-31, night)
+
+- **All calls go through Bolna.** The Twilio branch of the clinic call (TwiML, signed webhooks, `/calls/twilio/*`),
+  `app/telephony/twiml.py`, the `TWILIO_*` settings and their tests are gone. `CALL_ALLOWED_NUMBERS` moved to
+  `app/telephony/calls.allowed_numbers()`, keeps its order, and still gates every dial.
+- **`MASK_HOSPITAL_NUMBERS`** (default 1) is now separate from `DEMO_MODE`. Masked, every hospital call rings the test
+  number: the first in `CALL_ALLOWED_NUMBERS`, or `DEMO_PHONE_MAP`. Real names and numbers stay on screen.
+  `DEMO_MODE` only supplies stand-in hospitals when there is no `GOOGLE_MAPS_API_KEY`. With the key, the real path
+  runs: Places search → ranking → masked Bolna calls → booking → calendar.
+- **Maps key verified (2026-10-31):** Places API (New) returned 60 places for a cardiology search around Gurugram
+  (36 after filtering); Routes `computeRouteMatrix` (traffic-aware) and `computeRoutes` both answered. Every ranked
+  hospital was masked to the test number. Geocoding API isn't needed (the phone geocodes).
+- **Live voice back to Gemini (2026-10-31):** `voice_live` now uses Gemini's own audio (`speak_with: gemini`, no
+  extra delay) with the warmer **Sulafat** voice instead of Aoede. The language isn't pinned: the prompt matches
+  English, Hindi or Hinglish to whatever the user just spoke. Measured first audio on `gemini-3.8-live`: 1.7–2.1 s.
+  The Sarvam re-voicing stays available with `speak_with: sarvam`. Turn-based replies and clips keep the Aparna voice.

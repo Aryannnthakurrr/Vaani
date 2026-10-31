@@ -93,5 +93,20 @@
     "en": "Please say yes or no.",
     "hi": "कृपया हाँ या ना बोलिए।",
     "hinglish": "Please haan ya na boliye."
+  },
+  "answer_cue": {
+    "en": "Please say your answer after the beep.",
+    "hi": "बीप के बाद अपना जवाब बोलिए।",
+    "hinglish": "Beep ke baad apna jawab boliye."
+  },
+  "still_listening": {
+    "en": "I am still listening. Please say your answer.",
+    "hi": "मैं अभी भी सुन रहा हूँ। अपना जवाब बोलिए।",
+    "hinglish": "Main abhi bhi sun raha hoon. Apna jawab boliye."
+  },
+  "waiting_for_tap": {
+    "en": "I will wait. You can also tap the buttons at the bottom of the screen.",
+    "hi": "मैं इंतज़ार करूँगा। आप स्क्रीन के नीचे वाले बटन भी दबा सकते हैं।",
+    "hinglish": "Main wait karunga. Aap screen ke neeche wale buttons bhi daba sakte hain."
   }
 }

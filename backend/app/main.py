@@ -16,6 +16,7 @@ from app.llm.base import get_llm
 from app.routers import (
     agent,
     calls,
+    care,
     family,
     health,
     links,
@@ -89,5 +90,18 @@ async def access_log(request: Request, call_next: Callable[[Request], Awaitable[
     return response
 
 
-for module in (health, agent, links, welfare, voice, live, voice_live, family, calls, telephony, skills):
+for module in (
+    health,
+    agent,
+    links,
+    welfare,
+    voice,
+    live,
+    voice_live,
+    family,
+    calls,
+    telephony,
+    skills,
+    care,
+):
     app.include_router(module.router)

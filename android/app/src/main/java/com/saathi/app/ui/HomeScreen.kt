@@ -82,7 +82,9 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
         Tile("🚕", tr(style, "Book a cab", "कैब बुक करें", "Cab book karein"), Color(0xFFE8A200)) { c.assistant.startTask(Tasks.UBER) },
         Tile("🏠", tr(style, "House help", "घर की सफ़ाई", "House help"), Color(0xFF00897B)) { c.assistant.startTask(Tasks.HOUSE_HELP) },
         Tile("🛒", tr(style, "Shopping camera", "सामान जाँचें", "Shopping camera"), Color(0xFF2E7D32)) { navigate("camera") },
-        Tile("🩺", tr(style, "Doctor", "डॉक्टर", "Doctor"), Color(0xFF1E63C8)) { c.assistant.startTask(Tasks.PRACTO) },
+        // Demo channel for now: describe symptoms, Saathi calls three fitting hospitals by phone and books one
+        // (features/care). The Practo task stays reachable by voice ("book a heart doctor").
+        Tile("🩺", tr(style, "Doctor", "डॉक्टर", "Doctor"), Color(0xFF1E63C8)) { c.care.start(); c.assistant.openScreen("care") },
         Tile("📬", tr(style, "My updates", "मेरे अपडेट", "Mere updates"), Color(0xFF6A4BC4)) { navigate("digest") },
         Tile("❓", tr(style, "Show me how", "मुझे सिखाओ", "Mujhe sikhao"), Saffron) { c.assistant.startGuide(null) },
     )

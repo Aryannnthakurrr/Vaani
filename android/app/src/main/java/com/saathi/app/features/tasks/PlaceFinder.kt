@@ -43,19 +43,10 @@ class AndroidPlaceFinder(private val context: Context) : PlaceLookup {
 
     override suspend fun find(name: String): LatLng? {
         if (!Geocoder.isPresent()) return null
-        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null
         return withTimeoutOrNull(TIMEOUT_MS) {
-            val here = lastKnown() ?: return@withTimeoutOrNull null
+            val here = DeviceLocation.lastKnown(context)?.at ?: return@withTimeoutOrNull null
             geocode(name, NearbyBox.around(here))
         }
-    }
-
-    @SuppressLint("MissingPermission") // checked in find()
-    private fun lastKnown(): LatLng? {
-        val lm = context.getSystemService(LocationManager::class.java) ?: return null
-        // Coarse permission can't read the GPS provider; runCatching skips it.
-        return lm.getProviders(true).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
-            .maxByOrNull { it.time }?.let { LatLng(it.latitude, it.longitude) }
     }
 
     private suspend fun geocode(name: String, box: DoubleArray): LatLng? {
@@ -74,5 +65,47 @@ class AndroidPlaceFinder(private val context: Context) : PlaceLookup {
             }
         }
         return address?.takeIf { it.hasLatitude() && it.hasLongitude() }?.let { LatLng(it.latitude, it.longitude) }
+    }
+}
+
+/** A position fix and how far off it may be. */
+data class Fix(val at: LatLng, val accuracyM: Float?)
+
+/** The phone's own position, from whichever location permission Saathi holds. */
+object DeviceLocation {
+    private fun allowed(context: Context) = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        .any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+
+    /** Newest last-known fix from any enabled provider, or null without permission or any fix. */
+    @SuppressLint("MissingPermission") // checked by allowed()
+    fun lastKnown(context: Context): Fix? {
+        if (!allowed(context)) return null
+        val lm = context.getSystemService(LocationManager::class.java) ?: return null
+        // Coarse permission can't read the GPS provider; runCatching skips it.
+        return lm.getProviders(true).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+            .maxByOrNull { it.time }
+            ?.let { Fix(LatLng(it.latitude, it.longitude), if (it.hasAccuracy()) it.accuracy else null) }
+    }
+
+    /** A readable street address for [at], or null (no geocoder, no match, slower than 3 s). */
+    suspend fun address(context: Context, at: LatLng): String? {
+        if (!Geocoder.isPresent()) return null
+        val geocoder = Geocoder(context, Locale("en", "IN"))
+        val found: Address? = withTimeoutOrNull(3_000L) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                suspendCancellableCoroutine { cont ->
+                    geocoder.getFromLocation(at.lat, at.lng, 1, object : Geocoder.GeocodeListener {
+                        override fun onGeocode(addresses: MutableList<Address>) = cont.resume(addresses.firstOrNull())
+                        override fun onError(errorMessage: String?) = cont.resume(null)
+                    })
+                }
+            } else {
+                withContext(Dispatchers.IO) {
+                    @Suppress("DEPRECATION")
+                    runCatching { geocoder.getFromLocation(at.lat, at.lng, 1) }.getOrNull()?.firstOrNull()
+                }
+            }
+        }
+        return found?.getAddressLine(0)
     }
 }

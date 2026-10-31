@@ -6,8 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.ToneGenerator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +20,7 @@ import android.util.Log
 import com.saathi.app.core.net.BackendApi
 import com.saathi.app.core.net.ReplyStyle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,8 +58,10 @@ class SpeechInput(
     /** False when `/health` reports no Sarvam key: every turn then goes straight to the on-device recognizer. */
     @Volatile var cloudSpeech = true
 
-    suspend fun listen(): Heard? {
+    /** @param cue beep first, so people who can't see the screen know when to start talking. */
+    suspend fun listen(cue: Boolean = false): Heard? {
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return null
+        if (cue) beep()
         _listening.value = true
         try {
             if (cloudSpeech && System.currentTimeMillis() > cloudDownUntil) {
@@ -80,6 +85,17 @@ class SpeechInput(
         } finally {
             _listening.value = false
             _level.value = 0f
+        }
+    }
+
+    /** Short "your turn" tone on the media stream; it ends before recording starts so the Vad never hears it. */
+    private suspend fun beep() {
+        val tone = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, BEEP_VOLUME) }.getOrNull() ?: return
+        try {
+            tone.startTone(ToneGenerator.TONE_PROP_BEEP, BEEP_MS)
+            delay(BEEP_MS + 120L)
+        } finally {
+            tone.release()
         }
     }
 
@@ -157,6 +173,8 @@ class SpeechInput(
     companion object {
         private const val TAG = "SaathiSpeechIn"
         const val SAMPLE_RATE = 16_000
+        private const val BEEP_MS = 150
+        private const val BEEP_VOLUME = 70
     }
 }
 

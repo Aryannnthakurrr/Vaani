@@ -1,1 +1,1 @@
-"""Real phone calls to a clinic through Twilio (SPEC §7.7 stretch, telephony-provider option)."""
+"""Real phone calls through Bolna-hosted voice agents: the clinic call and the symptom-to-care hospital calls."""

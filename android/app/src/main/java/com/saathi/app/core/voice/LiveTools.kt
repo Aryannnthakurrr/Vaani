@@ -43,7 +43,7 @@ object LiveToolArgs {
     /** "Flipkart" named in any slot or the task args means the user prefers Flipkart for shopping. */
     fun prefersFlipkart(args: JsonObject): Boolean = args.toString().contains("flipkart", ignoreCase = true)
 
-    val SCREENS = setOf("digest", "camera", "alerts", "settings", "clinic_call", "log")
+    val SCREENS = setOf("digest", "camera", "alerts", "settings", "clinic_call", "care", "log")
 
     fun ok(vararg fields: Pair<String, Any?>): JsonObject = buildJsonObject {
         put("ok", JsonPrimitive(true))

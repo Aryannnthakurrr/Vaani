@@ -13,8 +13,11 @@ import com.saathi.app.util.Packages
 import com.saathi.app.util.SaathiJson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
@@ -234,7 +237,29 @@ class AgentLoop(
             screenshotB64 = snap.screenshotB64, history = history.takeLast(HISTORY), taskHint = task.taskHint,
             runId = runId,
         )
-        // One quiet retry: a single slow or dropped model call should not end the user's task.
+        return withSlowCue { nextActionWithRetry(request) }
+    }
+
+    /**
+     * Says "one moment" when the model takes longer than [SLOW_STEP_MS], so someone who can't see the "Thinking…"
+     * caption knows Saathi is still working. A cue that has started is allowed to finish before the next line.
+     */
+    private suspend fun <T> withSlowCue(block: suspend () -> T): T = coroutineScope {
+        var speaking = false
+        val cue = launch {
+            delay(SLOW_STEP_MS)
+            speaking = true
+            ui.sayPhrase("filler")
+        }
+        try {
+            block()
+        } finally {
+            if (speaking && isActive) cue.join() else cue.cancel()
+        }
+    }
+
+    /** One quiet retry: a single slow or dropped model call should not end the user's task. */
+    private suspend fun nextActionWithRetry(request: AgentStepRequest): AgentAction {
         return try {
             backend().agentStep(request)
         } catch (e: CancellationException) {
@@ -320,5 +345,7 @@ class AgentLoop(
         const val HISTORY = 6
         const val GUIDE_WAIT_MS = 30_000L
         const val OUTCOME_TIMEOUT_MS = 5_000L
+        /** Gemini answers in 2–3 s when healthy and 10–20 s under load (NOTES, 2026-10-31). */
+        const val SLOW_STEP_MS = 6_000L
     }
 }

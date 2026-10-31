@@ -11,7 +11,7 @@
 165-245-196-218.sslip.io {
 	encode gzip
 	reverse_proxy backend:8000 {
-		# Gemini Live voice sessions and Twilio media can stay open for minutes.
+		# Gemini Live voice and camera sessions can stay open for minutes.
 		transport http {
 			read_timeout 0
 			write_timeout 0

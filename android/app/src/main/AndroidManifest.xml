@@ -24,8 +24,10 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Rough area only: biases the Uber destination lookup to places near the user. -->
+    <!-- Biases the Uber destination lookup to nearby places, finds hospitals nearby, and (precise, if the user
+         allows it) tells a mock ambulance dispatch where to go. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Hackathon only: detect which target apps are installed. -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"

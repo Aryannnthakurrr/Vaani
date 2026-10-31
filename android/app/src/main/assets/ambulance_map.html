@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html, body, #map { margin: 0; height: 100%; background: #e8e8e8; }
+  .amb { font-size: 30px; line-height: 30px; text-align: center; transition: transform .2s linear; }
+  .pin { font-size: 30px; line-height: 30px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+// Called from EmergencyScreen.kt: init(), setRoute(), move(). Positions animate over each 1 s update.
+const map = L.map("map", {zoomControl: false, attributionControl: true}).setView([20.6, 78.9], 5);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
+let patient = null, route = [], ahead = null, done = null, amb = null, current = null, anim = null, fitted = false;
+
+function init(lat, lng) {
+  if (patient) return;
+  patient = L.marker([lat, lng], {icon: L.divIcon({className: "pin", html: "📍", iconSize: [30, 30], iconAnchor: [15, 30]})}).addTo(map);
+  map.setView([lat, lng], 15);
+}
+
+function setRoute(points) {
+  route = points;
+  if (ahead) ahead.remove();
+  if (done) done.remove();
+  done = L.polyline([], {color: "#9e9e9e", weight: 6}).addTo(map);
+  ahead = L.polyline(route, {color: "#d32f2f", weight: 6}).addTo(map);
+  if (!fitted && route.length) { map.fitBounds(ahead.getBounds(), {padding: [30, 30]}); fitted = true; }
+}
+
+function nearestIndex(lat, lng) {
+  let best = 0, bestD = Infinity;
+  route.forEach((p, i) => { const d = (p[0] - lat) ** 2 + (p[1] - lng) ** 2; if (d < bestD) { bestD = d; best = i; } });
+  return best;
+}
+
+function place(lat, lng, heading) {
+  if (!amb) {
+    amb = L.marker([lat, lng], {icon: L.divIcon({className: "", html: '<div class="amb" id="ambIcon">🚑</div>', iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(map);
+  }
+  amb.setLatLng([lat, lng]);
+  const el = document.getElementById("ambIcon");
+  // The emoji faces left; turn it so it points along the heading (0° = north).
+  if (el) el.style.transform = `rotate(${heading - 270}deg)`;
+  if (route.length) {
+    const i = nearestIndex(lat, lng);
+    done.setLatLngs(route.slice(0, i + 1).concat([[lat, lng]]));
+    ahead.setLatLngs([[lat, lng]].concat(route.slice(i + 1)));
+  }
+}
+
+function move(lat, lng, heading) {
+  if (!current) { current = [lat, lng]; place(lat, lng, heading); return; }
+  const from = current.slice(), start = performance.now();
+  if (anim) cancelAnimationFrame(anim);
+  const step = (t) => {
+    const k = Math.min(1, (t - start) / 1000);
+    const p = [from[0] + (lat - from[0]) * k, from[1] + (lng - from[1]) * k];
+    current = p;
+    place(p[0], p[1], heading);
+    if (k < 1) anim = requestAnimationFrame(step);
+  };
+  anim = requestAnimationFrame(step);
+}
+</script>
+</body>
+</html>

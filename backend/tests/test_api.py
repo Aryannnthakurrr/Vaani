@@ -46,6 +46,8 @@ def test_intent_routes_cab_in_users_style(client, utterance: str, style: str) ->
         ("kal subah safai wali bulao", "book_house_help"),
         ("Pronto se bartan wali bula do", "book_house_help"),
         ("I need someone to do the laundry", "book_house_help"),
+        ("Papa ki tabiyat theek nahi, seene mein dard hai", "care"),
+        ("call an ambulance", "care"),
         ("what are my updates today", "digest"),
         ("namaste", "chitchat"),
         ("check the expiry on this packet", "camera"),

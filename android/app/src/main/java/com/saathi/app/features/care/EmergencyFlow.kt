@@ -1,0 +1,198 @@
+package com.saathi.app.features.care
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import com.saathi.app.core.AppContainer
+import com.saathi.app.core.voice.tr
+import com.saathi.app.util.SaathiJson
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+
+enum class EmergencyPhase { COUNTDOWN, DISPATCHING, TRACKING, ARRIVED, NO_UNITS, CANCELLED }
+
+data class EmergencyUi(
+    val phase: EmergencyPhase = EmergencyPhase.COUNTDOWN,
+    val secondsLeft: Int = 30,
+    val brief: String = "",
+    val topCondition: String? = null,
+    val askLandmark: Boolean = false,
+    val status: String? = null,
+    val vehicle: String? = null,
+    val crew: String? = null,
+    val etaSec: Int? = null,
+    val distanceM: Int? = null,
+    val patient: Pair<Double, Double>? = null,
+    val route: List<List<Double>> = emptyList(),
+    val ambulance: Triple<Double, Double, Double>? = null, // lat, lng, heading
+    val timeline: List<String> = emptyList(),
+    val message: String? = null,
+)
+
+/**
+ * Path A on the phone (workflow §4): siren and countdown, auto-dispatch at zero, live tracking, "I'm OK" and the
+ * call-108 fallback. The backend talks to the dispatch API; this only polls the care session's events.
+ */
+class EmergencyFlow(private val c: AppContainer) {
+    private val client = CareClient { c.settings.current }
+    private val siren = Siren(c.context)
+    private val _ui = MutableStateFlow(EmergencyUi())
+    val ui: StateFlow<EmergencyUi> = _ui
+    private var countdown: Job? = null
+    private var tracker: Job? = null
+    private var session: String? = null
+    private var note: IntakeNote? = null
+    @Volatile var landmark: String = ""
+
+    private val style get() = c.settings.current.replyStyle
+    private fun s(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
+
+    /** Called by [CareFlow] when the intake routes to A; opens the emergency screen and starts the countdown. */
+    suspend fun start(sessionId: String, intake: IntakeNote, location: CareLocation?) {
+        session = sessionId
+        note = intake
+        val lowAccuracy = location == null || (location.accuracyM ?: 1_000.0) > 100.0
+        _ui.value = EmergencyUi(
+            brief = intake.patientBrief.ifBlank { intake.chiefComplaint },
+            topCondition = intake.possibleConditions.firstOrNull()?.name,
+            askLandmark = lowAccuracy,
+            patient = location?.let { it.lat to it.lng },
+        )
+        c.assistant.openScreen("emergency")
+        val seconds = runCatching { client.emergencyAlert(sessionId) }.getOrDefault(30)
+        _ui.update { it.copy(secondsLeft = seconds) }
+        c.speaker.say(s("This could be an emergency. I will send an ambulance in $seconds seconds. Tap I'm OK to cancel.",
+            "यह इमरजेंसी हो सकती है। मैं $seconds सेकंड में एम्बुलेंस भेज दूँगा। रोकने के लिए 'मैं ठीक हूँ' दबाइए।",
+            "Yeh emergency ho sakti hai. Main $seconds second mein ambulance bhej dunga. Rokne ke liye 'I'm OK' dabaiye."), style)
+        siren.start()
+        countdown = c.scope.launch {
+            while (_ui.value.secondsLeft > 0 && _ui.value.phase == EmergencyPhase.COUNTDOWN) {
+                delay(1_000)
+                _ui.update { it.copy(secondsLeft = it.secondsLeft - 1) }
+            }
+            if (_ui.value.phase == EmergencyPhase.COUNTDOWN) dispatch("countdown")
+        }
+    }
+
+    fun sendNow() {
+        countdown?.cancel()
+        c.scope.launch { dispatch("send_now") }
+    }
+
+    private suspend fun dispatch(trigger: String) {
+        val id = session ?: return
+        siren.stop()
+        _ui.update { it.copy(phase = EmergencyPhase.DISPATCHING) }
+        runCatching { client.emergencyDispatch(id, trigger, landmark.ifBlank { null }) }
+            .onFailure { return noUnits(it.message) }
+        c.speaker.say(s("I am requesting an ambulance now. Stay where you are.", "मैं अभी एम्बुलेंस बुला रहा हूँ। जहाँ हैं वहीं रहिए।",
+            "Main abhi ambulance bula raha hoon. Jahan hain wahin rahiye."), style)
+        tracker?.cancel()
+        tracker = c.scope.launch { track(id) }
+    }
+
+    private suspend fun track(id: String) {
+        var seq = 0
+        while (true) {
+            val events = runCatching { client.events(id, seq) }.getOrDefault(emptyList())
+            for (e in events) {
+                seq = e.seq
+                when (e.type) {
+                    "dispatch_failed" -> return noUnits(null)
+                    "dispatch_status" -> onStatus(e.data)
+                    "ambulance_location" -> onLocation(e.data)
+                }
+            }
+            if (_ui.value.phase in setOf(EmergencyPhase.CANCELLED, EmergencyPhase.NO_UNITS) || _ui.value.status == "COMPLETED") return
+            delay(1_000)
+        }
+    }
+
+    private suspend fun onStatus(d: JsonObject) {
+        val status = d.str("status") ?: return
+        val vehicle = (d["vehicle"] as? JsonObject)?.str("registration")
+        val crew = (d["crew"] as? JsonObject)?.let { crew ->
+            listOfNotNull(crew["driver"]?.jsonObject?.str("name"), crew["paramedic"]?.jsonObject?.str("name")).joinToString(", ")
+        }
+        val route = d["route"]?.takeIf { it is kotlinx.serialization.json.JsonArray }?.let {
+            runCatching { SaathiJson.decodeFromJsonElement(ListSerializer(ListSerializer(Double.serializer())), it) }.getOrNull()
+        }
+        _ui.update {
+            it.copy(
+                phase = when (status) {
+                    "CANCELLED" -> EmergencyPhase.CANCELLED
+                    "RECEIVED", "ASSIGNED", "EN_ROUTE" -> EmergencyPhase.TRACKING
+                    else -> EmergencyPhase.ARRIVED // at the scene or later: help is with the patient
+                },
+                status = status, vehicle = vehicle ?: it.vehicle, crew = crew?.ifBlank { null } ?: it.crew,
+                route = route ?: it.route, timeline = (it.timeline + status).distinct(),
+            )
+        }
+        when (status) {
+            "ASSIGNED" -> c.speaker.say(s("An ambulance is assigned${vehicle?.let { ", number $it" }.orEmpty()}.",
+                "एम्बुलेंस मिल गई है${vehicle?.let { ", नंबर $it" }.orEmpty()}।", "Ambulance mil gayi hai${vehicle?.let { ", number $it" }.orEmpty()}."), style)
+            "EN_ROUTE" -> c.speaker.say(s("The ambulance is on the way.", "एम्बुलेंस रास्ते में है।", "Ambulance raste mein hai."), style)
+            "ARRIVED_AT_SCENE" -> c.speaker.say(s("The ambulance has arrived.", "एम्बुलेंस पहुँच गई है।", "Ambulance pahunch gayi hai."), style)
+            "EN_ROUTE_TO_HOSPITAL" -> c.speaker.say(s("The ambulance is taking the patient to the hospital.",
+                "एम्बुलेंस मरीज़ को अस्पताल ले जा रही है।", "Ambulance patient ko hospital le ja rahi hai."), style)
+            "ARRIVED_AT_HOSPITAL" -> c.speaker.say(s("The patient has reached the hospital.", "मरीज़ अस्पताल पहुँच गए हैं।",
+                "Patient hospital pahunch gaye hain."), style)
+        }
+    }
+
+    private fun onLocation(d: JsonObject) {
+        val lat = d.num("lat") ?: return
+        val lng = d.num("lng") ?: return
+        _ui.update {
+            it.copy(ambulance = Triple(lat, lng, d.num("heading") ?: 0.0),
+                etaSec = (d["eta_sec"] as? JsonPrimitive)?.intOrNull, distanceM = (d["distance_m"] as? JsonPrimitive)?.intOrNull)
+        }
+    }
+
+    private suspend fun noUnits(detail: String?) {
+        siren.stop()
+        _ui.update { it.copy(phase = EmergencyPhase.NO_UNITS, message = detail) }
+        c.speaker.say(s("No ambulance is available. Call 108 now. I have alerted your family.",
+            "कोई एम्बुलेंस उपलब्ध नहीं है। अभी 108 पर फ़ोन कीजिए। मैंने आपके परिवार को बता दिया है।",
+            "Koi ambulance available nahi hai. Abhi 108 par call kijiye. Maine aapke family ko bata diya hai."), style)
+    }
+
+    /** "I'm OK": stops the siren, cancels any dispatch, then offers to find a doctor instead (Path B). */
+    fun imOk() {
+        countdown?.cancel()
+        tracker?.cancel()
+        siren.stop()
+        val id = session ?: return
+        _ui.update { it.copy(phase = EmergencyPhase.CANCELLED) }
+        c.scope.launch {
+            runCatching { client.emergencyCancel(id) }
+            note?.let { c.care.offerDoctor(id, it) }
+        }
+    }
+
+    fun call108(context: Context) {
+        siren.stop()
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:108")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    fun close() {
+        countdown?.cancel()
+        tracker?.cancel()
+        siren.stop()
+    }
+
+    private fun JsonObject.str(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull
+    private fun JsonObject.num(key: String) = (this[key] as? JsonPrimitive)?.doubleOrNull
+}

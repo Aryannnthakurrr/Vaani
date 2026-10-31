@@ -9,6 +9,13 @@ from app.schemas import IntentResponse, Slots
 # Order matters: the first intent whose pattern matches wins.
 _INTENTS: list[tuple[str, str]] = [
     (
+        # First: symptoms and emergencies go to triage (docs/CARE.md), even "call an ambulance".
+        "care",
+        r"not feeling well|feeling (?:unwell|sick)|\bunwell\b|tabiy?at|tabeeyat|bimaa?r|\bsymptom|\bambulance\b|"
+        r"emergency|\bdard\b|\bpain\b|bukhaa?r|\bfever\b|chakkar|dizzy|vomit|\bulti\b|breathless|saa?ns|"
+        r"बीमार|तबीयत|दर्द|बुखार|एम्बुलेंस|चक्कर",
+    ),
+    (
         "chitchat",
         r"^(hi|hello|hey|namaste|namaskar|नमस्ते|नमस्कार)[\s!.,]*(saathi|साथी)?[\s!.,]*$|"
         r"\bhow are you\b|\bkaise ho\b|\bkaisi ho\b|कैसे हो|कैसी हो",
@@ -84,6 +91,11 @@ _REPLIES: dict[str, dict[str, str]] = {
         "en": "Okay, I will find {product_en} online.",
         "hi": "ठीक है, मैं {product_hi} ऑनलाइन ढूँढता हूँ।",
         "hinglish": "Theek hai, main {product_hl} online dhoondhta hoon.",
+    },
+    "care": {
+        "en": "I'm sorry you're not well. Let me ask a few questions.",
+        "hi": "आपकी तबीयत ठीक नहीं, मुझे दुख है। मैं कुछ सवाल पूछूँगा।",
+        "hinglish": "Aapki tabiyat theek nahi, mujhe afsos hai. Main kuch sawaal poochunga.",
     },
     "book_doctor": {
         "en": "Okay, I will look for a {spec} for you.",

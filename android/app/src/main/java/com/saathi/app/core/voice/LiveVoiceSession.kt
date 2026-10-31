@@ -186,7 +186,7 @@ class LiveVoiceSession(
     private fun startPlayer() {
         val rate = 24_000
         val track = AudioTrack.Builder()
-            .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
+            .setAudioAttributes(AudioAttributes.Builder().setUsage(com.saathi.app.core.voice.Speaker.SPEECH_USAGE)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(rate)
                 .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())

@@ -21,7 +21,8 @@ run both test suites after the rebase, and never force-push.
 | Area | Main files | Recent work |
 |---|---|---|
 | Agent loop, safety, tasks, deep links | `android/.../core/agent`, `features/tasks` (`TaskSpec`, `PlaceFinder`) | Uber opens by deep link with a geocoded drop-off; house help moved to Pronto (no deep link, the agent taps through, stops at the cart) |
-| Clinic calls | `backend/app/routers/telephony.py`, `app/telephony/bolna.py`, `scripts/bolna_agent.py` | **Calls go through a Bolna voice agent** (`BOLNA_API_KEY`, `BOLNA_AGENT_ID`); the backend starts and polls the call, so no webhook is needed. Twilio is only the fallback when Bolna is not configured |
+| Clinic calls | `backend/app/routers/telephony.py`, `app/telephony/bolna.py`, `scripts/bolna_agent.py` | **Calls go through a Bolna voice agent** (`BOLNA_API_KEY`, `BOLNA_AGENT_ID`); the backend starts and polls the call, so no webhook is needed. Twilio was removed on 2026-10-31 |
+| Symptom-to-care | `backend/app/care/`, `routers/care.py`, `mock_ambulance/`, `android/.../features/care/` | Voice intake → red-flag safety net → emergency (siren, countdown, mock ambulance with live map) or hospital search → 3 parallel Bolna calls → spoken recommendation → booking call → phone calendar. See [CARE.md](CARE.md) |
 | Self-learning skills | `backend/app/skills/` | Routines learned from agent runs; Python intent recogniser written by `gemini-4-argon`, run in the Docker sandbox |
 | Realtime voice | `backend/app/routers/voice_live.py`, `android/.../core/voice/Live*.kt` | `WS /live/voice` relays to Gemini Live with phone-side tools |
 | Memory | `backend/app/memory/` | Meko (Yugabyte) over MCP with a local SQLite fallback |
@@ -39,7 +40,7 @@ Elder speaks ──► app (LiveVoiceSession) ──WS /live/voice──► back
                      └──POST /agent/outcome──► learning: 3 good runs → compile → family approves → shadow → active
 ```
 
-- **Models:** every ID lives only in `backend/app/models.yaml`. Agent steps use `gemini-3.5-flash`; Gemini is often
+- **Models:** every ID lives only in `backend/app/models.yaml`. Agent steps use `gemini-3.5-flash-lite` first (flash as fallback, and for repeated failures); Gemini is often
   slow from Google's side (8–17 s measured), so timeouts are generous and the phone has local fallbacks.
 - **Speech:** the conversation uses Gemini Live. Turn-based speech inside a task uses Sarvam first and Gemini second
   (Sarvam is 2–3× faster). The safety clips are bundled in the APK and never wait for the network.
@@ -51,7 +52,8 @@ Elder speaks ──► app (LiveVoiceSession) ──WS /live/voice──► back
 ## Environment variables (names only; values live in the git-ignored `.env`)
 
 `GEMINI_API_KEY`, `SARVAM_API_KEY`, `SAFE_BROWSING_API_KEY`, `TELEGRAM_BOT_TOKEN`, `DASHBOARD_SECRET`,
-`PUBLIC_BASE_URL`, `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `TWILIO_*` (fallback only), `CALL_ALLOWED_NUMBERS`,
+`PUBLIC_BASE_URL`, `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `BOLNA_INQUIRY_AGENT_ID`, `BOLNA_BOOKING_AGENT_ID`, `CALL_ALLOWED_NUMBERS`,
+`GOOGLE_MAPS_API_KEY`, `MASK_HOSPITAL_NUMBERS`, `DEMO_MODE`, `DEMO_PHONE_MAP`,
 `MEKO_API_KEY`, `SKILL_MIN_RUNS`, `SKILL_SHADOW_AGREE`, `SKILL_MIN_SAMPLES`, `SKILL_AUTO_APPROVE`,
 `SKILL_SANDBOX` (`docker` on the server, `subprocess` on a laptop, `off`). See `.env.example`.
 

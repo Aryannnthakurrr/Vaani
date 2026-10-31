@@ -8,6 +8,8 @@ from datetime import date
 from functools import cached_property
 from typing import Any
 
+from pydantic import BaseModel
+
 from app.config import Settings
 from app.llm import clinic_call, rules_intent, rules_messages
 from app.llm.clinic_call import ClinicCallRequest, ClinicCallTurn
@@ -89,3 +91,8 @@ class MockClient:
 
     async def clinic_call_turn(self, req: ClinicCallRequest) -> ClinicCallTurn:
         return clinic_call.mock_turn(req)
+
+    async def structured(
+        self, route: str, system: str, prompt: str, schema: type[BaseModel]
+    ) -> BaseModel | None:
+        return None  # every structured route has a rule-based fallback

@@ -88,7 +88,8 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
 - `POST /voice/tts` `{text, reply_style, voice?}` → `audio/wav` bytes. Sarvam first, Gemini fallback; `503` when unavailable.
 - `POST /intent` `{utterance, reply_style?}` →
   `{intent, slots: {destination?, product?, specialty?, doctor?, area?, time?, date?, service?, quantity?}, reply_style, reply_text}`.
-  `intent` ∈ `book_cab | book_house_help | shop_online | book_doctor | guide | camera | digest | settings | chitchat | unknown`.
+  `intent` ∈ `book_cab | book_house_help | shop_online | book_doctor | care | guide | camera | digest | settings | chitchat | unknown`.
+  `care` (symptoms, feeling unwell, ambulance) is checked first and starts the symptom-to-care flow.
 - `POST /agent/step` `{goal, mode: ACT|GUIDE, language, screen_text, package, screenshot_b64?, history: [{action, reason}], task_hint?, run_id?}` → action.
   `run_id` (≤ 64 chars, one per task run) lets the backend learn routines from ACT runs (docs/LEARNING.md §1).
 - `POST /agent/outcome` `{run_id, outcome: done|failed|cancelled, task_hint?, goal?, message?}` → `{ok}`. Sent once
@@ -115,6 +116,12 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
 - `POST /welfare/test` `{device_id}` → `{text, sent: [chat_id], logged: true}`.
 - `POST /scam/notify_family` `{device_id, summary}` → `{sent: [chat_id], logged: true}`.
 - `GET /health` → `{status, mock, sarvam, telegram, models}`.
+
+## Symptom-to-care — `/care/...`
+
+Routes, request bodies and the event list are in [CARE.md](CARE.md) ("API and events"); both sides follow that table.
+Wire models: `backend/app/care/models.py` ↔ `android/.../features/care/CareModels.kt`. The phone polls
+`GET /care/{id}/events?after=N`; events are `{seq, type, at, data}` and `seq` only grows.
 
 ## Safety phrase table — `android/app/src/main/assets/phrases.json`
 

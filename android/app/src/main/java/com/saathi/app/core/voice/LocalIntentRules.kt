@@ -10,6 +10,9 @@ import com.saathi.app.core.net.Slots
  */
 object LocalIntentRules {
     private val RULES: List<Pair<String, List<String>>> = listOf(
+        // First: symptoms and emergencies go to triage (features/care); "doctor" alone books Practo.
+        "care" to listOf("not feeling well", "unwell", "tabiyat", "tabiat", "bimar", "bimaar", "symptom", "ambulance", "emergency",
+            "dard", "pain", "bukhar", "fever", "chakkar", "dizzy", "vomit", "ulti", "saans", "बीमार", "तबीयत", "दर्द", "बुखार", "एम्बुलेंस"),
         "camera" to listOf("camera", "scan", "expiry", "mrp", "packet", "label", "कैमरा", "एक्सपायरी", "padh ke", "dekh ke batao"),
         // Sending a photo/message is taught step by step, never done for the user.
         "guide" to listOf("show me", "how do i", "how to", "teach", "kaise", "sikhao", "dikhao", "bhejni", "bhejna", "bhejun",
@@ -88,6 +91,8 @@ object LocalIntentRules {
             tr(style, "Okay, I'll book a cab to $it.", "ठीक है, $it के लिए कैब बुक करता हूँ।", "Theek hai, $it ke liye cab book karta hoon.")
         } ?: tr(style, "Okay, let's book a cab. Where do you want to go?", "ठीक है, कैब बुक करते हैं। कहाँ जाना है?", "Theek hai, cab book karte hain. Kahan jaana hai?")
         "book_house_help" -> tr(style, "Okay, let's book house help.", "ठीक है, घर की सफाई बुक करते हैं।", "Theek hai, house help book karte hain.")
+        "care" -> tr(style, "I'm sorry you're not well. Let me ask a few questions.", "आपकी तबीयत ठीक नहीं, मुझे दुख है। मैं कुछ सवाल पूछूँगा।",
+            "Aapki tabiyat theek nahi, mujhe afsos hai. Main kuch sawaal poochunga.")
         "book_doctor" -> tr(style, "Okay, let's find a doctor.", "ठीक है, डॉक्टर ढूँढते हैं।", "Theek hai, doctor dhoondhte hain.")
         "shop_online" -> tr(style, "Okay, let's order ${slots.product ?: "it"}.", "ठीक है, ${slots.product ?: "सामान"} मंगाते हैं।", "Theek hai, ${slots.product ?: "saamaan"} mangwate hain.")
         "guide" -> tr(style, "Sure, I'll show you step by step.", "ज़रूर, मैं आपको एक-एक कदम दिखाता हूँ।", "Zaroor, main aapko step by step dikhata hoon.")

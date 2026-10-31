@@ -68,7 +68,7 @@ private val DEMO_APPOINTMENT = Appointment(doctor = "Dr. Anil Mehta", clinic = "
 private enum class CallMode { CHOOSE, PRACTICE, REAL }
 
 /**
- * AI call to the clinic (SPEC §7.7). **Real**: the backend phones the clinic through Twilio and runs the
+ * AI call to the clinic (SPEC §7.7). **Real**: a Bolna voice agent phones the clinic for the backend and runs the
  * conversation; the app shows the live transcript and can hang up. **Practice**: a teammate types the clinic's
  * side. Either way the summary is spoken to the user in their language and saved in the activity log.
  */
@@ -120,8 +120,8 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
         scope.launch {
             val started = runCatching { realCalls.start(RealCallStart(patient, appt, style.wire)) }
             started.onFailure { e ->
-                // Setup problems (no Twilio number, no public server) are for the family/developer, not the user.
-                val setup = e.message.orEmpty().let { "TWILIO" in it || "PUBLIC_BASE_URL" in it || "ALLOWED" in it }
+                // Setup problems (Bolna not configured, number not allowed) are for the family/developer, not the user.
+                val setup = e.message.orEmpty().let { "BOLNA" in it || "ALLOWED" in it }
                 error = if (setup) {
                     tr(style, "Phone calls are not set up yet. Ask your family to finish setup, or try a practice call.",
                         "फ़ोन कॉल अभी सेट नहीं हुई है। परिवार से सेटअप पूरा करवाइए, या अभ्यास कॉल आज़माइए।",
@@ -204,6 +204,9 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
                         BigButton(tr(style, "🎭 Practice call (type the clinic's side)", "🎭 अभ्यास कॉल (क्लिनिक की बात लिखें)",
                             "🎭 Practice call (clinic ki baat likhein)"), { mode = CallMode.PRACTICE; practiceTurn() },
                             color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                        // Symptom-to-care: describe symptoms, then Saathi finds and calls hospitals (or sends help).
+                        BigButton(tr(style, "🩺 Not feeling well? Find care", "🩺 तबीयत ठीक नहीं? इलाज ढूँढें", "🩺 Tabiyat theek nahi? Ilaaj dhoondhein"),
+                            { c.care.start(); c.assistant.openScreen("care") }, color = Danger)
                     }
                     mode == CallMode.REAL -> BigButton(tr(style, "End call", "कॉल काटें", "Call kaatein"), {
                         scope.launch {
@@ -236,7 +239,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
     }
 }
 
-/** Twilio call statuses in plain words. */
+/** Call statuses in plain words. */
 private fun statusText(status: String, style: ReplyStyle): String = when (status) {
     "starting", "dialing", "queued", "initiated" -> tr(style, "Dialling…", "फ़ोन लगा रहे हैं…", "Phone laga rahe hain…")
     "ringing" -> tr(style, "Ringing…", "घंटी बज रही है…", "Ghanti baj rahi hai…")
