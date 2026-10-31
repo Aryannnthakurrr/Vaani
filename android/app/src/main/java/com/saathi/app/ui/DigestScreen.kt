@@ -34,6 +34,7 @@ import java.util.Date
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DigestScreen(container: AppContainer, onBack: () -> Unit, onCallClinic: () -> Unit = {}) {
+    SecureWindow() // private data: no screenshots or screen recording
     val settings by container.settings.flow.collectAsState()
     val style = settings.replyStyle
     val rows by container.db.messages().recent().collectAsState(initial = emptyList())

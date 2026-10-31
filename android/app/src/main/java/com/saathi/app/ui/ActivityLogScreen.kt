@@ -25,6 +25,7 @@ private fun isQuestion(actionJson: String): Boolean =
 /** Everything the agent did, in plain language, so family can review it (SPEC §6.8). */
 @Composable
 fun ActivityLogScreen(c: AppContainer, onBack: () -> Unit) {
+    SecureWindow() // private data: no screenshots or screen recording
     val rows by c.db.actionLog().recent().collectAsState(initial = emptyList())
     val style = c.settings.flow.collectAsState().value.replyStyle
     val fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)

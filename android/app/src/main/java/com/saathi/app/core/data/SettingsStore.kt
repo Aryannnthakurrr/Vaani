@@ -37,6 +37,8 @@ data class Settings(
     val replayMode: Boolean = false,
     val notifyFamilyOnScam: Boolean = true,
     val deviceId: String = "",
+    /** Install secret for the backend (core/net/DeviceAuth.kt). */
+    val deviceKey: String = "",
     val lastUnlockTs: Long = 0,
     val lastHeartbeatTs: Long = 0,
     val lastStyle: String = "en",
@@ -66,6 +68,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
         val replay = booleanPreferencesKey("replay_mode")
         val notifyFamily = booleanPreferencesKey("notify_family_scam")
         val deviceId = stringPreferencesKey("device_id")
+        val deviceKey = stringPreferencesKey("device_key")
         val lastUnlock = longPreferencesKey("last_unlock")
         val lastHeartbeat = longPreferencesKey("last_heartbeat")
         val lastStyle = stringPreferencesKey("last_style")
@@ -88,6 +91,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
         replayMode = p[K.replay] ?: false,
         notifyFamilyOnScam = p[K.notifyFamily] ?: true,
         deviceId = p[K.deviceId] ?: "",
+        deviceKey = p[K.deviceKey] ?: "",
         lastUnlockTs = p[K.lastUnlock] ?: 0,
         lastHeartbeatTs = p[K.lastHeartbeat] ?: 0,
         lastStyle = p[K.lastStyle] ?: "en",
@@ -105,9 +109,12 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
     val current: Settings
         get() = flow.value.takeIf { it.deviceId.isNotEmpty() } ?: runBlocking { flow.first { it.deviceId.isNotEmpty() } }
 
-    /** Creates the device UUID on first launch. */
+    /** Creates the device UUID and its install secret on first launch (existing installs get a secret on update). */
     suspend fun ensureDeviceId() {
-        context.dataStore.edit { if (it[K.deviceId].isNullOrEmpty()) it[K.deviceId] = UUID.randomUUID().toString() }
+        context.dataStore.edit {
+            if (it[K.deviceKey].isNullOrEmpty()) it[K.deviceKey] = com.saathi.app.core.net.DeviceAuth.newKey()
+            if (it[K.deviceId].isNullOrEmpty()) it[K.deviceId] = UUID.randomUUID().toString()
+        }
     }
 
     suspend fun setLanguage(v: String) = context.dataStore.edit { it[K.language] = v }

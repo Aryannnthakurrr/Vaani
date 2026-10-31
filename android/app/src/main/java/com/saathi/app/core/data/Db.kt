@@ -77,6 +77,8 @@ interface MessageDao {
     @Insert suspend fun insert(m: MessageEntity): Long
     @Update suspend fun update(m: MessageEntity)
     @Query("SELECT * FROM messages WHERE id = :id") suspend fun byId(id: Long): MessageEntity?
+    /** Same 30-day keep as the private-values vault: old messages are no use to the digest and only add risk. */
+    @Query("DELETE FROM messages WHERE receivedAt < :before") suspend fun purgeBefore(before: Long)
     @Query("SELECT * FROM messages ORDER BY receivedAt DESC LIMIT 200") fun recent(): Flow<List<MessageEntity>>
     @Query("SELECT * FROM messages WHERE receivedAt >= :since ORDER BY receivedAt DESC") suspend fun since(since: Long): List<MessageEntity>
     @Query("SELECT * FROM messages WHERE classified = 0 AND fromContact = 0 AND isOtp = 0") suspend fun unclassified(): List<MessageEntity>

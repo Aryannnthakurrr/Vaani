@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config import Settings, get_settings
+from app.deps import device_ok
 from app.llm.prompts import render
 from app.schemas import ProductCard
 
@@ -173,7 +174,9 @@ async def _forward(ws: WebSocket, session: Any, resp: Any, types: Any) -> None:
 @router.websocket("/live/camera")
 async def live_camera(ws: WebSocket) -> None:
     device = ws.query_params.get("device", "")
-    if len(device) < 8:
+    if not device_ok(
+        device, ws.headers.get("x-saathi-key")
+    ):  # the key rides in a header, never the logged URL
         await ws.close(code=4401)
         return
     await ws.accept()

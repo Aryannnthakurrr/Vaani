@@ -19,7 +19,9 @@ object Redactor {
     private val aadhaar = Regex("(?<!\\d)\\d{4}[ ]?\\d{4}[ ]?\\d{4}(?!\\d)")
     private val accountKeyword = Regex("(?i)(a/c|acct|account|खाता|khata)")
     private val accountDigits = Regex("(?<![\\dP#])[Xx*]*\\d{9,18}(?!\\d)")
-    private val upi = Regex("\\b([A-Za-z0-9._-]{2,})@([A-Za-z]{2,})\\b(?![.@\\w])")
+    // A full stop right after the handle ends the sentence ("…to ramesh.k@okaxis."); only ".com"-style domains are email.
+    private val upi = Regex("\\b([A-Za-z0-9._-]{2,})@([A-Za-z]{2,})\\b(?![@\\w]|\\.\\w)")
+    private val longDigits = Regex("(?<![\\dP#])\\d{11,18}(?!\\d)")
 
     /** Returns the OTP code when [text] looks like an OTP message, else null. Uses the raw text. */
     fun detectOtp(text: String): String? {
@@ -35,8 +37,13 @@ object Redactor {
     fun redact(text: String): Redacted {
         detectOtp(text)?.let { return Redacted(OTP_PLACEHOLDER, isOtp = true, otpCode = it) }
         var out = maskCards(text)
-        out = maskAccounts(out)
+        val masked = mutableSetOf<String>()
+        out = maskAccounts(out, masked)
+        // The same account number elsewhere in the text (a link's ?acc=, a repeat) goes too, and so does any 11–18
+        // digit run: longer than a phone number, so an account, card or reference number.
+        for (number in masked) out = out.replace(number, "XX" + number.takeLast(4))
         out = aadhaar.replace(out) { m -> "XXXX XXXX " + m.value.filter(Char::isDigit).takeLast(4) }
+        out = longDigits.replace(out) { m -> "XX" + m.value.takeLast(4) }
         out = upi.replace(out) { m -> m.groupValues[1].first() + "***@" + m.groupValues[2] }
         return Redacted(out, isOtp = false)
     }
@@ -47,7 +54,7 @@ object Redactor {
     }
 
     /** Masks 9–18 digit numbers that sit within ~30 chars after an account keyword. */
-    private fun maskAccounts(text: String): String {
+    private fun maskAccounts(text: String, masked: MutableSet<String> = mutableSetOf()): String {
         var out = text
         for (kw in accountKeyword.findAll(text).toList().asReversed()) {
             val start = kw.range.last + 1
@@ -55,8 +62,10 @@ object Redactor {
             while (end < out.length && out[end].isDigit()) end++ // never split a number at the window edge
             if (start >= end) continue
             val window = out.substring(start, end)
-            val masked = accountDigits.replace(window) { m -> "XX" + m.value.filter(Char::isDigit).takeLast(4) }
-            out = out.substring(0, start) + masked + out.substring(end)
+            val replaced = accountDigits.replace(window) { m ->
+                m.value.filter(Char::isDigit).also { masked += it }.let { "XX" + it.takeLast(4) }
+            }
+            out = out.substring(0, start) + replaced + out.substring(end)
         }
         return out
     }

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from datetime import datetime
 
 from app.care import calls, extract, places, ranking
@@ -53,11 +54,28 @@ async def cancel_session(session: CareSession) -> int:
             state.done = True
     if tasks:
         session.emit("care_cancelled", stopped=len(tasks))
+    session.forget_transcripts()
     return len(tasks)
 
 
 def _tr(style: str, en: str, hi: str, hinglish: str) -> str:
     return {"hi": hi, "hinglish": hinglish}.get(style, en)
+
+
+_AGE = re.compile(
+    r"\b(\d{1,3})\s*(?:([MFO])\b|[- ]?(?:years?(?:[- ]old)?|yrs?|y/o|saal|sal|वर्ष|साल)(?![a-z]))", re.IGNORECASE
+)
+
+
+def age_band(brief: str) -> str:
+    """The inquiry call hears "70s, F, knee pain", never the exact age; the booking call gets the exact one."""
+
+    def band(m: re.Match[str]) -> str:
+        age = int(m.group(1))
+        decade = f"{age // 10 * 10}s" if age >= 20 else "under 20"
+        return f"{decade}, {m.group(2).upper()}" if m.group(2) else decade
+
+    return _AGE.sub(band, brief)
 
 
 def _public(h: Hospital) -> dict[str, object]:
@@ -152,7 +170,7 @@ async def _inquire(session: CareSession, llm: LLMClient, hospital: Hospital) -> 
         "hospital_name": hospital.name,
         "specialty": note.specialty,
         "timeframe": note.appointment_timeframe or "the next 48 hours",
-        "patient_brief": note.patient_brief or note.chief_complaint,
+        "patient_brief": age_band(note.patient_brief or note.chief_complaint),
         "needs": ", ".join([f"{note.specialty} consultation", *note.required_facilities]),
         "language": session.style,
         # References the agent passes back to check_with_patient, so the answer reaches the right phone and hospital.
@@ -277,6 +295,8 @@ async def _book(session: CareSession, llm: LLMClient, hospital_id: str, slot: Sl
     elif booking.status == "failed" and session.booking_attempts >= 2:
         details["call_yourself"] = hospital.phone  # §10: two failed booking calls → the user calls
     await session.emit_text("booking_status", hospital_id=hospital_id, **details)
+    if booking.status == "confirmed":
+        session.forget_transcripts()
 
 
 async def _booked_on_the_call(
@@ -298,6 +318,7 @@ async def _booked_on_the_call(
     details = booking.model_dump()
     details["calendar"] = _calendar_event(session, hospital, booking, slot)
     await session.emit_text("booking_status", hospital_id=hospital.id, during_inquiry=True, **details)
+    session.forget_transcripts()
     return True
 
 

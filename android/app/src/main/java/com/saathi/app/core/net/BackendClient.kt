@@ -1,5 +1,6 @@
 package com.saathi.app.core.net
 
+import com.saathi.app.core.privacy.Redactor
 import com.saathi.app.util.SaathiJson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,7 +24,7 @@ class BackendClient(
     base: OkHttpClient = OkHttpClient(),
 ) : BackendApi {
 
-    private val http = base.newBuilder().addInterceptor(UsageMeter.interceptor).connectTimeout(4, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
+    private val http = base.newBuilder().addInterceptor(UsageMeter.interceptor).addInterceptor(DeviceAuth.interceptor).connectTimeout(4, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
     private val sttHttp = http.newBuilder().callTimeout(4, TimeUnit.SECONDS).build()
     // Upper bound only; Speaker applies a length-scaled deadline (4–12 s) per sentence.
     private val ttsHttp = http.newBuilder().callTimeout(13, TimeUnit.SECONDS).build()
@@ -80,18 +81,21 @@ class BackendClient(
     override suspend fun agentStep(request: AgentStepRequest): AgentAction =
         post("/agent/step", request, AgentStepRequest.serializer(), AgentAction.serializer(), agentHttp)
 
+    // Message, email and screen text is redacted here, at the last step before the network, whatever the caller did
+    // first: OTPs, account and card numbers and the like never leave the phone (core/privacy/Redactor.kt).
     override suspend fun classify(items: List<ClassifyItem>): List<ClassifyResult> =
-        post("/classify/messages", ClassifyRequest(items), ClassifyRequest.serializer(), ClassifyResponse.serializer())
-            .results
+        post("/classify/messages", ClassifyRequest(items.map { it.copy(text = Redactor.redact(it.text).text) }),
+            ClassifyRequest.serializer(), ClassifyResponse.serializer()).results
 
     override suspend fun extractAppointment(screenText: String): Appointment =
-        post("/extract/appointment", ExtractRequest(screenText), ExtractRequest.serializer(), Appointment.serializer())
+        post("/extract/appointment", ExtractRequest(Redactor.redact(screenText).text), ExtractRequest.serializer(), Appointment.serializer())
 
     override suspend fun digest(request: DigestRequest): String =
-        post("/digest", request, DigestRequest.serializer(), DigestResponse.serializer()).text
+        post("/digest", request.copy(items = request.items.map { it.copy(summary = Redactor.redact(it.summary).text) }),
+            DigestRequest.serializer(), DigestResponse.serializer()).text
 
     override suspend fun checkLink(url: String): LinkVerdict =
-        post("/links/check", LinkCheckRequest(url), LinkCheckRequest.serializer(), LinkVerdict.serializer(), linkHttp)
+        post("/links/check", LinkCheckRequest(LinkPrivacy.strip(url)), LinkCheckRequest.serializer(), LinkVerdict.serializer(), linkHttp)
 
     override suspend fun heartbeat(ts: Long) {
         post("/welfare/heartbeat", Heartbeat(deviceId(), ts), Heartbeat.serializer(), serializer<JsonObject>())

@@ -1,0 +1,270 @@
+{
+  "generated": "2026-11-01 02:57",
+  "log_leaks": {
+    "requests": 32,
+    "values_checked": 26,
+    "log_lines": 83,
+    "leaked": [],
+    "routes": {
+      "/classify/messages": 200,
+      "/intent": 200,
+      "/extract/appointment": 200,
+      "/digest": 200,
+      "/links/check": 200,
+      "/agent/step": 200,
+      "/care": 200,
+      "/welfare/config": 200,
+      "/scam/notify_family": 200
+    },
+    "routes_served": 9
+  },
+  "device_auth": {
+    "attempts": 16,
+    "blocked": 16,
+    "owner_still_works": true,
+    "rows": [
+      {
+        "attack": "device id without its key",
+        "route": "GET /usage",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "device id without its key",
+        "route": "GET /care",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "device id without its key",
+        "route": "POST /welfare/config",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "device id without its key",
+        "route": "POST /scam/notify_family",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "device id with a guessed key",
+        "route": "GET /usage",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "device id with a guessed key",
+        "route": "GET /care",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "device id with a guessed key",
+        "route": "POST /welfare/config",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "device id with a guessed key",
+        "route": "POST /scam/notify_family",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "no credentials",
+        "route": "GET /usage",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "no credentials",
+        "route": "GET /care",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "no credentials",
+        "route": "POST /welfare/config",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "no credentials",
+        "route": "POST /scam/notify_family",
+        "status": 401,
+        "blocked": true
+      },
+      {
+        "attack": "another real device",
+        "route": "GET /usage",
+        "status": 200,
+        "blocked": true
+      },
+      {
+        "attack": "another real device",
+        "route": "GET /care",
+        "status": 404,
+        "blocked": true
+      },
+      {
+        "attack": "another real device",
+        "route": "POST /welfare/config",
+        "status": 403,
+        "blocked": true
+      },
+      {
+        "attack": "another real device",
+        "route": "POST /scam/notify_family",
+        "status": 403,
+        "blocked": true
+      }
+    ]
+  },
+  "links": {
+    "cases": 10,
+    "match_expected": 10,
+    "with_personal_parts": 8,
+    "chars_before": 437,
+    "chars_after": 265,
+    "examples": [
+      {
+        "in": "https://x.in/reset?token=abc123",
+        "out": "https://x.in/reset"
+      },
+      {
+        "in": "https://bank-kyc.co/verify?acc=1234567890&otp=4455#step2",
+        "out": "https://bank-kyc.co/verify"
+      },
+      {
+        "in": "https://bit.ly/3xYz9Ab",
+        "out": "https://bit.ly/3xYz9Ab"
+      },
+      {
+        "in": "https://pay.example.com/p/8f14e45fceea167a5a36dedd4bea2543/confirm",
+        "out": "https://pay.example.com/p/…/confirm"
+      }
+    ]
+  },
+  "family_alerts": {
+    "scam_summary_numbers_left": [],
+    "emergency_alert_has_symptoms": false,
+    "scam_example": "Caller asked her to send … to a/c… and share OTP… from +…"
+  },
+  "retention": {
+    "care_session_hours": 6.0,
+    "screen_task_steps_days": 7.0,
+    "call_transcripts": "dropped once booked or cancelled",
+    "phone_messages_days": 30,
+    "phone_vault_days": 30,
+    "forget_everything": "DELETE /memory"
+  },
+  "phone": {
+    "messages": 12,
+    "secrets": 22,
+    "leaked": 0,
+    "sent_to_cloud": 9,
+    "kept_on_phone": 3,
+    "bytes_in": 1088,
+    "bytes_out": 792,
+    "cases": [
+      {
+        "id": "sms_debit",
+        "source": "sms",
+        "left_phone": true,
+        "secrets": 3,
+        "leaked": 0,
+        "tokens": 2
+      },
+      {
+        "id": "sms_otp",
+        "source": "sms",
+        "left_phone": false,
+        "secrets": 1,
+        "leaked": 0,
+        "tokens": 1
+      },
+      {
+        "id": "sms_card",
+        "source": "sms",
+        "left_phone": true,
+        "secrets": 2,
+        "leaked": 0,
+        "tokens": 2
+      },
+      {
+        "id": "sms_aadhaar",
+        "source": "sms",
+        "left_phone": true,
+        "secrets": 1,
+        "leaked": 0,
+        "tokens": 1
+      },
+      {
+        "id": "sms_pan",
+        "source": "sms",
+        "left_phone": true,
+        "secrets": 3,
+        "leaked": 0,
+        "tokens": 3
+      },
+      {
+        "id": "sms_credit",
+        "source": "sms",
+        "left_phone": true,
+        "secrets": 3,
+        "leaked": 0,
+        "tokens": 3
+      },
+      {
+        "id": "email_statement",
+        "source": "email",
+        "left_phone": true,
+        "secrets": 2,
+        "leaked": 0,
+        "tokens": 2
+      },
+      {
+        "id": "email_otp",
+        "source": "email",
+        "left_phone": false,
+        "secrets": 1,
+        "leaked": 0,
+        "tokens": 1
+      },
+      {
+        "id": "email_refund",
+        "source": "email",
+        "left_phone": true,
+        "secrets": 2,
+        "leaked": 0,
+        "tokens": 1
+      },
+      {
+        "id": "wa_contact",
+        "source": "whatsapp",
+        "left_phone": false,
+        "secrets": 2,
+        "leaked": 0,
+        "tokens": 1
+      },
+      {
+        "id": "wa_scam",
+        "source": "whatsapp",
+        "left_phone": true,
+        "secrets": 1,
+        "leaked": 0,
+        "tokens": 0
+      },
+      {
+        "id": "sms_kyc_scam",
+        "source": "sms",
+        "left_phone": true,
+        "secrets": 1,
+        "leaked": 0,
+        "tokens": 1
+      }
+    ]
+  },
+  "seconds": 2.4
+}

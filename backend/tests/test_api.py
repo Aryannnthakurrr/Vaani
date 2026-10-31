@@ -222,7 +222,10 @@ def test_welfare_flow_logs_alert_without_telegram(client) -> None:
 
 
 def test_welfare_test_unknown_device_404(client) -> None:
-    assert client.post("/welfare/test", json={"device_id": "nobody-123"}, headers=HEADERS).status_code == 404
+    unconfigured = {"X-Saathi-Device": "nobody-123"}
+    assert client.post("/welfare/test", json={"device_id": "nobody-123"}, headers=unconfigured).status_code == 404
+    # another device's id is refused before anything is looked up
+    assert client.post("/welfare/test", json={"device_id": "nobody-123"}, headers=HEADERS).status_code == 403
 
 
 def test_live_camera_mock_sends_card_after_two_frames(client) -> None:

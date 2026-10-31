@@ -103,6 +103,29 @@ def normalize_url(raw: str) -> str:
     return urlunsplit((parts.scheme.lower(), netloc, parts.path or "/", parts.query, ""))
 
 
+_UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+_HEX = re.compile(r"^[0-9a-f]{16,}$", re.IGNORECASE)
+_DIGITS = re.compile(r"\d{9,}")
+
+
+def _token_like(segment: str) -> bool:
+    """Reset tokens, file ids, UUIDs, phone or account numbers: personal, and no help in judging the site."""
+    if _UUID.match(segment) or _HEX.match(segment) or _DIGITS.search(segment):
+        return True
+    return len(segment) >= 20 and any(c.isdigit() for c in segment) and any(c.isalpha() for c in segment)
+
+
+def privacy_url(raw: str) -> str:
+    """What a link check may see: scheme, host and path, without the query, fragment, login or token-like parts.
+
+    Short-link codes (bit.ly/3xYz9Ab) are kept, so redirects can still be followed. Twin of the phone's
+    LinkPrivacy.strip; both are tested on fixtures/link_privacy/cases.json.
+    """
+    parts = urlsplit(normalize_url(raw))
+    path = "/".join("…" if seg and _token_like(seg) else seg for seg in parts.path.split("/"))
+    return urlunsplit((parts.scheme, parts.netloc, path or "/", "", ""))
+
+
 def url_hash(url: str) -> str:
     return hashlib.sha256(normalize_url(url).encode()).hexdigest()
 

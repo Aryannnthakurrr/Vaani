@@ -92,6 +92,16 @@ class CareSession:
         assert isinstance(romanized, dict)
         self.emit(kind, **romanized)
 
+    def forget_transcripts(self) -> None:
+        """Once booked or cancelled, what the hospitals said is no longer needed: call transcripts are dropped from the
+        calls and from the event log (the extracted slot, doctor and fee stay)."""
+        with self._lock:
+            for call in self.calls.values():
+                call.transcript = []
+            for e in self.events:
+                if e["type"] == "call_transcript":
+                    e["data"] = {k: v for k, v in e["data"].items() if k != "text"} | {"text": ""}
+
     def events_after(self, seq: int) -> list[dict[str, Any]]:
         with self._lock:
             return [e for e in self.events if e["seq"] > seq]

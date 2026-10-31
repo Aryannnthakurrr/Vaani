@@ -5,7 +5,12 @@ If you change something here, change both sides.
 
 ## Auth
 
-Every request except `GET /health` carries `X-Saathi-Device: <device uuid>`. Missing → `401`.
+Every request except `GET /health` carries `X-Saathi-Device: <device uuid>` and `X-Saathi-Key: <install secret>`
+(32 random bytes, base64url, made on first launch; WebSockets send it as a handshake header, never in the URL). The
+server keeps the first key a device sends as a SHA-256 hash and then requires it: missing or wrong → `401`. A device
+that has never sent a key is accepted on its id alone (older builds). Routes that also name a device in the body
+(`/welfare/*`, `/scam/notify_family`) must name the caller's own → otherwise `403`. `DELETE /memory` forgets every
+remembered fact and saved task step for the caller → `{facts, steps}`.
 The camera WebSocket passes it as a query parameter: `/live/camera?device=<uuid>`.
 
 ## Reply style
@@ -101,7 +106,7 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
   `amount` is a number in rupees, `due_date` is `YYYY-MM-DD`.
 - `POST /extract/appointment` `{screen_text}` → `{doctor, clinic, address, phone, start_iso, fee}`.
 - `POST /digest` `{items: [{category, merchant?, amount?, due_date?, summary}], reply_style, user_name?, today?}` → `{text}`.
-- `POST /links/check` `{url}` → `{url, final_url, verdict: safe|suspicious|dangerous, reason_simple, reason_simple_hi, signals: [str], cached}`.
+- `POST /links/check` `{url}` (the phone sends it stripped: no query, fragment, login or token-like path parts; the server strips again) → `{url, final_url, verdict: safe|suspicious|dangerous, reason_simple, reason_simple_hi, signals: [str], cached}`.
 - `WS /live/camera?device=…` client → `{"type":"config","reply_style":…}`, `{"type":"frame","jpeg_b64":…}`,
   `{"type":"audio","pcm_b64":…}` (16 kHz s16le mono), `{"type":"end"}`.
   server → `{"type":"product_card","card":{name, mrp, quantity, expiry_iso, expiry_status: ok|soon|expired|unknown, confidence}}`,

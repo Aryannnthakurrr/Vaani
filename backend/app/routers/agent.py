@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 
 from app.deps import llm_dep, require_device
 from app.llm.base import LLMClient
-from app.memory import get_memory
+from app.memory import TOPICS, get_memory
 from app.schemas import (
     GUIDE_ACTIONS,
     AgentStepRequest,
@@ -132,3 +132,15 @@ async def extract_appointment(req: ExtractRequest, llm: LLMClient = Depends(llm_
 @router.post("/digest", response_model=DigestResponse)
 async def digest(req: DigestRequest, llm: LLMClient = Depends(llm_dep)) -> DigestResponse:
     return DigestResponse(text=await llm.digest(req))
+
+
+@router.delete("/memory")
+async def forget_everything(device: str = Depends(require_device)) -> dict[str, int]:
+    """ "Forget everything": every remembered fact on every topic, and the saved screen-task steps."""
+    memory = get_memory()
+    facts = 0
+    for topic in TOPICS:
+        facts += int(await memory.forget(device, topic) or 0)
+    local = getattr(memory, "local", memory)
+    steps = await local.forget_steps(device) if hasattr(local, "forget_steps") else 0
+    return {"facts": facts, "steps": steps}

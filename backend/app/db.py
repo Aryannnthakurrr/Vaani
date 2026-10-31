@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS devices (
     last_heartbeat_ms INTEGER,
     last_alert_date TEXT
 );
+CREATE TABLE IF NOT EXISTS device_keys (
+    device_id TEXT PRIMARY KEY,
+    key_hash TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     device_id TEXT NOT NULL,
@@ -92,6 +96,24 @@ class Database:
     def mark_alerted(self, device_id: str, day_iso: str) -> None:
         with self._conn() as conn:
             conn.execute("UPDATE devices SET last_alert_date = ? WHERE device_id = ?", (day_iso, device_id))
+
+    def device_key_hash(self, device_id: str) -> str | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT key_hash FROM device_keys WHERE device_id = ?", (device_id,)
+            ).fetchone()
+        return row["key_hash"] if row else None
+
+    def claim_device_key(self, device_id: str, key_hash: str) -> str:
+        """First key wins (trust on first use); returns the stored hash."""
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO device_keys (device_id, key_hash) VALUES (?, ?)", (device_id, key_hash)
+            )
+            row = conn.execute(
+                "SELECT key_hash FROM device_keys WHERE device_id = ?", (device_id,)
+            ).fetchone()
+        return str(row["key_hash"])
 
     def get_device(self, device_id: str) -> Device | None:
         with self._conn() as conn:

@@ -44,6 +44,9 @@ def norm_key(key: str | None) -> str:
     return " ".join((key or "").lower().split())[:40]
 
 
+STEP_KEEP_S = 7 * 24 * 3600
+
+
 class LocalMemory:
     name = "local"
 
@@ -95,6 +98,11 @@ class LocalMemory:
                 cur = c.execute("DELETE FROM memories WHERE device_id=? AND kind=?", (device, kind))
             return cur.rowcount
 
+    async def forget_steps(self, device: str) -> int:
+        """Every saved screen-task step for this device (part of "forget everything")."""
+        with self._conn() as c:
+            return c.execute("DELETE FROM agent_state WHERE device_id=?", (device,)).rowcount
+
     async def facts(self, device: str, topics: Iterable[str] | None = None) -> list[tuple[str, str]]:
         """(topic, text) for the elder's facts, newest first, optionally only some topics."""
         wanted = set(topics) if topics is not None else None
@@ -107,6 +115,8 @@ class LocalMemory:
 
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         with self._conn() as c:
+            # Step history only helps resume a task; nothing needs it after a week.
+            c.execute("DELETE FROM agent_state WHERE ts < ?", (time.time() - STEP_KEEP_S,))
             seq = c.execute("SELECT COUNT(*) FROM agent_state WHERE run_id=?", (run_id,)).fetchone()[0]
             c.execute(
                 "INSERT INTO agent_state VALUES (?,?,?,?,?,?)",
