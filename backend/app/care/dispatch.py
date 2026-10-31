@@ -44,9 +44,9 @@ def api_key() -> str:
 
 def countdown_sec() -> int:
     try:
-        return max(5, int(os.environ.get("EMERGENCY_COUNTDOWN_SEC", "30")))
+        return max(5, int(os.environ.get("EMERGENCY_COUNTDOWN_SEC", "15")))
     except ValueError:
-        return 30
+        return 15
 
 
 def priority(acuity: int) -> str:
@@ -199,7 +199,9 @@ async def cancel(session: CareSession, notify: Notify | None = None, reason: str
         session.emit("emergency_cancelled", dispatched=False)
         return True
     if notify is not None:  # the family was told an ambulance was requested; tell them it was called off
-        await notify("Saathi update: they said they are OK and the ambulance was cancelled. Please call them to check.")
+        await notify(
+            "Saathi update: they said they are OK and the ambulance was cancelled. Please call them to check."
+        )
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             resp = await client.post(f"{base_url()}/v1/dispatch/{dispatch_id}/cancel", json={"reason": reason},

@@ -288,3 +288,32 @@ def test_real_hospitals_are_masked_to_the_test_number(monkeypatch) -> None:
     monkeypatch.setenv("MASK_HOSPITAL_NUMBERS", "0")
     ranking.assign_call_numbers(real, ranking.mask_numbers())
     assert real[0].call_phone == "+911140000000" and not calls.allowed(real[0].call_phone)
+
+
+@pytest.mark.parametrize(
+    ("text", "flag"),
+    [
+        ("Sudden worst headache of my life", "thunderclap_headache"),
+        ("bukhar hai aur gardan akad gayi hai", "meningitis_signs"),
+        ("papa ko khoon ki ulti hui", "gi_bleed"),
+        ("diabetic hai, sugar 45 aa raha hai, paseena aa raha", "low_sugar"),
+        ("Dadi bathroom mein gir gayi aur uth nahi pa rahi", "fall_cant_get_up"),
+    ],
+)
+def test_combination_red_flags(text: str, flag: str) -> None:
+    assert flag in safety_net.scan(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "पसीना नहीं है, सीने में दर्द है",  # Devanagari negation of the warning sign
+        "koi chest pain nahi, bas thakaan",  # negation without "hai"
+        "Not unconscious, just tired",
+        "sugar is 140 today, feeling fine",
+        "mild headache since morning",
+        "fever and cough",
+    ],
+)
+def test_negations_and_ordinary_complaints_stay_quiet(text: str) -> None:
+    assert safety_net.scan(text) == []

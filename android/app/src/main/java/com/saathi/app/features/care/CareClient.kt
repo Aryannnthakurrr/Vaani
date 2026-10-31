@@ -44,7 +44,7 @@ class CareClient(private val settings: () -> Settings) {
     /** Starts the siren countdown on the server side; returns its length in seconds. */
     suspend fun emergencyAlert(session: String): Int =
         (send("/care/$session/emergency/alert", "{}", JsonObject.serializer())["countdown_sec"] as? JsonPrimitive)
-            ?.content?.toIntOrNull() ?: 30
+            ?.content?.toIntOrNull() ?: 15
 
     suspend fun emergencyDispatch(session: String, trigger: String, landmark: String?) {
         val body = buildMap {

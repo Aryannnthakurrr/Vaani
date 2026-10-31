@@ -21,6 +21,11 @@ LABELS = {
     "poisoning": "Poisoning or overdose",
     "pregnancy_emergency": "Pregnancy emergency",
     "self_harm": "Self-harm risk",
+    "thunderclap_headache": "Sudden worst-ever headache",
+    "meningitis_signs": "Fever with stiff neck or confusion",
+    "gi_bleed": "Vomiting blood or black stools",
+    "low_sugar": "Very low blood sugar",
+    "fall_cant_get_up": "Fall and unable to get up",
 }
 
 _I = re.IGNORECASE
@@ -60,10 +65,61 @@ _PREGNANCY_DANGER = (
     r"pet (?:mein|me) (?:bahut |tez )?dard"
 )
 
-_NEG_BEFORE = re.compile(r"\b(?:no|without|denies|never had|not having)\s+(?:\w+\s+){0,2}?(\w+)", _I)
-_NEG_AFTER = re.compile(r"(\w+)\s+(?:\w+\s+)?(?:nahi|nahin|नहीं)\s+(?:hai|ho raha|hua|हो रहा|है)", _I)
-# Words a negation may cancel. "Not breathing" and "can't breathe" stay positive on purpose.
-_NEGATABLE = re.compile(r"sweat|paseen|पसीना|vomit|ulti|chest|seene|arm|jaw|back|bleed|khoon|fit|seizure", _I)
+# A "word" here is any run of non-space characters: Python's \w misses Devanagari vowel signs (पसीना).
+_W = r"[^\s,.!?।]+"
+_NEG_BEFORE = re.compile(
+    rf"\b(?:no|not|never|without|denies|never had|not having|koi)\s+(?:{_W}\s+){{0,2}}?({_W})", _I
+)
+_NEG_AFTER = re.compile(
+    rf"({_W})\s+(?:{_W}\s+)?(?:nahi|nahin|nai|नहीं|ना)(?:\s+(?:hai|ho raha|hua|हो रहा|है))?(?=[\s,.!?।]|$)", _I
+)
+# Words a negation may cancel. "Not breathing", "can't breathe" and "hosh nahi" stay positive on purpose.
+_NEGATABLE = re.compile(
+    r"sweat|paseen|पसीना|vomit|ulti|उल्टी|chest|seene|सीने|छाती|arm|haath|हाथ|jaw|back|peeth|पीठ|bleed|khoon|खून|"
+    r"fit|seizure|daura|दौरा|fever|bukhar|बुखार|stiff|akad|blood|sugar|headache|faint|unconscious|confus",
+    _I,
+)
+
+
+def _has(pattern: str, t: str) -> bool:
+    return re.search(pattern, t, _I) is not None
+
+
+_FEVER = r"fever|bukhaa?r|बुखार|temperature|tez taap"
+# Dangerous only in combination (or when said a particular way), so no single keyword above catches them.
+_COMBOS = {
+    "thunderclap_headache": lambda t: _has(
+        r"(worst|sudden|severe|achanak|bahut tez|tez)\s+(?:\S+\s+){0,2}?(headache|sir ?dard|sar ?dard|सिर ?दर्द)|"
+        r"thunderclap|(headache|sir ?dard|sar ?dard).{0,30}(worst|never had|life ka sabse)",
+        t,
+    ),
+    "meningitis_signs": lambda t: (
+        _has(_FEVER, t)
+        and _has(
+            r"stiff neck|neck (?:is )?stiff|gardan (?:akad|jakad)|गर्दन (?:अकड़|जकड़)|confus|ulta pulta|rash that",
+            t,
+        )
+    ),
+    "gi_bleed": lambda t: _has(
+        r"vomit(?:ing|ed)? blood|blood in (?:the )?vomit|khoon ki ulti|ulti mein khoon|खून की उल्टी|"
+        r"black (?:stool|poo|potty)|kaal[ai] (?:potty|latrine|tatti)|काली टट्टी",
+        t,
+    ),
+    "low_sugar": lambda t: (
+        _has(r"\bsugar\b|शुगर|diabet|glucose", t)
+        and _has(
+            r"\b(?:low|gir gay|bahut kam|very low|shaking|kaanp|sweat|paseen|confus|behosh)|\b(?:[1-5]\d)\b",
+            t,
+        )
+    ),
+    "fall_cant_get_up": lambda t: (
+        _has(r"\bfell\b|\bfall(?:en)?\b|gir (?:gay|gai|pad)|गिर", t)
+        and _has(
+            r"can'?t (?:get|stand) up|cannot (?:get|stand) up|unable to (?:get|stand)|uth nahi|उठ नहीं|hip|kulha",
+            t,
+        )
+    ),
+}
 
 
 def _strip_negations(text: str) -> str:
@@ -81,6 +137,7 @@ def scan(text: str) -> list[str]:
         found.append("cardiac_pattern")
     if re.search(_PREGNANT, t, _I) and re.search(_PREGNANCY_DANGER, t, _I):
         found.append("pregnancy_emergency")
+    found += [flag for flag, test in _COMBOS.items() if test(t)]
     return sorted(set(found), key=list(LABELS).index)
 
 

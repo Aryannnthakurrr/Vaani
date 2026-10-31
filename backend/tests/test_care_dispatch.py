@@ -147,4 +147,6 @@ def test_no_location_fails_honestly(client) -> None:  # noqa: ANN001
     assert out == {"started": False, "reason": "NO_LOCATION"}
     events = client.get(f"/care/{sid}/events", headers=HEADERS).json()["events"]
     (failed,) = [e for e in events if e["type"] == "dispatch_failed"]
-    assert failed["data"]["family_alerted"] is False  # no family contacts: the app must not claim it told them
+    assert (
+        failed["data"]["family_alerted"] is False
+    )  # no family contacts: the app must not claim it told them

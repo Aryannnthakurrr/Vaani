@@ -134,7 +134,9 @@ async def emergency_dispatch(
     if session.emergency.get("dispatch_id") or session.emergency.get("dispatching"):
         return {"started": False, "dispatch_id": session.emergency.get("dispatch_id")}
     notify = _family_notifier(settings, db, device)
-    if session.location is None:  # no address to send: the app shows "call 108" from the dispatch_failed event
+    if (
+        session.location is None
+    ):  # no address to send: the app shows "call 108" from the dispatch_failed event
         await dispatch._failed(session, notify, "NO_LOCATION", "Location is needed to send an ambulance.")
         return {"started": False, "reason": "NO_LOCATION"}
     session.emergency.pop("cancelled", None)

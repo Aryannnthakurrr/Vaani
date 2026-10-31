@@ -154,7 +154,11 @@ def extract_slots(text: str, intent: str) -> Slots:
     if intent == "book_cab":
         m = (
             # "want to go to X": skip "go to" / "reach" so the destination is X, not "go to X".
-            re.search(r"\bto (?:the )?(?:go (?:to )?(?:the )?|reach (?:the )?|get to (?:the )?)?(.+?)(?:\s+(?:please|now|by .+))?$", low, re.IGNORECASE)
+            re.search(
+                r"\bto (?:the )?(?:go (?:to )?(?:the )?|reach (?:the )?|get to (?:the )?)?(.+?)(?:\s+(?:please|now|by .+))?$",
+                low,
+                re.IGNORECASE,
+            )
             or re.search(r"^(.+?)\s+(?:jaana|jana|jaane|jaani|jane)\b", low, re.IGNORECASE)
             or re.search(r"^(.+?)\s+ke\s+liye\b", low, re.IGNORECASE)
             or re.search(r"^(.+?)\s+(?:जाना|जाने|के लिए|तक)", low)

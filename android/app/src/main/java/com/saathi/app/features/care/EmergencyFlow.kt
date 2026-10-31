@@ -26,7 +26,7 @@ enum class EmergencyPhase { COUNTDOWN, DISPATCHING, TRACKING, ARRIVED, NO_UNITS,
 
 data class EmergencyUi(
     val phase: EmergencyPhase = EmergencyPhase.COUNTDOWN,
-    val secondsLeft: Int = 30,
+    val secondsLeft: Int = 15,
     val brief: String = "",
     val topCondition: String? = null,
     val askLandmark: Boolean = false,
@@ -74,7 +74,7 @@ class EmergencyFlow(private val c: AppContainer) {
             patient = location?.let { it.lat to it.lng },
         )
         c.assistant.openScreen("emergency")
-        val seconds = runCatching { client.emergencyAlert(sessionId) }.getOrDefault(30)
+        val seconds = runCatching { client.emergencyAlert(sessionId) }.getOrDefault(15)
         _ui.update { it.copy(secondsLeft = seconds) }
         c.speaker.say(s("This could be an emergency. I will send an ambulance in $seconds seconds. Say I'm OK, or tap it, to cancel.",
             "यह इमरजेंसी हो सकती है। मैं $seconds सेकंड में एम्बुलेंस भेज दूँगा। रोकने के लिए 'मैं ठीक हूँ' बोलिए या दबाइए।",
