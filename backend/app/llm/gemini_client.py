@@ -271,7 +271,7 @@ class GeminiClient:
         system = render(
             "clinic_call",
             patient=req.patient_name,
-            appointment=req.appointment.model_dump_json(exclude_none=True),
+            task=clinic_call.task_brief(req),
             reply_style=req.reply_style,
         )
         lines = [f"{line.role.upper()}: {line.text}" for line in req.transcript] or ["(the clinic picked up)"]

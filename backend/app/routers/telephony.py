@@ -12,8 +12,9 @@ Safety: Twilio webhooks must carry a valid X-Twilio-Signature; outbound calls on
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -22,7 +23,8 @@ from app.config import Settings
 from app.deps import llm_dep, require_device, settings_dep
 from app.llm import clinic_call
 from app.llm.base import LLMClient
-from app.llm.clinic_call import CallLine, ClinicCallRequest, ClinicCallTurn, summary_for_user
+from app.llm.clinic_call import CallLine, ClinicCallRequest, ClinicCallTurn, ClinicPlace
+from app.memory import name_for
 from app.schemas import Appointment
 from app.telephony import twiml
 from app.telephony.bolna import BolnaConfig, BolnaError, apply_execution, get_execution, stop_call
@@ -44,18 +46,37 @@ XML = "application/xml"
 
 
 class RealCallStart(BaseModel):
-    patient_name: str = Field(default="the patient", max_length=60)
-    appointment: Appointment
+    patient_name: str | None = Field(default=None, max_length=60)  # empty: the elder's stored name is used
+    appointment: Appointment = Field(default_factory=Appointment)
     reply_style: Literal["en", "hi", "hinglish"] = "en"
     to: str | None = Field(default=None, max_length=20)
+    purpose: Literal["confirm", "book"] = "confirm"
+    reason: str | None = Field(default=None, max_length=200)
+    needs: list[Annotated[str, Field(max_length=40)]] = Field(default_factory=list, max_length=8)
+    window: str | None = Field(default=None, max_length=80)
+    place: ClinicPlace | None = None
+    # A booking is irreversible, so the app sends this only after the elder said or tapped yes to the summary.
+    user_confirmed: bool = False
 
 
 def _public_url(settings: Settings, path: str) -> str:
     return settings.public_base_url.rstrip("/") + path
 
 
-@router.post("/calls/clinic/real/start", dependencies=[Depends(require_device)])
-def start_real_call(body: RealCallStart, settings: Settings = Depends(settings_dep)) -> dict[str, object]:
+@router.post("/calls/clinic/real/start")
+async def start_real_call(
+    body: RealCallStart, settings: Settings = Depends(settings_dep), device: str = Depends(require_device)
+) -> dict[str, object]:
+    patient = await name_for(device, body.patient_name)
+    if body.purpose == "book":
+        if not body.user_confirmed:
+            raise HTTPException(409, "A booking call needs the user's yes first.")
+        if not patient:
+            raise HTTPException(
+                422, "The clinic needs the patient's name to book. Ask the user for it first."
+            )
+        if not body.reason:
+            raise HTTPException(422, "A booking call needs the reason for the visit.")
     cfg = TwilioConfig.from_env()
     bolna = BolnaConfig.from_env()
     if not bolna.ready:
@@ -73,16 +94,22 @@ def start_real_call(body: RealCallStart, settings: Settings = Depends(settings_d
     if not to or to not in cfg.allowed_numbers:
         raise HTTPException(403, "That number is not in CALL_ALLOWED_NUMBERS.")
     request = ClinicCallRequest(
-        patient_name=body.patient_name,
+        patient_name=patient or "the patient",
         appointment=body.appointment,
         reply_style=body.reply_style,
         transcript=[],
+        purpose=body.purpose,
+        reason=body.reason,
+        needs=body.needs,
+        window=body.window,
+        place=body.place,
     )
     session = SESSIONS.create(request, to)
     if bolna.ready:
-        return _start_bolna(session, bolna)
+        return await asyncio.to_thread(_start_bolna, session, bolna)  # the HTTP calls block
     try:
-        session.call_sid = place_call(
+        session.call_sid = await asyncio.to_thread(
+            place_call,
             cfg,
             to,
             _public_url(settings, f"/calls/twilio/voice?s={session.id}"),
@@ -98,12 +125,13 @@ def start_real_call(body: RealCallStart, settings: Settings = Depends(settings_d
 
 
 def _start_bolna(session: CallSession, cfg: BolnaConfig) -> dict[str, object]:
-    appt = session.request.appointment
+    req = session.request
     user_data = {
-        "patient_name": session.request.patient_name,
-        "doctor": appt.doctor or "the doctor",
-        "clinic": appt.clinic or "the clinic",
-        "appointment_time": clinic_call.when(appt),
+        "patient_name": req.patient_name,
+        "doctor": req.appointment.doctor or "the doctor",
+        "clinic": clinic_call.clinic_name(req),
+        "appointment_time": clinic_call.when(req.appointment),
+        "task": clinic_call.task_brief(req),  # purpose, reason, needed facilities, time window
     }
     session.provider = "bolna"
     try:
@@ -145,7 +173,7 @@ def real_call_hangup(session_id: str) -> dict[str, object]:
             log.warning("hang up failed: %s", exc)
     session.done = True
     session.status = "completed"
-    session.summary = session.summary or "You ended the call before the appointment was confirmed."
+    session.summary = session.summary or clinic_call.call_note("user_ended", session.request.reply_style)
     return session.snapshot()
 
 
@@ -185,9 +213,13 @@ async def _next_line(session: CallSession, llm: LLMClient, settings: Settings) -
     session.waiting_minutes = (
         turn.waiting_minutes if turn.waiting_minutes is not None else session.waiting_minutes
     )
+    session.has_facilities = (
+        turn.has_facilities if turn.has_facilities is not None else session.has_facilities
+    )
+    session.slot = turn.slot or session.slot
     if turn.done:
         session.done = True
-        session.summary = turn.summary or summary_for_user(req, session.confirmed, session.waiting_minutes)
+        session.summary = turn.summary or session.closing_summary()
         return twiml.say_and_hang_up(turn.say)
     return twiml.say_and_listen(
         turn.say, _public_url(settings, f"/calls/twilio/gather?s={session.id}"), hints=_hints(session)
@@ -213,10 +245,10 @@ async def twilio_gather(
         session.empty_replies += 1
         if session.empty_replies >= 2:
             session.done = True
+            heard_enough = session.confirmed or session.slot or session.has_facilities is False
+            style = session.request.reply_style
             session.summary = (
-                summary_for_user(session.request, True, session.waiting_minutes)
-                if session.confirmed
-                else "I called the clinic but could not hear them clearly. Please try again later."
+                session.closing_summary() if heard_enough else clinic_call.call_note("not_heard", style)
             )
             return Response(
                 twiml.say_and_hang_up("Sorry, I cannot hear you. I will call again later. Goodbye."),
@@ -244,12 +276,11 @@ async def twilio_status(request: Request, settings: Settings = Depends(settings_
         session.status = status
     if status in {"busy", "no-answer", "failed", "canceled"} and not session.done:
         session.done = True
-        session.summary = {
-            "busy": "The clinic's line was busy. Please try again in a few minutes.",
-            "no-answer": "Nobody at the clinic picked up. Please try again later.",
-        }.get(status, "The call could not be connected.")
+        session.summary = clinic_call.call_note(
+            status if status in {"busy", "no-answer"} else "not_connected", session.request.reply_style
+        )
     if status == "completed" and not session.done:
         session.done = True
-        session.summary = session.summary or "The call ended before the appointment was confirmed."
+        session.summary = session.summary or clinic_call.call_note("ended_early", session.request.reply_style)
     log.info("clinic call session=%s status=%s", session.id, status)
     return Response(status_code=204)

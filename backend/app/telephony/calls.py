@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from app.llm.clinic_call import CallLine, ClinicCallRequest
+from app.llm.clinic_call import CallLine, ClinicCallRequest, booking_summary, summary_for_user
 
 MAX_AGENT_TURNS = 6
 SESSION_TTL_S = 3600
@@ -71,12 +71,20 @@ class CallSession:
     done: bool = False
     confirmed: bool | None = None
     waiting_minutes: int | None = None
+    has_facilities: bool | None = None  # booking calls: can the clinic handle what the patient needs
+    slot: str | None = None  # booking calls: the time the clinic offered
     summary: str | None = None
     error: str | None = None
     created: float = field(default_factory=time.time)
 
     def agent_turns(self) -> int:
         return sum(1 for line in self.transcript if line.role == "agent")
+
+    def closing_summary(self) -> str:
+        """What the patient hears when the call ends, in their style, for either kind of call."""
+        if self.request.purpose == "book":
+            return booking_summary(self.request, self.has_facilities, self.slot)
+        return summary_for_user(self.request, self.confirmed, self.waiting_minutes)
 
     def snapshot(self) -> dict[str, object]:
         return {
@@ -86,6 +94,9 @@ class CallSession:
             "transcript": [line.model_dump() for line in self.transcript],
             "confirmed": self.confirmed,
             "waiting_minutes": self.waiting_minutes,
+            "purpose": self.request.purpose,
+            "has_facilities": self.has_facilities,
+            "slot": self.slot,
             "summary": self.summary,
             "error": self.error,
         }
