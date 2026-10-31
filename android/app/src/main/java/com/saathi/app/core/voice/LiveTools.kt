@@ -94,6 +94,23 @@ class LiveTools(
                 LiveToolArgs.ok("opened" to screen)
             }
         }
+        // Private values: the cloud only ever sees a token; the phone speaks the value with the mic off.
+        "latest_otp" -> {
+            val otp = c.db.privateValues().latestOtp(System.currentTimeMillis() - OTP_FRESH_MS)
+            if (otp == null) LiveToolArgs.ok("found" to "false")
+            else LiveToolArgs.ok("found" to "true", "token" to "⟦P${otp.id}⟧", "from" to otp.sender,
+                "minutes_ago" to ((System.currentTimeMillis() - otp.createdAt) / 60_000).toString())
+        }
+        "speak_private" -> {
+            val id = (args["token"] as? JsonPrimitive)?.content?.let { com.saathi.app.core.privacy.PrivateSpans.TOKEN.find(it) }
+                ?.groupValues?.get(1)?.toLongOrNull()
+            if (id == null) LiveToolArgs.error("missing token")
+            else {
+                val style = c.settings.current.replyStyle
+                val spoken = session()?.handOffPrivately { c.speaker.sayPrivate(id, style) } ?: c.speaker.sayPrivate(id, style)
+                LiveToolArgs.ok("spoken" to spoken.toString())
+            }
+        }
         "read_updates" -> {
             val items = c.digest.items()
             buildJsonObject {
@@ -131,5 +148,7 @@ class LiveTools(
 
     private companion object {
         const val MAX_ITEMS = 15
+        /** An OTP older than this is no use to anyone; it is not offered. */
+        const val OTP_FRESH_MS = 30 * 60_000L
     }
 }

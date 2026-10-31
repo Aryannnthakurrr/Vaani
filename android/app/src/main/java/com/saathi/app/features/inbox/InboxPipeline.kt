@@ -31,6 +31,16 @@ object InboxPipeline {
     }
 
     /**
+     * The same gate for text whose private values are already vault tokens (`⟦P12⟧`, see PrivateSpans). The local
+     * copy keeps the tokens so the phone can read the values aloud later; the cloud copy is masked again as a
+     * second line of defence, and OTP or contact messages still never produce one.
+     */
+    fun prepareTokenized(id: String, sender: String, tokenized: String, isOtp: Boolean, fromContact: Boolean): PreparedMessage {
+        val cloud = if (mayLeaveDevice(isOtp, fromContact)) ClassifyItem(id, sender, Redactor.redact(tokenized).text) else null
+        return PreparedMessage(sender, tokenized, isOtp, fromContact, cloud)
+    }
+
+    /**
      * Classifies a batch through the backend, falling back to [LocalClassifier] on any failure.
      * Items are re-filtered here as a second line of defence: anything still looking like an OTP is dropped.
      */

@@ -140,6 +140,25 @@ class LiveVoiceSession(
         if (_state.value != LiveState.ENDED) _state.value = LiveState.PAUSED
     }
 
+    /**
+     * Hands the speaker to the phone for a private value (OTP, account number, amount): waits for Saathi's own
+     * audio to finish, keeps the mic OFF while [block] speaks on-device, so the cloud never hears the value, then
+     * turns the mic back on.
+     */
+    suspend fun <T> handOffPrivately(block: suspend () -> T): T {
+        val wasListening = micJob != null
+        micJob?.cancel()
+        micJob = null
+        val until = System.currentTimeMillis() + HANDOFF_WAIT_MS
+        while (System.currentTimeMillis() < until &&
+            (_state.value == LiveState.SPEAKING || System.currentTimeMillis() - lastAudioAt < SPEAKING_TAIL_MS)) delay(100)
+        try {
+            return block()
+        } finally {
+            if (wasListening && !paused && connected && _state.value != LiveState.ENDED) startMic()
+        }
+    }
+
     fun resume() {
         if (!connected || _state.value == LiveState.ENDED) return
         paused = false
@@ -248,6 +267,7 @@ class LiveVoiceSession(
 
     companion object {
         private const val TAG = "SaathiLive"
+        const val HANDOFF_WAIT_MS = 6_000L
         private const val SPEAKING_TAIL_MS = 700L
     }
 }

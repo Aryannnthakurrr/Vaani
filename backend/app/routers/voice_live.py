@@ -34,7 +34,15 @@ CONFIG_WAIT_S = 2.0
 
 TASKS = ["book_cab", "book_house_help", "shop_online", "book_doctor"]
 SCREENS = ["digest", "camera", "alerts", "settings", "clinic_call", "log"]
-APP_TOOLS = {"start_task", "start_guide", "open_screen", "read_updates", "check_link"}
+APP_TOOLS = {
+    "start_task",
+    "start_guide",
+    "open_screen",
+    "read_updates",
+    "check_link",
+    "latest_otp",
+    "speak_private",
+}
 
 
 def _obj(props: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
@@ -59,6 +67,14 @@ VOICE_TOOLS: list[dict[str, Any]] = [
      "parameters_json_schema": _obj({})},
     {"name": "check_link", "description": "Check whether a link is safe to open.",
      "parameters_json_schema": _obj({"url": _S}, ["url"])},
+    {"name": "latest_otp", "description": (
+        "The newest one-time code (OTP) the user received, as a hidden token plus who sent it. You never see the "
+        "code; to say it, call speak_private with the token."),
+     "parameters_json_schema": _obj({})},
+    {"name": "speak_private", "description": (
+        "Say a hidden value (OTP, account or card number, amount) aloud to the user. The phone speaks it itself with "
+        "the mic off, so it never reaches you. Pass the token exactly, like ⟦P12⟧."),
+     "parameters_json_schema": _obj({"token": _S}, ["token"])},
     {"name": "remember", "description": (
         "Remember a lasting fact or preference about the user. Write the fact in the user's own language and "
         "script (English, Hindi or Hinglish). For topic `name`, the fact is just how they like to be addressed."),

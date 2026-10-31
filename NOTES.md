@@ -615,3 +615,20 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   voice-wave cards for key decisions; on-device price-check guard before booking taps, with the comparison logic
   kept portable to the server; demo profiles (Settings picker), simulations and cost/bandwidth metrics; shopping
   aisle guidance and health-aware nudges; confirming an appointment mid-call (depends on Bolna support).
+
+## Batch 2: private values stay on the phone, the phone speaks them (2026-11-01)
+
+- **Vault:** incoming SMS/notification text is split by `PrivateSpans` (pure, JVM-tested). OTPs, account and card
+  numbers, Aadhaar, PAN, and money debited, credited or left as balance go into a new Room table `private_values`
+  (DB v2, a real 1→2 migration, kept 30 days). The stored message and anything sent to the cloud carry only tokens
+  (`⟦P12⟧`); `Redactor` still masks the cloud copy as a second line of defence. Bill amounts stay plain, so bill
+  reminders keep working. OTP and contact messages still never produce a cloud item. The duplicate check compares
+  message shapes, because tokens differ on every copy.
+- **Speaking:** `Speaker.say` splits tokenized text: ordinary words use the cloud voice, each value is read by
+  on-device TTS (digits one by one, money in rupees), and the caption shows `••••`. The digest, reminders and every
+  other spoken line get this automatically.
+- **Live conversation:** two new tools. `latest_otp` returns only a token, and `speak_private(token)` makes the phone
+  stop the mic, wait for Gemini's audio to finish, speak the value locally, then reopen the mic, so the cloud model
+  never hears or sees it. The digest, classify and voice prompts say to copy tokens exactly and never guess.
+- **Not covered:** email bodies (Saathi only sees notification previews) and values the user speaks aloud
+  themselves (the prompt still says never to repeat them).

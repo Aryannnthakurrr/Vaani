@@ -110,6 +110,8 @@ def test_tool_declarations_cover_the_app_tools():
         "open_screen",
         "read_updates",
         "check_link",
+        "latest_otp",
+        "speak_private",
         "remember",
         "forget",
     }

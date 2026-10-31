@@ -8,6 +8,8 @@ import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import com.saathi.app.core.net.BackendApi
 import com.saathi.app.core.net.ReplyStyle
+import com.saathi.app.core.privacy.PrivateSpan
+import com.saathi.app.core.privacy.PrivateSpans
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +31,8 @@ class Speaker(
     private val context: Context,
     private val backend: () -> BackendApi,
     private val phrases: Phrases,
+    /** Looks up a vault token's value on the phone (private_values); never a network call. */
+    private val privateValue: suspend (Long) -> PrivateSpan? = { null },
 ) {
     private val cacheDir = File(context.cacheDir, "tts").apply { mkdirs() }
     private var tts: TextToSpeech? = null
@@ -43,10 +47,41 @@ class Speaker(
         tts = TextToSpeech(context) { status -> ttsReady.complete(status == TextToSpeech.SUCCESS) }
     }
 
-    /** Speaks [text] and suspends until playback ends. */
+    /**
+     * Speaks [text] and suspends until playback ends. Text with vault tokens (OTP, account, amounts) is spoken in
+     * turns: ordinary words in the cloud voice, each private value by on-device TTS only, so it never leaves the
+     * phone. The caption hides the values.
+     */
     suspend fun say(text: String, style: ReplyStyle) {
         if (text.isBlank()) return
+        if (PrivateSpans.TOKEN.containsMatchIn(text)) return sayWithPrivate(text, style)
         _caption.value = text
+        sayPublic(text, style)
+    }
+
+    private suspend fun sayWithPrivate(text: String, style: ReplyStyle) {
+        _caption.value = PrivateSpans.TOKEN.replace(text, "••••")
+        val hindi = style == ReplyStyle.HI
+        for (part in PrivateSpans.parts(text)) {
+            when (part) {
+                is PrivateSpans.Part.Public -> sayPublic(part.text, style)
+                is PrivateSpans.Part.Private -> {
+                    val spoken = privateValue(part.id)?.let { PrivateSpans.spoken(it, hindi) } ?: PrivateSpans.missing(hindi)
+                    speakOnDevice(spoken, style, SPEECH_USAGE)
+                }
+            }
+        }
+    }
+
+    /** Speaks one vault value on-device only (the Live conversation's speak_private tool). */
+    suspend fun sayPrivate(id: Long, style: ReplyStyle): Boolean {
+        val span = privateValue(id)
+        val hindi = style == ReplyStyle.HI
+        speakOnDevice(span?.let { PrivateSpans.spoken(it, hindi) } ?: PrivateSpans.missing(hindi), style, SPEECH_USAGE)
+        return span != null
+    }
+
+    private suspend fun sayPublic(text: String, style: ReplyStyle) {
         val audio = cloudAudio(text, style)
         if (audio != null && playFile(audio, SPEECH_USAGE)) return
         speakOnDevice(text, style, SPEECH_USAGE)

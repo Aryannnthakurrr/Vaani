@@ -41,7 +41,11 @@ class AppContainer(val context: Context) {
     /** Real HTTP backend, or the on-device fake when chosen in Settings. Re-read on every call. */
     val backend: BackendApi get() = if (settings.current.useFakeBackend) fakeBackend else realBackend
 
-    val speaker = Speaker(context, { backend }, phrases)
+    val speaker = Speaker(context, { backend }, phrases) { id ->
+        db.privateValues().byId(id)?.let {
+            com.saathi.app.core.privacy.PrivateSpan(com.saathi.app.core.privacy.PrivateKind.valueOf(it.kind), it.value)
+        }
+    }
 
     /** Debug-only fixture scripts (bundled from /fixtures in debug builds; empty in release). */
     val mockScripts: MockAgentScripts by lazy {

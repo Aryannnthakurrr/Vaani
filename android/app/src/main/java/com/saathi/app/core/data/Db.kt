@@ -80,6 +80,8 @@ interface MessageDao {
     @Query("SELECT * FROM messages ORDER BY receivedAt DESC LIMIT 200") fun recent(): Flow<List<MessageEntity>>
     @Query("SELECT * FROM messages WHERE receivedAt >= :since ORDER BY receivedAt DESC") suspend fun since(since: Long): List<MessageEntity>
     @Query("SELECT * FROM messages WHERE classified = 0 AND fromContact = 0 AND isOtp = 0") suspend fun unclassified(): List<MessageEntity>
+    @Query("SELECT redactedText FROM messages WHERE sender = :sender AND receivedAt >= :since")
+    suspend fun recentFrom(sender: String, since: Long): List<String>
     @Query("SELECT COUNT(*) FROM messages WHERE sender = :sender AND redactedText = :text AND receivedAt >= :since")
     suspend fun countDuplicates(sender: String, text: String, since: Long): Int
 }
@@ -106,9 +108,33 @@ interface ActionLogDao {
     @Query("SELECT * FROM action_log ORDER BY ts DESC LIMIT 300") fun recent(): Flow<List<ActionLogEntity>>
 }
 
+/**
+ * The on-device vault: OTPs, account and card numbers, IDs and debit/credit amounts taken out of messages. Message
+ * text keeps only a token (`⟦P12⟧`); the value never leaves the phone and is spoken only by on-device TTS.
+ */
+@Entity(tableName = "private_values")
+data class PrivateValueEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** PrivateKind name: OTP, ACCOUNT, CARD, AADHAAR, PAN, AMOUNT. */
+    val kind: String,
+    val value: String,
+    val sender: String,
+    val createdAt: Long,
+)
+
+@Dao
+interface PrivateValueDao {
+    @Insert suspend fun insert(v: PrivateValueEntity): Long
+    @Query("SELECT * FROM private_values WHERE id = :id") suspend fun byId(id: Long): PrivateValueEntity?
+    @Query("SELECT * FROM private_values WHERE kind = 'OTP' AND createdAt >= :since ORDER BY createdAt DESC LIMIT 1")
+    suspend fun latestOtp(since: Long): PrivateValueEntity?
+    /** Old values go: an OTP is useless after a day, and nothing needs a statement amount after 30. */
+    @Query("DELETE FROM private_values WHERE createdAt < :before") suspend fun purgeBefore(before: Long)
+}
+
 @Database(
-    entities = [MessageEntity::class, EventEntity::class, ReminderEntity::class, ActionLogEntity::class],
-    version = 1,
+    entities = [MessageEntity::class, EventEntity::class, ReminderEntity::class, ActionLogEntity::class, PrivateValueEntity::class],
+    version = 2,
     exportSchema = true,
 )
 abstract class SaathiDb : RoomDatabase() {
@@ -116,9 +142,21 @@ abstract class SaathiDb : RoomDatabase() {
     abstract fun events(): EventDao
     abstract fun reminders(): ReminderDao
     abstract fun actionLog(): ActionLogDao
+    abstract fun privateValues(): PrivateValueDao
 
     companion object {
+        /** Adds the vault without touching existing messages, reminders or the activity log. */
+        private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `private_values` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`kind` TEXT NOT NULL, `value` TEXT NOT NULL, `sender` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+                )
+            }
+        }
+
         fun create(context: Context): SaathiDb =
-            Room.databaseBuilder(context, SaathiDb::class.java, "saathi.db").fallbackToDestructiveMigration().build()
+            Room.databaseBuilder(context, SaathiDb::class.java, "saathi.db")
+                .addMigrations(MIGRATION_1_2).fallbackToDestructiveMigration().build()
     }
 }

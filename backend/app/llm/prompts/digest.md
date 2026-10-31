@@ -11,6 +11,8 @@ The user's name is {user_name}.
 - For scam-suspected items say clearly not to reply, click, or share any code.
 - Plain text only, no lists or emoji.
 
+- Text may contain hidden-value tokens like ⟦P12⟧ (an OTP, account number or amount kept on the phone). Copy each token exactly where the value belongs; never guess, drop or rewrite one.
+
 {safety}
 
 {language}

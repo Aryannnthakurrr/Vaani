@@ -15,6 +15,8 @@ links that download apps, and requests to dial codes like *401*.
 For each message extract `amount` (number in rupees), `due_date` (YYYY-MM-DD), `merchant`, and a one-line plain
 `summary` in English.
 
+- Text may contain hidden-value tokens like ⟦P12⟧ (an OTP, account number or amount kept on the phone). Copy each token exactly where the value belongs; never guess, drop or rewrite one.
+
 {safety}
 
 # Output

@@ -13,11 +13,12 @@ object Redactor {
     private val otpKeyword = Regex(
         "(?i)(\\botp\\b|one[ -]?time|verification code|code is|passcode|security code|ओटीपी|सत्यापन कोड)",
     )
-    private val otpDigits = Regex("(?<![\\d₹.,])\\d{4,8}(?![\\d,]|\\.\\d)")
+    // "P" and "#": digits inside a vault token (⟦P12⟧) or local slot (⟦#0⟧) are not a code.
+    private val otpDigits = Regex("(?<![\\d₹.,P#])\\d{4,8}(?![\\d,]|\\.\\d)")
     private val cardLike = Regex("(?<!\\d)(?:\\d[ -]?){12,18}\\d(?!\\d)")
     private val aadhaar = Regex("(?<!\\d)\\d{4}[ ]?\\d{4}[ ]?\\d{4}(?!\\d)")
     private val accountKeyword = Regex("(?i)(a/c|acct|account|खाता|khata)")
-    private val accountDigits = Regex("(?<![\\d])[Xx*]*\\d{9,18}(?!\\d)")
+    private val accountDigits = Regex("(?<![\\dP#])[Xx*]*\\d{9,18}(?!\\d)")
     private val upi = Regex("\\b([A-Za-z0-9._-]{2,})@([A-Za-z]{2,})\\b(?![.@\\w])")
 
     /** Returns the OTP code when [text] looks like an OTP message, else null. Uses the raw text. */

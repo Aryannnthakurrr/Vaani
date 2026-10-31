@@ -2,7 +2,10 @@ package com.saathi.app.features.inbox
 
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.data.MessageEntity
+import com.saathi.app.core.data.PrivateValueEntity
 import com.saathi.app.core.net.ClassifyItem
+import com.saathi.app.core.privacy.PrivateKind
+import com.saathi.app.core.privacy.PrivateSpans
 import com.saathi.app.core.privacy.Redactor
 import com.saathi.app.features.scam.ScamLevel
 import com.saathi.app.features.scam.ScamReactor
@@ -25,10 +28,20 @@ class MessageIngestor(private val container: AppContainer) {
         if (Redactor.detectOtp(text) != null && container.callGuard.inCall) container.callGuard.onOtpArrived()
 
         val fromContact = container.contacts.isSavedContact(sender)
-        val prepared = InboxPipeline.prepare("pending", sender, text, fromContact)
+        // Private values go into the on-device vault; the stored and sent text only carries tokens.
+        val extracted = PrivateSpans.extract(text)
+        val isOtp = Redactor.detectOtp(text) != null || extracted.spans.any { it.kind == PrivateKind.OTP }
 
+        lateinit var prepared: PreparedMessage
         val id = lock.withLock {
-            if (db.messages().countDuplicates(sender, prepared.redactedText, ts - DEDUPE_MS) > 0) return
+            // Same shape from the same sender just now = a duplicate notification (tokens differ, so compare shapes).
+            val shape = PrivateSpans.shape(extracted.text)
+            if (db.messages().recentFrom(sender, ts - DEDUPE_MS).any { PrivateSpans.shape(it) == shape }) return
+            val ids = extracted.spans.map {
+                db.privateValues().insert(PrivateValueEntity(kind = it.kind.name, value = it.value, sender = sender, createdAt = ts))
+            }
+            db.privateValues().purgeBefore(ts - VAULT_KEEP_MS)
+            prepared = InboxPipeline.prepareTokenized("pending", sender, PrivateSpans.bind(extracted.text, ids), isOtp, fromContact)
             db.messages().insert(MessageEntity(
                 sourcePkg = sourcePkg, sender = sender, redactedText = prepared.redactedText,
                 category = when {
@@ -76,5 +89,6 @@ class MessageIngestor(private val container: AppContainer) {
 
     companion object {
         private const val DEDUPE_MS = 2 * 60 * 1000L
+        private const val VAULT_KEEP_MS = 30L * 24 * 3600 * 1000
     }
 }
