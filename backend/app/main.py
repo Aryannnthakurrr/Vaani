@@ -34,7 +34,7 @@ from app.welfare.scheduler import start_scheduler
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("saathi")
 # httpx logs full request URLs at INFO, and Telegram puts the bot token in the URL path. Keep secrets out of logs.
-for _noisy in ("httpx", "httpcore", "mcp", "google_genai"):
+for _noisy in ("httpx", "httpx2", "httpcore", "mcp", "google_genai"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 
