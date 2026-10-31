@@ -48,6 +48,29 @@ def _fail(message: str, reason: str) -> dict[str, Any]:
     return {"action": "fail", "message": message, "reason": reason}
 
 
+def _with_when(item: dict[str, Any], today: date) -> dict[str, Any]:
+    """Models get weekday arithmetic wrong ("next Friday" for a Sunday), so the phrase is computed here."""
+    due = item.get("due_date")
+    if due:
+        try:
+            d = date.fromisoformat(due)
+        except ValueError:
+            return item
+        days = (d - today).days
+        item["when"] = (
+            "today"
+            if days == 0
+            else "tomorrow"
+            if days == 1
+            else f"on {d.strftime('%A')}"
+            if 1 < days < 7
+            else f"on {d.day} {d.strftime('%B')}"
+            if days >= 7
+            else f"overdue since {d.day} {d.strftime('%B')}"
+        )
+    return item
+
+
 class GeminiClient:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -62,21 +85,36 @@ class GeminiClient:
             temperature=float(cfg.get("temperature", 0.2)),
             response_mime_type="application/json" if schema else "text/plain",
             response_json_schema=schema.model_json_schema() if schema else None,
+            thinking_config=types.ThinkingConfig(thinking_level=cfg["thinking"])
+            if cfg.get("thinking")
+            else None,
         )
-        started = time.perf_counter()
-        try:
-            resp = await asyncio.wait_for(
-                self.client.aio.models.generate_content(model=cfg["model"], contents=contents, config=config),
-                float(cfg.get("timeout_s", 8)),
-            )
-        finally:
-            log.info(
-                "route=%s model=%s latency_ms=%d",
-                route,
-                cfg.get("model"),
-                (time.perf_counter() - started) * 1000,
-            )
-        return resp.text or ""
+        models = [cfg["model"], *([cfg["fallback"]] if cfg.get("fallback") else [])]
+        timeout = float(cfg.get("timeout_s", 8))
+        for i, model in enumerate(models):
+            started = time.perf_counter()
+            try:
+                resp = await asyncio.wait_for(
+                    self.client.aio.models.generate_content(model=model, contents=contents, config=config),
+                    timeout,
+                )
+                return resp.text or ""
+            except Exception as exc:
+                # Overloaded (503/429) or slow: try the fallback model once; anything else is a real error.
+                retryable = isinstance(exc, TimeoutError) or any(
+                    c in str(exc)[:12] for c in ("503", "429", "500")
+                )
+                if i + 1 < len(models) and retryable:
+                    log.info(
+                        "route=%s model=%s failed (%s); trying fallback", route, model, type(exc).__name__
+                    )
+                    continue
+                raise
+            finally:
+                log.info(
+                    "route=%s model=%s latency_ms=%d", route, model, (time.perf_counter() - started) * 1000
+                )
+        raise RuntimeError("unreachable")
 
     async def _json(self, route: str, system: str, contents: list[Any], schema: type[BaseModel]) -> BaseModel:
         """Validate with Pydantic; on failure retry once with the error appended. Raises on second failure."""
@@ -175,7 +213,12 @@ class GeminiClient:
             text = await self._generate(
                 "digest_writer",
                 system,
-                [json.dumps([i.model_dump() for i in items], ensure_ascii=False)],
+                [
+                    json.dumps(
+                        [_with_when(i.model_dump(), date.fromisoformat(today)) for i in items],
+                        ensure_ascii=False,
+                    )
+                ],
                 None,
             )
             if text.strip():

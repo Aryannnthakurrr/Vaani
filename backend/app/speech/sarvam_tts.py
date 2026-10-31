@@ -7,6 +7,7 @@ import base64
 import io
 import logging
 import wave
+from functools import lru_cache
 
 from app.config import Settings
 from app.speech.sarvam_stt import SpeechUnavailable
@@ -33,11 +34,30 @@ def merge_wavs(chunks: list[bytes]) -> bytes:
     return out.getvalue()
 
 
-def _synthesize_sync(settings: Settings, text: str, style: str, voice: str | None) -> bytes:
+@lru_cache(maxsize=2)
+def _client(api_key: str):  # noqa: ANN202 - SDK type is optional at import time
+    """One SDK client per key, so HTTP connections are kept alive between sentences."""
     from sarvamai import SarvamAI
 
+    return SarvamAI(api_subscription_key=api_key)
+
+
+def warm_up(settings: Settings) -> None:
+    """Import the SDK and open the client at startup instead of inside the first request's deadline."""
+    if settings.sarvam_enabled:
+        _client(settings.sarvam_api_key)
+
+
+def timeout_for(settings: Settings, text: str) -> float:
+    """Bulbul's latency grows with text length: base timeout plus ~15 ms per character, capped."""
     cfg = settings.route("tts")
-    client = SarvamAI(api_subscription_key=settings.sarvam_api_key)
+    base = float(cfg.get("timeout_s", 4))
+    return min(base + 0.015 * len(text), float(cfg.get("max_timeout_s", 12)))
+
+
+def _synthesize_sync(settings: Settings, text: str, style: str, voice: str | None) -> bytes:
+    cfg = settings.route("tts")
+    client = _client(settings.sarvam_api_key)
     language = cfg.get("languages", {}).get(style, "en-IN")
     if style == "hinglish" and cfg.get("transliterate_hinglish"):
         resp = client.text.transliterate(
@@ -62,7 +82,7 @@ def _synthesize_sync(settings: Settings, text: str, style: str, voice: str | Non
 async def synthesize(settings: Settings, text: str, style: str, voice: str | None = None) -> bytes:
     if not settings.sarvam_enabled:
         raise SpeechUnavailable("SARVAM_API_KEY not set")
-    timeout = float(settings.route("tts").get("timeout_s", 3))
+    timeout = timeout_for(settings, text)
     try:
         return await asyncio.wait_for(
             asyncio.to_thread(_synthesize_sync, settings, text, style, voice), timeout

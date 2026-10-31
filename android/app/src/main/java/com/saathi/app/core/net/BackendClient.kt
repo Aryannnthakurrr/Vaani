@@ -25,8 +25,10 @@ class BackendClient(
 
     private val http = base.newBuilder().connectTimeout(4, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
     private val sttHttp = http.newBuilder().callTimeout(4, TimeUnit.SECONDS).build()
-    private val ttsHttp = http.newBuilder().callTimeout(3, TimeUnit.SECONDS).build()
-    private val agentHttp = http.newBuilder().callTimeout(10, TimeUnit.SECONDS).build()
+    // Upper bound only; Speaker applies a length-scaled deadline (4–12 s) per sentence.
+    private val ttsHttp = http.newBuilder().callTimeout(13, TimeUnit.SECONDS).build()
+    // Gemini occasionally takes ~10 s (overload + server-side fallback); the agent loop also retries once.
+    private val agentHttp = http.newBuilder().readTimeout(25, TimeUnit.SECONDS).callTimeout(25, TimeUnit.SECONDS).build()
     private val linkHttp = http.newBuilder().callTimeout(20, TimeUnit.SECONDS).build()
     private val jsonType = "application/json".toMediaType()
 

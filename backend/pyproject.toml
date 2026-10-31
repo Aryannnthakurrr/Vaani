@@ -20,6 +20,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
+# Only for scripts/render_alert_clips.py: encode safety clips as Ogg Vorbis (~10x smaller in the APK).
+clips = ["soundfile>=0.12"]
 
 [tool.ruff]
 line-length = 110

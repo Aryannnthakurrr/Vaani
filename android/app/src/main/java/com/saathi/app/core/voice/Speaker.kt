@@ -74,7 +74,9 @@ class Speaker(
     private suspend fun cloudAudio(text: String, style: ReplyStyle): File? {
         val file = File(cacheDir, hash("$text|$style|bulbul|0.9") + ".wav")
         if (file.exists()) return file.also { it.setLastModified(System.currentTimeMillis()) }
-        val bytes = withTimeoutOrNull(3_000) { runCatching { backend().tts(text, style) }.getOrNull() } ?: return null
+        // Bulbul takes ~1 s for a short line and longer for a whole digest, so the wait scales with length.
+        val budgetMs = (4_000L + text.length * 15L).coerceAtMost(12_000L)
+        val bytes = withTimeoutOrNull(budgetMs) { runCatching { backend().tts(text, style) }.getOrNull() } ?: return null
         if (bytes.size < 64) return null
         withContext(Dispatchers.IO) {
             file.writeBytes(bytes)

@@ -26,10 +26,10 @@ class SttResult:
 
 
 def _transcribe_sync(settings: Settings, audio: bytes, language_hint: str, keyterms: list[str]) -> SttResult:
-    from sarvamai import SarvamAI
+    from app.speech.sarvam_tts import _client
 
     cfg = settings.route("stt")
-    client = SarvamAI(api_subscription_key=settings.sarvam_api_key)
+    client = _client(settings.sarvam_api_key)
     fd, path = tempfile.mkstemp(suffix=".wav")
     try:
         with os.fdopen(fd, "wb") as fh:

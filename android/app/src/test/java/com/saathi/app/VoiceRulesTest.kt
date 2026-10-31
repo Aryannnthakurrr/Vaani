@@ -67,6 +67,11 @@ class VoiceRulesTest {
         assertEquals("digest", LocalIntentRules.route("any updates today?").intent)
         assertEquals("book_house_help", LocalIntentRules.route("ghar ki safai ke liye bai chahiye").intent)
         assertEquals("unknown", LocalIntentRules.route("blue elephants").intent)
+        assertEquals("guide", LocalIntentRules.route("mujhe ye photo Aarav ko bhejni hai").intent)
+        val fk = LocalIntentRules.route("Flipkart se Parle-G biscuit mangao")
+        assertEquals("shop_online", fk.intent)
+        assertEquals("Parle-G biscuit", fk.slots.product)
+        assertEquals("parle g biscuits", LocalIntentRules.route("order parle g biscuits from Amazon").slots.product)
     }
 
     @Test

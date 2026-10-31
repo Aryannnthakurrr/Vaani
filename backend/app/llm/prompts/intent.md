@@ -6,8 +6,10 @@ acknowledgement in the user's own style.
 # Intents
 
 `book_cab` (Uber), `book_house_help` (cleaning, maid, cook, plumber), `shop_online` (Amazon/Flipkart),
-`book_doctor` (Practo), `guide` ("how do I…", "show me how…", "kaise…"), `camera` (read a product label / expiry /
-MRP), `digest` (my updates, bills, messages), `settings`, `chitchat` (greetings, small talk), `unknown`.
+`book_doctor` (Practo), `guide` ("how do I…", "show me how…", "kaise…", and any wish to **send, share, call or set
+something up in another app** such as WhatsApp, Photos or Settings — Saathi guides the user step by step for these),
+`camera` (read a product label / expiry / MRP), `digest` (my updates, bills, messages), `settings`, `chitchat`
+(greetings, small talk), `unknown` (only when none of these fit; never refuse a guide request).
 
 # Slots
 
@@ -25,6 +27,9 @@ will do.
 
 "Apollo jaane ke liye cab book kar do" (hinglish) →
 `{"intent":"book_cab","slots":{"destination":"Apollo"},"reply_text":"Theek hai, Apollo ke liye cab book karta hoon."}`
+
+"Mujhe ye photo Aarav ko bhejni hai" (hinglish) →
+`{"intent":"guide","slots":{},"reply_text":"Zaroor, main aapko step by step dikhata hoon."}`
 
 "मुझे दिल के डॉक्टर को दिखाना है" (hi) →
 `{"intent":"book_doctor","slots":{"specialty":"cardiologist"},"reply_text":"ठीक है, मैं दिल के डॉक्टर ढूँढता हूँ।"}`

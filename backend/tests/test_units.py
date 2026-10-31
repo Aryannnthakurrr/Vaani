@@ -184,3 +184,13 @@ def test_bare_domain_is_not_flagged_insecure():
     explicit = analyse("http://airtel-offers.example/pay")
     assert any(s.startswith("no_https") for s in explicit.signals)
     assert rule_verdict(explicit)[0] == "suspicious"
+
+
+def test_intent_rules_photo_send_is_guide_and_app_name_is_not_product() -> None:
+    from app.llm.rules_intent import detect_intent, extract_slots
+
+    assert detect_intent("mujhe ye photo Aarav ko bhejni hai") == "guide"
+    assert detect_intent("how do I send this photo to my grandson") == "guide"
+    assert detect_intent("Flipkart se biscuit mangao") == "shop_online"
+    assert extract_slots("Flipkart se biscuit mangao", "shop_online").product == "biscuit"
+    assert extract_slots("order Parle-G biscuits from Amazon", "shop_online").product == "Parle-G biscuits"

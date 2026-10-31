@@ -1,15 +1,18 @@
 # Every model ID the backend uses lives in this file only. Verified 2026-10-31 against
 # https://ai.google.dev/gemini-api/docs/models and https://docs.sarvam.ai (see BACKEND_NOTES.md).
 
-intent_router:       { model: gemini-3.5-flash-lite,  temperature: 0.1, json: true, timeout_s: 4 }
-agent_step:          { model: gemini-3.8-flash,       temperature: 0.2, json: true, vision: true, timeout_s: 8 }
-agent_step_hard:     { model: gemini-3.1-pro-preview, temperature: 0.2, json: true, vision: true, timeout_s: 12 }
-classify_messages:   { model: gemini-3.5-flash-lite,  temperature: 0.0, json: true, timeout_s: 8 }
-extract_appointment: { model: gemini-3.5-flash-lite,  temperature: 0.0, json: true, timeout_s: 8 }
-link_verdict:        { model: gemini-3.8-flash,       temperature: 0.0, json: true, vision: true, timeout_s: 15 }
-digest_writer:       { model: gemini-3.5-flash-lite,  temperature: 0.4, timeout_s: 8 }
+# Measured with the live key on 2026-10-31: gemini-3.8-flash was overloaded (503s, one 166 s answer) and does not
+# accept thinking_level "minimal"; gemini-3.5-flash / -lite with minimal thinking answer in ~2-3 s.
+# `thinking` sets ThinkingConfig.thinking_level; `fallback` is tried once if the primary is overloaded or times out.
+intent_router:       { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.1, json: true, timeout_s: 5 }
+agent_step:          { model: gemini-3.5-flash,       thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.2, json: true, vision: true, timeout_s: 8 }
+agent_step_hard:     { model: gemini-3.5-flash,       thinking: low,     fallback: gemini-3.1-pro-preview, temperature: 0.2, json: true, vision: true, timeout_s: 15 }
+classify_messages:   { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.0, json: true, timeout_s: 8 }
+extract_appointment: { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.0, json: true, timeout_s: 8 }
+link_verdict:        { model: gemini-3.5-flash,       thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.0, json: true, vision: true, timeout_s: 15 }
+digest_writer:       { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.4, timeout_s: 8 }
 camera_live:         { model: gemini-3.8-live }       # Live API: 16 kHz PCM + JPEG in, 24 kHz PCM out
-clinic_call:         { model: gemini-3.8-flash,       temperature: 0.3, json: true, timeout_s: 8 }   # stretch: simulated call turns
+clinic_call:         { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.3, json: true, timeout_s: 8 }   # stretch: simulated call turns
 clinic_call_live:    { model: gemini-3.8-live }       # stretch: real telephony bridge (not built)
 
 # Speech: Sarvam, turn-based only
@@ -26,7 +29,9 @@ tts:
   model: "bulbul:v4-flash"
   pace: 0.9
   sample_rate: 24000
-  timeout_s: 3
+  # Measured 2026-10-31: Bulbul v4-flash answers in ~0.7-1.3 s once the client is warm; long digests take longer.
+  timeout_s: 4
+  max_timeout_s: 12
   speakers:   { en: aparna_en_companion, hi: roopa_hi_companion, hinglish: simran_enhi_companion }
   languages:  { en: en-IN, hi: hi-IN, hinglish: hi-IN }
   # Set true if the Phase 1 script check finds Bulbul reads Hinglish better from Devanagari.

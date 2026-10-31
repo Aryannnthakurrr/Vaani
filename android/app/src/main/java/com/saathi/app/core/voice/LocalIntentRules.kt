@@ -11,7 +11,9 @@ import com.saathi.app.core.net.Slots
 object LocalIntentRules {
     private val RULES: List<Pair<String, List<String>>> = listOf(
         "camera" to listOf("camera", "scan", "expiry", "mrp", "packet", "label", "कैमरा", "एक्सपायरी", "padh ke", "dekh ke batao"),
-        "guide" to listOf("show me", "how do i", "how to", "teach", "kaise", "sikhao", "dikhao", "कैसे", "सिखाओ", "दिखाओ"),
+        // Sending a photo/message is taught step by step, never done for the user.
+        "guide" to listOf("show me", "how do i", "how to", "teach", "kaise", "sikhao", "dikhao", "bhejni", "bhejna", "bhejun",
+            "कैसे", "सिखाओ", "दिखाओ", "भेजनी", "भेजना"),
         "book_cab" to listOf("cab", "taxi", "uber", "ola", "ride", "auto", "कैब", "टैक्सी", "गाड़ी", "gaadi", "gadi"),
         "book_house_help" to listOf("house help", "maid", "cleaning", "cleaner", "bai", "kaamwali", "safai", "सफाई", "बाई", "urban company"),
         "book_doctor" to listOf("doctor", "practo", "appointment", "cardiolog", "dentist", "physician", "डॉक्टर", "daktar", "dr."),
@@ -33,6 +35,14 @@ object LocalIntentRules {
         Regex("([\\p{L}\\p{M} .'-]{2,60}?)\\s+(?:जाना|जाने|के लिए|तक)"),
     )
     private val PRODUCT = Regex("(?i)(?:order|buy|mangwa(?:o|na|do)?|manga(?:o|do)?|kharid(?:o|na)?)\\s+(?:me\\s+|some\\s+|a\\s+)?([\\p{L}0-9 .'-]{2,50})")
+    /** Hinglish puts the product before the verb: "Flipkart se Parle-G biscuit mangao". */
+    private val PRODUCT_BEFORE_VERB = Regex("(?i)^(.{2,50}?)\\s+(?:order\\s+kar|mangwa|manga|kharid)")
+    /** The app name is a preference, not part of the product. */
+    private val APP_WORDS = Regex("(?i)^(?:flipkart|amazon)\\s+(?:se|par|pe|on|from)\\s+|\\s+(?:from|on|se|par|pe)\\s+(?:flipkart|amazon)$")
+
+    private fun product(u: String): String? =
+        (PRODUCT.find(u) ?: PRODUCT_BEFORE_VERB.find(u))?.groupValues?.get(1)?.trim()?.trimEnd('.')
+            ?.replace(APP_WORDS, "")?.trim()?.ifBlank { null }
     private val SPECIALTY = Regex("(?i)(cardiologist|heart|dentist|dermatologist|skin|eye|ent|orthopedic|bone|general physician|physician|diabetes|child)")
 
     fun route(utterance: String): IntentResult {
@@ -41,7 +51,7 @@ object LocalIntentRules {
         val intent = MATCHERS.firstOrNull { (_, res) -> res.any { it.containsMatchIn(t) } }?.first ?: "unknown"
         val slots = when (intent) {
             "book_cab" -> Slots(destination = destination(utterance))
-            "shop_online" -> Slots(product = PRODUCT.find(utterance)?.groupValues?.get(1)?.trim()?.trimEnd('.'))
+            "shop_online" -> Slots(product = product(utterance))
             "book_doctor" -> Slots(specialty = SPECIALTY.find(utterance)?.value?.lowercase()?.let(::specialty))
             "book_house_help" -> Slots(service = if (t.contains("kitchen")) "kitchen cleaning" else "home cleaning")
             else -> Slots()

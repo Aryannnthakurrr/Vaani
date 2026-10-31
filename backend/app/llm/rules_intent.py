@@ -15,7 +15,9 @@ _INTENTS: list[tuple[str, str]] = [
     ),
     (
         "guide",
-        r"\bhow (do|can|to) (i|we)?\b|\bhow to\b|\bshow me how\b|\bteach me\b|\bkaise\b|\bsikha|कैसे|सिखा",
+        r"\bhow (do|can|to) (i|we)?\b|\bhow to\b|\bshow me how\b|\bteach me\b|\bkaise\b|\bsikha|कैसे|सिखा|"
+        # "mujhe ye photo Aarav ko bhejni hai": sending something is taught, never done for the user.
+        r"\b(photo|pic|picture|video|message)\b.*\b(bhej|send)|\b(bhejni|bhejna|bhejun)\b|भेजनी|भेजना",
     ),
     ("camera", r"\bcamera\b|\bscan\b|\bexpiry\b|\bmrp\b|\blabel\b|\bpacket\b|कैमरा|एक्सपायरी|\bpadh(o|kar)\b"),
     (
@@ -53,6 +55,10 @@ _SPECIALTIES = {
     "general physician": r"fever|bukhar|बुखार|general|physician",
 }
 _FILLER = r"^(please |mujhe |muje |main |mai |i want to go to |i need to go to |मुझे |मैं )+"
+# "Flipkart se biscuit" / "biscuit from Amazon" -> "biscuit": the app is a preference, not the product.
+_APP_WORDS = (
+    r"^(?:flipkart|amazon)\s+(?:se|par|pe|on|from)\s+|\s+(?:from|on|se|par|pe)\s+(?:flipkart|amazon)$"
+)
 
 _REPLIES: dict[str, dict[str, str]] = {
     "book_cab": {
@@ -116,6 +122,7 @@ def _clean(value: str | None) -> str | None:
     if not value:
         return None
     value = re.sub(_FILLER, "", value.strip(" .,!?।"), flags=re.IGNORECASE).strip()
+    value = re.sub(_APP_WORDS, "", value, flags=re.IGNORECASE).strip()
     return value or None
 
 
