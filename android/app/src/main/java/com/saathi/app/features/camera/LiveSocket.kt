@@ -33,7 +33,13 @@ sealed interface LiveEvent {
  * WebSocket to backend `/live/camera`, which relays to Gemini Live. Frames go up as base64 JPEG, mic audio as
  * 16 kHz PCM16; product cards, captions and 24 kHz PCM audio come back. Reconnects once on a drop.
  */
-class LiveSocket(private val url: String, private val replyStyle: String, private val onEvent: (LiveEvent) -> Unit) {
+class LiveSocket(
+    private val url: String,
+    private val replyStyle: String,
+    private val onEvent: (LiveEvent) -> Unit,
+    /** What Saathi knows about the shopper (health, next appointment), for gentle advice. Sent in-socket, never in the URL. */
+    private val context: String? = null,
+) {
     private val client = OkHttpClient.Builder().pingInterval(15, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS).build()
     private var ws: WebSocket? = null
     private var reconnected = false
@@ -42,7 +48,11 @@ class LiveSocket(private val url: String, private val replyStyle: String, privat
     fun connect() {
         ws = client.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                send(buildJsonObject { put("type", JsonPrimitive("config")); put("reply_style", JsonPrimitive(replyStyle)) })
+                send(buildJsonObject {
+                    put("type", JsonPrimitive("config"))
+                    put("reply_style", JsonPrimitive(replyStyle))
+                    context?.let { put("context", JsonPrimitive(it)) }
+                })
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {

@@ -675,3 +675,12 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   voice is about 614 MB a month at 5 min/day**, because raw PCM travels as base64 JSON, so Opus between phone and
   server is the big bandwidth win. The run found the rules missed the "relative in an accident, send money, tell no
   one" scam; that rule is now added and tested. `--live` adds rules-vs-LLM agreement (costs tokens).
+
+## Batch 6: shopping camera that guides, reads tags and nudges gently (2026-11-01)
+
+- The camera prompt now guides people to the right aisle from the camera's point of view (left, right, ahead,
+  shelves, never colours), reads shelf tags and price per kg/litre, and makes a once-per-product, kind health nudge
+  from the shopper's profile and next appointment ("very salty, and your BP check is on Monday; the roasted makhana
+  is right there"). It never lectures or refuses, and with no health info it says nothing about health.
+- The context reaches the camera in its first WebSocket message, never the URL (URLs are logged).
+- The live voice prompt has the same once-only nudge rule for food ordered online.

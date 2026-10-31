@@ -50,7 +50,7 @@ class CameraSession(private val c: AppContainer) {
         _caption.value = tr(style, "Hold the pack in front of the camera.", "पैकेट कैमरे के सामने रखिए।", "Packet camera ke saamne rakhiye.")
         if (url != null) {
             player = PcmPlayer()
-            socket = LiveSocket(url, style.wire, ::onEvent).also { it.connect() }
+            socket = LiveSocket(url, style.wire, ::onEvent, shopperContext()).also { it.connect() }
             startMic()
         }
         watchdog = c.scope.launch {
@@ -168,5 +168,18 @@ class CameraSession(private val c: AppContainer) {
     companion object {
         const val FRAME_INTERVAL_MS = 1_000L
         const val INACTIVITY_MS = 3 * 60_000L
+    }
+
+    /** Profile and next appointment, so the camera can say "very salty, and your BP check is on Monday". */
+    private fun shopperContext(): String? {
+        val appt = c.settings.current.lastAppointment?.let {
+            runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()
+        }
+        val reason = c.profiles.current()?.appointment?.reason?.takeIf { it.isNotBlank() }?.let { "Reason for the visit: $it." }
+        return listOfNotNull(
+            c.profiles.contextLine(),
+            com.saathi.app.features.appointments.AppointmentState.contextLine(appt, java.time.ZonedDateTime.now()),
+            reason,
+        ).joinToString("\n").ifBlank { null }
     }
 }

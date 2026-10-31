@@ -18,6 +18,7 @@ from app.schemas import ProductCard
 
 log = logging.getLogger("saathi.live")
 router = APIRouter()
+CONFIG_WAIT_S = 2.0
 INACTIVITY_S = 180
 MOCK_FRAMES_BEFORE_CARD = 2
 
@@ -87,14 +88,18 @@ async def _mock_session(ws: WebSocket, style: str) -> None:
             return
 
 
-async def _gemini_session(ws: WebSocket, settings: Settings, style: str) -> None:
+async def _gemini_session(ws: WebSocket, settings: Settings, style: str, context: str = "") -> None:
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=settings.gemini_api_key)
     config = types.LiveConnectConfig(
         response_modalities=["AUDIO"],
-        system_instruction=render("camera", reply_style=style),
+        system_instruction=render(
+            "camera",
+            reply_style=style,
+            user=context.strip() or "Nothing is known about the shopper's health.",
+        ),
         tools=[types.Tool(function_declarations=[types.FunctionDeclaration(**UPDATE_CARD_TOOL)])],
         output_audio_transcription=types.AudioTranscriptionConfig(),
     )
@@ -160,11 +165,20 @@ async def live_camera(ws: WebSocket) -> None:
     await ws.accept()
     settings = get_settings()
     style = ws.query_params.get("reply_style", "en")
+    context = ""
     try:
+        if not settings.mock:
+            # The app's first message is its config: reply style plus what Saathi knows about the user (health,
+            # next appointment) for gentle shopping advice. Sent in the socket, never the URL, so it isn't logged.
+            with contextlib.suppress(TimeoutError, ValueError):
+                first = json.loads(await asyncio.wait_for(ws.receive_text(), CONFIG_WAIT_S))
+                if first.get("type") == "config":
+                    style = first.get("reply_style", style)
+                    context = str(first.get("context") or "")[:500]
         if settings.mock:
             await _mock_session(ws, style)
         else:
-            await _gemini_session(ws, settings, style)
+            await _gemini_session(ws, settings, style, context)
     except (WebSocketDisconnect, TimeoutError):
         log.info("camera session ended")
     except Exception as exc:
