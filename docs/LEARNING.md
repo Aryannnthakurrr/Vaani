@@ -117,7 +117,8 @@ user's remembered facts (from the local store), and these **tools**, which the a
 | `open_screen` | `screen` (digest, camera, alerts, settings, clinic_call) | Navigates |
 | `read_updates` | — | Returns digest items (fixed code) for the model to speak |
 | `check_link` | `url` | `/links/check` verdict |
-| `remember` | `fact` | Stores locally, mirrored to Meko (server side, no app round trip) |
+| `remember` | `fact`, `topic`, `key` | Stores locally (replacing the same topic and key), mirrored to Meko (server side) |
+| `forget` | `topic`, `key` | Deletes one fact, or a whole topic, locally and in Meko (server side) |
 
 Client → server messages: `{"type":"config","reply_style"}`, `{"type":"audio","pcm_b64"}`, `{"type":"text","text"}`
 (typed input), `{"type":"tool_result","id","result"}`, `{"type":"end"}`.
@@ -139,7 +140,7 @@ them share that one elder's context. Reads stay local because a Meko search take
 
 | What | Meko tool | Used for |
 |---|---|---|
-| Facts and preferences about the elder ("prefers Uber Go", "Dr. Mehta is her cardiologist") | `memory_add` / `memory_search`, `agent_id = elder-<sha256(device)[:16]>`, one profile conversation per elder | Built: the voice `remember` tool stores them; they are recalled into the Live system prompt at the start of every conversation |
+| Facts and preferences about the elder ("prefers Uber Go", "Dr. Mehta is her cardiologist"), each with a topic and key, in their own language | `memory_add` / `memory_delete_by_id` in the elder's datapack | Built: the voice `remember` / `forget` tools store and delete them; the Live prompt gets all of them plus the elder's name at the start of every conversation; clinic calls get only the name (`AUDIENCES`) |
 | Agent run state: per step the task, mode, screen size and app, action, reason, and which handler answered (skill or LLM) | `conversation_create` per run + `conversation_add_message` per step (`reasoning`, `plan`) | Built: a decision trail per run, written off the request path. Not built: resuming a run after an app restart |
 | Compiled skills, token usage, shared learnings | `artifact_put`, `track_token_usage`, `memory_promote` | Not built yet |
 

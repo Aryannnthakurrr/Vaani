@@ -458,9 +458,30 @@ project, with the elder served by voice and the family by Telegram plus the fami
 - Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Meko reads are safe
   now (per-elder datapacks), but 15-18 s searches keep them off the request path. The way to use them is to fetch
   in the background after a voice call starts and pass the results to the Live session as late context.
-- Memories carry over only into the Live voice prompt, by design. Not `/intent` or `/agent/step`: both produce
-  the training data for compiled skills, and varying prompt text would make the same request map to different
-  answers, which breaks the held-out replay tests. Not the clinic call: its prompt forbids sharing medical history.
+- Memories carry over only where they help, enforced in `app/memory` `AUDIENCES`. **Voice:** every fact.
+  **Clinic calls:** only the name. **Family alerts:** the name. **`/intent`, `/agent/step`:** nothing, because both
+  produce the training data for compiled skills, and varying prompt text would make the same request map to
+  different answers, which breaks the held-out replay tests.
+- **Facts (2026-10-31):** each has a `topic` (name, home, family, doctor, health, preference, routine, other) and
+  a short English `key`. A new fact with the same topic and key replaces the old one, and `name` / `home` always
+  replace. The text stays in the elder's own words and script (EN, HI, Hinglish); only the labels are English, so
+  nothing depends on the language. Reads return all of an elder's facts (at most 60) instead of searching: the
+  old keyword search dropped "Prefers Ola" for missing the word "preferences", and never matched Devanagari facts
+  against English query words. A new `forget` voice tool deletes one fact or a whole topic, locally and in Meko
+  (Meko's memory ids are kept per fact; one `memory_add` can return several). The voice prompt now gets the
+  elder's name, which it never had.
+- **Clinic calls can book, and say why (2026-10-31).** `purpose: book` introduces the patient by name, states the
+  reason for the visit, and first asks whether the place has what the visit needs ("kalai ki fracture ki
+  aftercare", ["X-ray"]). It stops if not, otherwise asks for a time inside the patient's window. The reason and
+  needs come with each call request, said for that call; stored health facts are never sent. The booking needs the
+  elder's yes first (`user_confirmed`), since a booking is irreversible. `place` (name, phone, facilities) is ready
+  for the places search coming in a later commit; nothing fills it yet.
+- Every call summary is now trilingual, including busy, no answer and could not hear (`clinic_call.CALL_NOTES`).
+- Bolna booking calls: Bolna returns only a transcript, so the slot is not parsed; the patient hears the clinic's
+  last words. Upgrade: pass the transcript through the clinic-call model for `has_facilities` and `slot`. Run
+  `scripts/bolna_agent.py` again (it creates a new agent, so update `BOLNA_AGENT_ID`) so the agent uses `{task}`.
+- Not built: no voice tool starts a booking call yet; it lands with the places search. Android still sends only
+  confirm calls. Its `ignoreUnknownKeys` JSON reads the new response fields without changes.
 - Code skills: no SMS `parser` kind. Each sandboxed call is a fresh `docker run`: 0.52–0.61 s on the droplet
   (measured after deploy; a memory bomb was killed in 0.7 s). Serving gives up after 3 s and asks the LLM.
 - Deployed check: `wss://165-245-196-218.sslip.io/live/voice` through Caddy → `start_task book_doctor` with the
