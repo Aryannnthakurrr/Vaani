@@ -65,7 +65,8 @@ function setRoute(points) {
   if (done) done.remove();
   done = L.polyline([], {color: "#9e9e9e", weight: 6, opacity: .8}).addTo(map);
   ahead = L.polyline(route, {color: "#c62828", weight: 6}).addTo(map);
-  if (!fitted && route.length) { map.fitBounds(ahead.getBounds(), {padding: [50, 50]}); fitted = true; }
+  // The top padding keeps markers clear of the "Simulation" banner the app draws over the map.
+  if (!fitted && route.length) { map.fitBounds(ahead.getBounds(), {paddingTopLeft: [50, 110], paddingBottomRight: [50, 60]}); fitted = true; }
 }
 
 function nearestIndex(lat, lng) {
@@ -104,8 +105,11 @@ function move(lat, lng, heading, label) {
 function keepInView() {
   if (!amb) return;
   const pts = [amb.getLatLng()].concat(you ? [you.getLatLng()] : []);
-  const inner = map.getBounds().pad(-0.12);
-  if (!pts.every((p) => inner.contains(p))) map.flyToBounds(L.latLngBounds(pts), {padding: [60, 60], duration: .8, maxZoom: 16});
+  const size = map.getSize();
+  const inner = L.latLngBounds(map.containerPointToLatLng([50, 110]), map.containerPointToLatLng([size.x - 50, size.y - 60]));
+  if (!pts.every((p) => inner.contains(p))) {
+    map.flyToBounds(L.latLngBounds(pts), {paddingTopLeft: [60, 120], paddingBottomRight: [60, 70], duration: .8, maxZoom: 16});
+  }
 }
 </script>
 </body>

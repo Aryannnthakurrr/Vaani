@@ -28,6 +28,8 @@ data class TaskContext(
     val taskHint: String? = null,
     val trustedDeeplinks: Set<String> = emptySet(),
     val allowedPackages: Set<String> = Packages.ACT_ALLOWLIST,
+    /** The app the task runs in; if it slips into the background (e.g. while the user answers), it is reopened. */
+    val appPackage: String? = null,
 )
 
 sealed interface AgentOutcome {
@@ -86,6 +88,7 @@ class AgentLoop(
 
     private suspend fun loop(goal: String, mode: AgentMode, task: TaskContext): AgentOutcome {
         val seen = HashMap<String, Int>()
+        var reopened = 0
         var invalidInARow = 0
         var last: ScreenSnapshot? = null
         for (step in 1..MAX_STEPS) {
@@ -108,6 +111,19 @@ class AgentLoop(
                     continue
                 }
                 ScreenStop.FOREIGN_APP -> {
+                    // The task's app went to the background (home screen, Saathi's own window): bring it back to the
+                    // same screen and carry on, a couple of times at most, instead of giving up.
+                    val app = task.appPackage
+                    if (app != null && reopened < MAX_REOPEN) {
+                        reopened++
+                        val reopen = AgentAction(AgentAction.OPEN_APP, pkg = app, reason = "back to the task's app")
+                        if (SafetyPolicy.validate(reopen, snap, mode, false, task.trustedDeeplinks, task.allowedPackages) is Verdict.Allow) {
+                            performer.perform(reopen, snap)
+                            delay(1_200)
+                            performer.awaitSettle()
+                            continue
+                        }
+                    }
                     val msg = s("I can't work inside ${Packages.displayName(snap.pkg)}. I have stopped.",
                         "मैं ${Packages.displayName(snap.pkg)} के अंदर काम नहीं कर सकती। मैंने रोक दिया है।",
                         "Main ${Packages.displayName(snap.pkg)} ke andar kaam nahi kar sakti. Maine rok diya hai.")
@@ -238,7 +254,7 @@ class AgentLoop(
     private suspend fun nextAction(goal: String, mode: AgentMode, snap: ScreenSnapshot, task: TaskContext): AgentAction {
         val request = AgentStepRequest(
             goal = goal, mode = mode.name, language = style().wire,
-            screenText = TreeSerializer.serialize(snap), pkg = snap.pkg,
+            screenText = listOfNotNull(snap.screenshotNote, TreeSerializer.serialize(snap)).joinToString("\n"), pkg = snap.pkg,
             screenshotB64 = snap.screenshotB64, history = history.takeLast(HISTORY), taskHint = task.taskHint,
             runId = runId,
         )
@@ -352,5 +368,6 @@ class AgentLoop(
         const val OUTCOME_TIMEOUT_MS = 5_000L
         /** Gemini answers in 2–3 s when healthy and 10–20 s under load (NOTES, 2026-10-31). */
         const val SLOW_STEP_MS = 6_000L
+        const val MAX_REOPEN = 2
     }
 }

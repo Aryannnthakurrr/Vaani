@@ -34,6 +34,8 @@ data class EmergencyUi(
     val askLandmark: Boolean = false,
     val status: String? = null,
     val vehicle: String? = null,
+    /** The dispatch API's fleet id ("AMB-5489"), shown in the chip like Care Compass. */
+    val vehicleId: String? = null,
     val crew: String? = null,
     /** "BLS" or "ALS" from the dispatch API. */
     val vehicleType: String? = null,
@@ -81,7 +83,8 @@ class EmergencyFlow(private val c: AppContainer) {
         note = intake
         val lowAccuracy = location == null || (location.accuracyM ?: 1_000.0) > 100.0
         _ui.value = EmergencyUi(
-            brief = intake.patientBrief.ifBlank { intake.chiefComplaint },
+            // Only the clinical brief: the raw words ("send ambulance now") are a request, not symptoms.
+            brief = intake.patientBrief,
             topCondition = intake.possibleConditions.firstOrNull()?.name,
             askLandmark = lowAccuracy,
             patient = location?.let { it.lat to it.lng },
@@ -166,6 +169,7 @@ class EmergencyFlow(private val c: AppContainer) {
         val paramedic = crewObj?.get("paramedic")?.jsonObject?.str("name")
         val crew = listOfNotNull(driver, paramedic).joinToString(", ")
         val vehicleType = (d["vehicle"] as? JsonObject)?.str("type")
+        val vehicleId = (d["vehicle"] as? JsonObject)?.str("vehicle_id")
         val route = d["route"]?.takeIf { it is kotlinx.serialization.json.JsonArray }?.let {
             runCatching { SaathiJson.decodeFromJsonElement(ListSerializer(ListSerializer(Double.serializer())), it) }.getOrNull()
         }
@@ -177,7 +181,7 @@ class EmergencyFlow(private val c: AppContainer) {
                     else -> EmergencyPhase.ARRIVED // at the scene or later: help is with the patient
                 },
                 status = status, vehicle = vehicle ?: it.vehicle, crew = crew.ifBlank { null } ?: it.crew,
-                vehicleType = vehicleType ?: it.vehicleType, driver = driver ?: it.driver, paramedic = paramedic ?: it.paramedic,
+                vehicleType = vehicleType ?: it.vehicleType, vehicleId = vehicleId ?: it.vehicleId, driver = driver ?: it.driver, paramedic = paramedic ?: it.paramedic,
                 route = route ?: it.route, timeline = (it.timeline + status).distinct(),
             )
         }

@@ -41,6 +41,11 @@ class CareClient(private val settings: () -> Settings) {
     }
 
     /** The user's yes or no to a slot offered on a call that is still going on. False when it came too late. */
+    /** Stops the session's hospital and booking calls on the backend (the user left the doctor flow). */
+    suspend fun cancel(session: String) {
+        send("/care/$session/cancel", "{}", JsonObject.serializer())
+    }
+
     suspend fun liveConfirm(session: String, askId: String, yes: Boolean): Boolean {
         val body = JsonObject(mapOf("ask_id" to JsonPrimitive(askId), "yes" to JsonPrimitive(yes))).toString()
         return (send("/care/$session/live_confirm", body, JsonObject.serializer())["accepted"] as? JsonPrimitive)?.content == "true"

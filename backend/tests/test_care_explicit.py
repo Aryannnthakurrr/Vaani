@@ -44,3 +44,11 @@ def test_specialist_booking_goes_straight_to_path_b(client) -> None:
 def test_red_flag_still_wins_over_a_booking(client) -> None:
     out = _intake(client, "book a cardiologist appointment, I have crushing chest pain and sweating")
     assert out["route"] == "A" and out["explicit"] is None
+
+
+def test_ambulance_request_mid_intake_dispatches(client) -> None:
+    sid = client.post("/care/session", json={"location": {"lat": 28.46, "lng": 77.03}, "reply_style": "en"},
+                      headers=HEADERS).json()["session_id"]  # fmt: skip
+    client.post(f"/care/{sid}/intake", json={"text": "acha wo"}, headers=HEADERS)
+    out = client.post(f"/care/{sid}/intake", json={"text": "just send an ambulance now"}, headers=HEADERS).json()
+    assert out["done"] and out["route"] == "A" and out["explicit"] == "ambulance"

@@ -217,6 +217,7 @@ class Assistant(private val c: AppContainer) {
     }
 
     private suspend fun runTask(task: TaskSpec, initial: Slots, preferredPkg: String? = null) {
+        if (c.care.running) c.care.stop() // a doctor conversation left open must not keep talking or calling
         _lastOutcome.value = null
         var slots = initial
         for (q in task.required) {
@@ -229,6 +230,7 @@ class Assistant(private val c: AppContainer) {
     }
 
     private suspend fun runGuide(goal: String) {
+        if (c.care.running) c.care.stop()
         _lastOutcome.value = null
         _state.value = AssistantState.RUNNING
         report(guide.run(goal, activeUi))

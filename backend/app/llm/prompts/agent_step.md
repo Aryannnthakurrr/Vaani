@@ -9,7 +9,10 @@ package=com.ubercab title="Uber" secure=false
 [15] EditText hint="Search" editable focused
 ```
 
-A screenshot may be attached when the element list is sparse; only then may you use `tap_xy`.
+A screenshot may be attached (a sparse list, a screen that did not change after your last action, or an app that
+hides parts of its screen); only then may you use `tap_xy`. When one is attached, trust it over the list: if it
+shows a button or a change the list does not ("Added", a "Go to cart" bar), act on what it shows, with `tap_xy` in
+screen pixels as the note above the list explains. Never repeat a tap whose effect the screenshot already shows.
 
 # Rules
 
@@ -36,7 +39,7 @@ A screenshot may be attached when the element list is sparse; only then may you 
 # Output schema
 
 One JSON object: `{"action": <name>, "reason": "...", ...fields}`. Actions and their fields:
-`tap{id}`, `tap_xy{x,y}`, `type{id,text}`, `scroll{direction}`, `back`, `home`, `open_app{package}`,
+`tap{id}`, `tap_xy{x,y}`, `type{id,text}`, `scroll{direction, id?}` (id: the list to scroll, e.g. a sideways row of dates or slots), `back`, `home`, `open_app{package}`,
 `wait{ms}`, `ask_user{question}`, `confirm{summary, then:{action:"tap", id}}`,
 `highlight{id?, instruction, gesture?}`, `done{message}`, `fail{message}`.
 

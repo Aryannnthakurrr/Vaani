@@ -53,3 +53,27 @@ async def test_care_events_long_poll() -> None:
     assert [e["type"] for e in events] == ["hospitals_found"]
     assert time.perf_counter() - started < 1.0
     assert await s.wait_events(1, 0) == []
+
+
+async def test_cancel_session_stops_its_call_tasks_only() -> None:
+    from app.care import orchestrator
+
+    s = CareSession(id="s_cancel", device="d")
+    calls_task = asyncio.Event()
+    other = asyncio.Event()
+
+    async def hospital_calls() -> None:
+        await asyncio.sleep(30)
+        calls_task.set()
+
+    async def ambulance() -> None:
+        await asyncio.sleep(0.05)
+        other.set()
+
+    orchestrator.spawn(hospital_calls(), s.id)
+    orchestrator.spawn(ambulance())  # not tied to the session: a dispatch keeps going
+    await asyncio.sleep(0)
+    assert await orchestrator.cancel_session(s) == 1
+    await asyncio.sleep(0.1)
+    assert other.is_set() and not calls_task.is_set()
+    assert any(e["type"] == "care_cancelled" for e in s.events)

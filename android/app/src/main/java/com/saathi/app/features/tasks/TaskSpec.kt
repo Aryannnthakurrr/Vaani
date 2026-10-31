@@ -109,13 +109,25 @@ object Tasks {
             "Add a Pronto house-help visit to the cart${it.service?.let { s -> " for $s" } ?: ""}" +
                 "${it.date?.let { d -> ", ${DayWords.of(d)}" } ?: ""}${it.time?.let { t -> " at $t" } ?: ""}."
         },
-        // Landmarks seen in Pronto on a real phone (2026-10-31). Pronto books by time, not by chore.
-        addendum = "Pronto books help by time, not by chore. Close any promo pop-up with its close (×) button. " +
-            "With no date or time asked, tap 'Get Instant Service'; otherwise 'Schedule for Later'. If Pronto says its " +
-            "partners are busy it shows the schedule screen instead: pick the asked day (else the earliest), the 0.5 hr " +
-            "'Service duration' unless the user asked for longer, the Morning/Afternoon/Evening tab, and the earliest slot " +
-            "matching the asked time. Read day, time, duration and price, and wrap 'Add to cart' in confirm. Once it is in " +
-            "the cart, finish with done and tell the user to pay in Pronto themselves; never open checkout or payment.",
+        // Landmarks seen in Pronto on a real phone (2026-10-31 and 11-01): home has Instant / Schedule for Later at the
+        // top and an "All house help services" list below the fold; the slot screen shows few slots per tab.
+        addendum = "Close any promo pop-up with its close (×) button. " +
+            "If the goal names a chore (washroom/bathroom/toilet, kitchen, dusting, utensils, laundry…), scroll down on the " +
+            "home screen to 'All house help services' and open the matching service; scroll again if it is not listed yet. " +
+            "On a service page (e.g. 'Bathroom Cleaning') each duration card has its own 'Add' button. If the user did not say " +
+            "how long, first ask_user with the durations and prices shown (\"30 mins ₹40, 60 mins ₹79 or 90 mins ₹119?\"). " +
+            "Tap that card's 'Add' ONCE: it turns 'Added' and a green 'Go to cart' bar appears at the bottom. Pronto does not " +
+            "report either to accessibility, so check the screenshot and tap 'Go to cart' with tap_xy; tapping 'Add' again " +
+            "removes the service. In the cart, pick the asked day and time slot the same way as below. " +
+            "With no chore named, use 'Get Instant Service' when no day or time was asked, else 'Schedule for Later'. " +
+            "On the schedule screen pick the asked day (else the earliest), the 'Service duration' the user asked for (if they " +
+            "didn't, ask_user with the durations and prices shown), then the tab for the time: Morning before 12 pm, Afternoon 12–5 pm, Evening after 5 pm. " +
+            "Tap the slot button that matches the asked time exactly. If it is not among the slots shown, tap the small " +
+            "arrow button right of 'Standard slots' to see every slot, and scroll the slots (scroll with that list's id). " +
+            "If the asked time is still not offered that day, never fail and never pick another time yourself: ask_user " +
+            "with the two nearest times that are offered (or another day). Read day, time, duration and price, and wrap " +
+            "'Add to cart' in confirm. Once it is in the cart, finish with done and tell the user to pay in Pronto " +
+            "themselves; never open checkout or payment.",
     )
     val SHOP = TaskSpec(
         id = "shop_online", pkg = Packages.AMAZON, scenario = "amazon_add_cart", required = listOf(product),

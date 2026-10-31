@@ -36,6 +36,7 @@ class TypeText(_Action):
 class Scroll(_Action):
     action: Literal["scroll"]
     direction: Literal["up", "down", "left", "right"]
+    id: int | None = None  # the list to scroll (a sideways row of dates or slots); default: the page
 
 
 class Back(_Action):

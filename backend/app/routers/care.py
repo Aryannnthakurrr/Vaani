@@ -100,7 +100,7 @@ async def search(
         raise HTTPException(409, "Finish the intake first.")
     if session.location is None and not places.demo_mode():
         raise HTTPException(409, "Location is needed to find hospitals.")
-    orchestrator.spawn(orchestrator.find_and_call(session, llm))
+    orchestrator.spawn(orchestrator.find_and_call(session, llm), session.id)
     return {"started": True}
 
 
@@ -115,8 +115,14 @@ async def book(
     if session.hospital(body.hospital_id) is None:
         raise HTTPException(404, "Unknown hospital for this session.")
     patient = body.patient or session.patient
-    orchestrator.spawn(orchestrator.book(session, llm, body.hospital_id, body.slot, patient))
+    orchestrator.spawn(orchestrator.book(session, llm, body.hospital_id, body.slot, patient), session.id)
     return {"started": True}
+
+
+@router.post("/{session_id}/cancel")
+async def cancel(session_id: str, device: str = Depends(require_device)) -> dict[str, object]:
+    """The user left the doctor screen or started something else: stop its hospital and booking calls."""
+    return {"stopped": await orchestrator.cancel_session(_session(session_id, device))}
 
 
 class CheckWithPatient(BaseModel):

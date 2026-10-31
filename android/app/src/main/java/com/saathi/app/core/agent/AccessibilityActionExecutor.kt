@@ -37,7 +37,7 @@ class AccessibilityActionExecutor(
             AgentAction.TAP -> tap(svc, ref(action.id))
             AgentAction.TAP_XY -> gestureTap(svc, action.x ?: return@withContext false, action.y ?: return@withContext false)
             AgentAction.TYPE -> type(svc, ref(action.id), action.text.orEmpty())
-            AgentAction.SCROLL -> scroll(svc, action.direction ?: "down")
+            AgentAction.SCROLL -> scroll(svc, action.direction ?: "down", ref(action.id))
             AgentAction.BACK -> svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             AgentAction.HOME -> svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
             AgentAction.OPEN_APP -> openApp(action.pkg.orEmpty())
@@ -72,22 +72,35 @@ class AccessibilityActionExecutor(
         return node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
     }
 
-    private suspend fun scroll(svc: AgentService, direction: String): Boolean {
-        val scrollable = reader.refs.filter { it.info.scrollable }
-            .maxByOrNull { (it.info.bounds[2] - it.info.bounds[0]) * (it.info.bounds[3] - it.info.bounds[1]) }
-        val forward = direction == "down" || direction == "right"
-        val op = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-        if (scrollable != null && scrollable.node.refresh() && scrollable.node.performAction(op)) return true
+    /**
+     * Scrolls the list the model named (`id`), else the biggest list that scrolls that way: a date or slot row for
+     * left/right, the page for up/down. A finger swipe inside that list comes first because React Native apps
+     * (Pronto) often accept the accessibility scroll action without moving; the action is only the fallback.
+     */
+    private suspend fun scroll(svc: AgentService, direction: String, target: NodeRef?): Boolean {
+        val sideways = direction == "left" || direction == "right"
+        fun w(r: NodeRef) = r.info.bounds[2] - r.info.bounds[0]
+        fun h(r: NodeRef) = r.info.bounds[3] - r.info.bounds[1]
+        fun horizontal(r: NodeRef) = r.info.cls.contains("Horizontal") || (w(r) > h(r) * 2 && h(r) < 900)
+        val list = target?.takeIf { it.info.scrollable }
+            ?: reader.refs.filter { it.info.scrollable && horizontal(it) == sideways }.maxByOrNull { w(it).toLong() * h(it) }
+            ?: reader.refs.filter { it.info.scrollable }.maxByOrNull { w(it).toLong() * h(it) }
         val dm = svc.resources.displayMetrics
-        val cx = dm.widthPixels / 2f
-        val cy = dm.heightPixels / 2f
-        val d = dm.heightPixels / 3f
-        return when (direction) {
-            "down" -> swipe(svc, cx, cy + d, cx, cy - d)
-            "up" -> swipe(svc, cx, cy - d, cx, cy + d)
-            "right" -> swipe(svc, cx + d, cy, cx - d, cy)
-            else -> swipe(svc, cx - d, cy, cx + d, cy)
+        val (l, t, r, b) = list?.info?.bounds ?: listOf(0, 0, dm.widthPixels, dm.heightPixels)
+        val cx = (l + r) / 2f
+        val cy = (t + b) / 2f
+        val dx = (r - l) * 0.35f
+        val dy = (b - t) * 0.3f
+        val swiped = when (direction) {
+            "down" -> swipe(svc, cx, cy + dy, cx, cy - dy)
+            "up" -> swipe(svc, cx, cy - dy, cx, cy + dy)
+            "right" -> swipe(svc, cx + dx, cy, cx - dx, cy)
+            else -> swipe(svc, cx - dx, cy, cx + dx, cy)
         }
+        if (swiped) return true
+        val op = if (direction == "down" || direction == "right") AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+            else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        return list != null && list.node.refresh() && list.node.performAction(op)
     }
 
     private suspend fun gestureTap(svc: AgentService, x: Int, y: Int): Boolean {

@@ -40,10 +40,21 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
         val title = roots.firstOrNull()?.window?.title?.toString()
         var shot: String? = null
         val sparse = nodes.count { it.interactive } < 3
-        if (sparse && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) shot = screenshot(svc)
+        // The element list can't be trusted alone when it is nearly empty, when it hasn't changed since the last
+        // read (an action that "did nothing" often did something the app didn't report: Pronto's "Add" turns into
+        // "Added" and a "Go to cart" bar appears, neither of which reaches accessibility), or in apps known to hide
+        // parts of their screen. Then the model also gets a screenshot.
+        val fingerprint = TreeSerializer.fingerprint(ScreenSnapshot(pkg, title, false, nodes))
+        val unchanged = fingerprint == lastFingerprint
+        lastFingerprint = fingerprint
+        val wantShot = sparse || unchanged || pkg in VISUAL_APPS
+        var note: String? = null
+        if (wantShot && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) screenshot(svc)?.let { (b64, n) -> shot = b64; note = n }
         val secure = nodes.isEmpty() && shot == null
-        return ScreenSnapshot(pkg, title, secure, nodes, screenshotB64 = shot, needsScreenshot = sparse && !secure)
+        return ScreenSnapshot(pkg, title, secure, nodes, screenshotB64 = shot, needsScreenshot = sparse && !secure, screenshotNote = note)
     }
+
+    private var lastFingerprint: String? = null
 
     private fun roots(svc: AgentService): List<AccessibilityNodeInfo> {
         val active = svc.rootInActiveWindow
@@ -79,7 +90,8 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
     }
 
     /** Downscaled JPEG (max 1080 px tall, q70) for sparse trees. Null for FLAG_SECURE windows. */
-    private suspend fun screenshot(svc: AgentService): String? {
+    /** A JPEG of the screen (at most 1080 px tall) and a note telling the model how image pixels map to taps. */
+    private suspend fun screenshot(svc: AgentService): Pair<String, String>? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         val bitmap = withTimeoutOrNull(2_000) {
             suspendCancellableCoroutine<Bitmap?> { cont ->
@@ -101,10 +113,14 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
         val scaled = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
         val out = ByteArrayOutputStream()
         scaled.compress(Bitmap.CompressFormat.JPEG, 70, out)
-        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+        val note = "Screenshot attached: ${scaled.width}x${scaled.height} image of the ${bitmap.width}x${bitmap.height} screen. " +
+            "Use it for anything the element list misses; tap_xy takes SCREEN pixels (image x and y times ${"%.2f".format(1 / scale)})."
+        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP) to note
     }
 
     companion object {
         private val executor = Executors.newSingleThreadExecutor()
+        /** React Native apps whose accessibility tree misses overlays and state changes (seen on Pronto, 2026-11-01). */
+        val VISUAL_APPS = setOf(com.saathi.app.util.Packages.HOUSE_HELP)
     }
 }

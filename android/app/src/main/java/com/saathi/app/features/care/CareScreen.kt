@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,6 +66,9 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
     fun s(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
     val context = LocalContext.current
     LaunchedEffect(Unit) { if (ui.phase == CarePhase.STARTING && c.care.sessionId == null) c.care.start() }
+    // Leaving by any route (back gesture, Home, another tile) ends the flow and its calls, except the hand-over to
+    // the emergency screen (route A), which must keep running.
+    DisposableEffect(Unit) { onDispose { if (c.care.ui.value.route != "A") c.care.stop() } }
     val booked = ui.booking?.takeIf { it.status == "confirmed" }
 
     SaathiScaffold(s("Doctor", "डॉक्टर", "Doctor"), { c.care.stop(); onBack() }) {

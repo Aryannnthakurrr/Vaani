@@ -98,10 +98,12 @@ async def take_turn(session: CareSession, text: str, llm: LLMClient) -> dict[str
     """One intake turn (typed, turn-based or from the live conversation): the first description or the answer to
     the pending follow-up. Returns the next question, or the finished note with its route.
 
-    A first sentence that asks for something outright ("send an ambulance now", "book an orthopedic appointment")
-    skips the questions: `explicit` in the reply tells the phone to dispatch at once or start the hospital calls."""
+    Asking outright skips the questions ("send an ambulance now" at any turn, "book an orthopedic appointment" as the
+    first sentence): `explicit` in the reply tells the phone to dispatch at once or start the hospital calls."""
     first = not session.pending_question and not session.utterances and not session.followups
-    kind = explicit_request(text) if first else None
+    kind = explicit_request(text)
+    if kind == "appointment" and not first:
+        kind = None  # mid-intake "doctor" talk is an answer; an ambulance request counts at any turn
     if session.pending_question:
         record_answer(session, session.pending_question, text)
     else:
@@ -156,6 +158,8 @@ def _explicit_note(session: CareSession, kind: str, text: str) -> IntakeNote:
         note.emergency = Emergency(answer="YES", reasoning="The user asked for an ambulance.",
                                    triggering_red_flags=note.emergency.triggering_red_flags, acuity=2)  # fmt: skip
         plan = "emergency dispatch (requested by the user)"
+        if not session.safety_flags:
+            note.patient_brief = ""  # "send an ambulance now" is a request, not a symptom: the crew checks on arrival
     else:
         note.emergency = Emergency(answer="NO", reasoning="The user asked to book an appointment; no red flag.", acuity=4)
         plan = f"book a {note.specialty} appointment (requested by the user)"
@@ -347,7 +351,7 @@ def template_note(session: CareSession) -> IntakeNote:
         specialty=specialty,
         search_queries=_queries(specialty),
         appointment_timeframe=None if flags else "48 hours",
-        patient_brief=f"{p.age or '?'}{p.sex or ''}, {cc[:80]}",
+        patient_brief=", ".join(x for x in (f"{p.age or ''}{p.sex or ''}", cc[:80]) if x),
     )
     loc = session.location
     qa = "\n".join(f"  Q: {f['q']} A: {f['a']}" for f in session.followups) or "  none"

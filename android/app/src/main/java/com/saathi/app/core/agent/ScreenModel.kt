@@ -54,6 +54,8 @@ data class ScreenSnapshot(
     val nodes: List<ScreenNode>,
     val screenshotB64: String? = null,
     val needsScreenshot: Boolean = false,
+    /** How the screenshot's pixels map to tap_xy coordinates; sent to the model above the element list. */
+    val screenshotNote: String? = null,
 ) {
     fun node(id: Int?): ScreenNode? = id?.let { nodes.getOrNull(it - 1) }
 

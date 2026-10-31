@@ -15,6 +15,7 @@ from app.care.calls import CallsUnavailable
 from app.care.models import BookingResult, CallResult, Hospital, Location, Patient, Recommendation, Slot
 from app.care.session import CareSession
 from app.llm.base import LLMClient
+from app.telephony.bolna import stop_call
 
 log = logging.getLogger("saathi.care")
 _RETRY_OUTCOMES = {"NO_ANSWER", "VOICEMAIL", "TIMEOUT", "NOT_ALLOWED", "WRONG_NUMBER"}
@@ -22,11 +23,37 @@ _tasks: set[asyncio.Task] = set()
 DEMO_LOCATION = Location(lat=28.4595, lng=77.0266, address="Gurugram (demo location)")
 
 
-def spawn(coro) -> None:  # type: ignore[no-untyped-def]
-    """Runs `coro` in the background and keeps a reference so it isn't garbage-collected mid-call."""
+_by_session: dict[str, set[asyncio.Task]] = {}
+
+
+def spawn(coro, session_id: str | None = None) -> None:  # type: ignore[no-untyped-def]
+    """Runs `coro` in the background and keeps a reference so it isn't garbage-collected mid-call. Tasks started with
+    a `session_id` (hospital calls, booking calls) can be stopped with `cancel_session`."""
     task = asyncio.create_task(coro)
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
+    if session_id:
+        group = _by_session.setdefault(session_id, set())
+        group.add(task)
+        task.add_done_callback(group.discard)
+
+
+async def cancel_session(session: CareSession) -> int:
+    """The user left the doctor flow: stop its hospital and booking calls (an ambulance dispatch is not touched).
+    Calls still queued at Bolna are cancelled; one already ringing ends on its own, and no further call starts."""
+    tasks = [t for t in _by_session.pop(session.id, set()) if not t.done()]
+    for task in tasks:
+        task.cancel()
+    for state in list(session.calls.values()):
+        if not state.done:
+            try:
+                await asyncio.to_thread(stop_call, calls.agent_config(state.mode), state.execution_id)
+            except Exception as exc:  # noqa: BLE001 - best effort; the call ends by itself anyway
+                log.info("stop call %s failed: %s", state.execution_id, type(exc).__name__)
+            state.done = True
+    if tasks:
+        session.emit("care_cancelled", stopped=len(tasks))
+    return len(tasks)
 
 
 def _tr(style: str, en: str, hi: str, hinglish: str) -> str:

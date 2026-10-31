@@ -70,7 +70,7 @@ class TaskRunner(private val c: AppContainer) {
         val cabSlots = if (spec.id == Tasks.UBER.id) slots.copy(destination = slots.destination?.let(DeepLinks::cleanDestination)) else slots
         val (taskSlots, lookup) = if (replay || spec.id == Tasks.UBER.id) cabSlots to places else resolvePlace(spec, slots, ui)
         val link = if (replay) null else spec.deeplink?.invoke(taskSlots, lookup)
-        val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link))
+        val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link), appPackage = pkg.takeUnless { replay })
         if (!replay) {
             // The first hop is Saathi's own code, still checked by the same policy as model actions.
             val launch = link?.let { AgentAction(AgentAction.OPEN_DEEPLINK, uri = it, reason = "task launch") }

@@ -74,9 +74,19 @@ class CareFlow(private val c: AppContainer) {
         }
     }
 
+    /**
+     * Ends the doctor flow: no more listening or speaking, and the backend stops its hospital and booking calls.
+     * Called when the user leaves the Doctor screen or starts something else. Reopening starts a fresh session.
+     */
     fun stop() {
+        val session = sessionId
         job?.cancel()
         c.speaker.stop()
+        tapped = null; typed = null; choice = null
+        _asking.value = Asking.NOTHING
+        sessionId = null
+        _ui.value = CareUi()
+        if (session != null) c.scope.launch { runCatching { client.cancel(session) } }
     }
 
     /** After "I'm OK" on the emergency screen: "Shall I find you a doctor instead?" then Path B, marked urgent. */

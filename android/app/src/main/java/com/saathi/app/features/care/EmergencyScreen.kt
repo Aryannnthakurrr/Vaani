@@ -56,6 +56,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -187,7 +188,7 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
     val title = when (ui.status) {
         null, "RECEIVED" -> s("Requesting an ambulance", "एम्बुलेंस बुलाई जा रही है", "Ambulance bulayi ja rahi hai")
         "ASSIGNED" -> s("Ambulance assigned", "एम्बुलेंस मिल गई", "Ambulance mil gayi")
-        "EN_ROUTE" -> s("Ambulance on the way", "एम्बुलेंस रास्ते में है", "Ambulance raste mein hai")
+        "EN_ROUTE" -> s("Ambulance on the way", "एम्बुलेंस आ रही है", "Ambulance aa rahi hai")
         "ARRIVED_AT_SCENE" -> s("Ambulance has arrived", "एम्बुलेंस पहुँच गई", "Ambulance pahunch gayi")
         "PATIENT_ON_BOARD" -> s("Patient on board", "मरीज़ एम्बुलेंस में हैं", "Patient ambulance mein hain")
         "EN_ROUTE_TO_HOSPITAL" -> s("Going to hospital", "अस्पताल जा रहे हैं", "Hospital ja rahe hain")
@@ -214,34 +215,38 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
             Modifier.fillMaxWidth().offset(y = (-22).dp)
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
                 .padding(horizontal = 20.dp, vertical = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("●  " + title.uppercase(), color = Danger, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp,
+                Text("●  " + title.uppercase(), color = Danger, fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite })
-                ui.vehicle?.let {
-                    Text(it, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
-                            .padding(horizontal = 14.dp, vertical = 6.dp))
+                (ui.vehicleId ?: ui.vehicle)?.let {
+                    Text(it, fontSize = 14.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
+                            .padding(horizontal = 12.dp, vertical = 5.dp))
                 }
             }
             if (moving && ui.etaSec != null) {
-                Text(if (eta >= 60) "${(eta + 30) / 60} min" else "$eta s", fontSize = 58.sp, fontWeight = FontWeight.Black)
-                ui.distanceM?.let { Text(s("%.1f km away", "%.1f किमी दूर", "%.1f km door").format(it / 1000.0), fontSize = 20.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Column {
+                    Text(if (eta >= 60) "${(eta + 30) / 60} min" else "$eta s", fontSize = 54.sp, lineHeight = 56.sp, fontWeight = FontWeight.Black,
+                        style = Tight)
+                    ui.distanceM?.let { Text(s("%.1f km away", "%.1f किमी दूर", "%.1f km door").format(it / 1000.0), fontSize = 19.sp,
+                        lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, style = Tight) }
+                }
                 val start = ui.startDistanceM
                 val done = if (start != null && start > 0) (1f - (ui.distanceM ?: start) / start.toFloat()).coerceIn(0.02f, 1f) else 0.02f
                 val shown by animateFloatAsState(done, tween(900), label = "trip")
-                LinearProgressIndicator(progress = { shown }, modifier = Modifier.fillMaxWidth().height(7.dp), color = Danger,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant, strokeCap = StrokeCap.Round)
+                LinearProgressIndicator(progress = { shown }, modifier = Modifier.fillMaxWidth().height(6.dp), color = Danger,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant, strokeCap = StrokeCap.Round, gapSize = 0.dp, drawStopIndicator = {})
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // The plate is already in the chip above; this box says what kind of help is on board.
-                Fact("🚑", s("Life support", "लाइफ़ सपोर्ट", "Life support"), when (ui.vehicleType) {
-                    "ALS" -> s("Advanced (ALS)", "एडवांस्ड (ALS)", "Advanced (ALS)")
-                    "BLS" -> s("Basic (BLS)", "बेसिक (BLS)", "Basic (BLS)")
-                    else -> null
-                }, Modifier.weight(1f))
+                Fact("🚑", when (ui.vehicleType) {
+                    "ALS" -> s("ALS · Advanced Life Support", "ALS · एडवांस्ड लाइफ़ सपोर्ट", "ALS · Advanced Life Support")
+                    "BLS" -> s("BLS · Basic Life Support", "BLS · बेसिक लाइफ़ सपोर्ट", "BLS · Basic Life Support")
+                    else -> s("Ambulance", "एम्बुलेंस", "Ambulance")
+                }, ui.vehicle, Modifier.weight(1f))
                 Fact("👤", s("Driver", "ड्राइवर", "Driver"), ui.driver, Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -254,11 +259,11 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("🛡  " + s("Shared with the driver and nurse", "ड्राइवर और नर्स को बताया गया", "Driver aur nurse ko bataya gaya"),
-                    fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
                 Text(ui.brief.ifBlank { s("No symptoms described. The crew will check on arrival.",
                     "कोई तकलीफ़ नहीं बताई गई। टीम पहुँचकर जाँच करेगी।", "Koi takleef nahi batayi gayi. Team pahunch kar check karegi.") },
-                    fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                ui.area?.let { Text("📍  $it", fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+                    fontSize = 16.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ui.area?.let { Text("📍  $it", fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold) }
             }
             if (ui.status == null || ui.status == "RECEIVED") { // once an ambulance is assigned, a 108 call would only send a second one
                 BigButton(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), { c.emergency.call108(context) }, color = Danger)
@@ -284,17 +289,26 @@ private fun fare(startDistanceM: Int): Int = ((800 + 60 * startDistanceM / 1000.
 @Composable
 private fun Fact(icon: String, label: String, value: String?, modifier: Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        Box(Modifier.size(46.dp).background(Danger.copy(alpha = .12f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-            Text(icon, fontSize = 22.sp, color = Danger, fontWeight = FontWeight.Bold)
+        Box(Modifier.size(44.dp).background(Danger.copy(alpha = .10f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+            Text(icon, fontSize = 20.sp, color = Danger, fontWeight = FontWeight.Bold)
         }
+        // Tight line heights: the app font (Mukta) has tall default lines that made these boxes sprawl.
         Column {
-            Text(label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value ?: "…", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(label, fontSize = 14.sp, lineHeight = 17.sp, maxLines = 2, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value ?: "…", fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold, maxLines = 2,
+                overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
 private const val MAP_DP = 430
+
+/** Mukta adds tall font padding above and below each line; big numbers (the ETA) need it trimmed to sit tight. */
+private val Tight = androidx.compose.ui.text.TextStyle(
+    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+    lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+        androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center, androidx.compose.ui.text.style.LineHeightStyle.Trim.Both),
+)
 
 @SuppressLint("SetJavaScriptEnabled") // our own bundled page; no remote content is scripted
 @Composable
