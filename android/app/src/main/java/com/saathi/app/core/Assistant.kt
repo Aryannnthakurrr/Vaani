@@ -74,6 +74,12 @@ class Assistant(private val c: AppContainer) {
             replyStyle = { style.wire },
             tools = LiveTools(c) { _live.value },
             onEnded = { connected -> c.scope.launch { onLiveEnded(connected) } },
+            sharedContext = {
+                val appt = c.settings.current.lastAppointment?.let {
+                    runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()
+                }
+                com.saathi.app.features.appointments.AppointmentState.contextLine(appt, java.time.ZonedDateTime.now())
+            },
         )
         _live.value = session
         _state.value = AssistantState.LISTENING

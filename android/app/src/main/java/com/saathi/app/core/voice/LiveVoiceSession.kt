@@ -52,6 +52,8 @@ class LiveVoiceSession(
     private val replyStyle: () -> String,
     private val tools: ToolHandler,
     private val onEnded: (connected: Boolean) -> Unit = {},
+    /** Facts from other workflows for the assistant (the next appointment). */
+    private val sharedContext: () -> String? = { null },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val client = OkHttpClient.Builder().readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(15, TimeUnit.SECONDS).build()
@@ -79,7 +81,7 @@ class LiveVoiceSession(
         ws = client.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 connected = true
-                webSocket.send(LiveWire.config(replyStyle()))
+                webSocket.send(LiveWire.config(replyStyle(), sharedContext()))
                 _state.value = LiveState.LISTENING
                 startPlayer()
                 startMic()

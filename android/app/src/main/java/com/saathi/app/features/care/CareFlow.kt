@@ -346,6 +346,13 @@ class CareFlow(private val c: AppContainer) {
     private suspend fun booked(b: BookingStatus) {
         val cal = b.calendar
         val added = cal?.let { c.calendar.insertEvent(it.title, it.location, it.description, it.startIso, it.endIso) } != null
+        // Shared with every other workflow: reminders, "cab to my appointment", and the assistant's context.
+        val hospital = _ui.value.hospitals.firstOrNull { it.hospital.id == b.hospitalId }?.hospital
+        val appt = com.saathi.app.core.net.Appointment(doctor = b.doctorName, clinic = hospital?.name,
+            address = hospital?.address ?: cal?.location, phone = hospital?.phone, startIso = b.startIso ?: cal?.startIso)
+        c.settings.setLastAppointment(com.saathi.app.util.SaathiJson.encodeToString(com.saathi.app.core.net.Appointment.serializer(), appt))
+        com.saathi.app.features.inbox.ReminderPlanner.forAppointment(appt, java.time.ZonedDateTime.now())
+            .forEach { c.reminders.add(c.db.reminders(), it) }
         val whenText = CareText.time(b.startIso ?: cal?.startIso.orEmpty(), style)
         val ref = b.bookingRef?.let { s(", reference $it", ", रेफ़रेंस $it", ", reference $it") }.orEmpty()
         say(s("Booked: ${b.doctorName ?: cal?.title ?: "the appointment"}, $whenText$ref." + if (added) " I added it to your calendar." else "",

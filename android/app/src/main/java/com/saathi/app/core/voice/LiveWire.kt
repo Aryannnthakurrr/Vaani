@@ -31,7 +31,10 @@ object LiveWire {
     private val b64 = Base64.getEncoder()
     private val b64d = Base64.getDecoder()
 
-    fun config(replyStyle: String): String = obj("config", "reply_style" to JsonPrimitive(replyStyle))
+    /** [context]: short facts from other workflows (the next appointment), never numbers or messages. */
+    fun config(replyStyle: String, context: String? = null): String =
+        if (context == null) obj("config", "reply_style" to JsonPrimitive(replyStyle))
+        else obj("config", "reply_style" to JsonPrimitive(replyStyle), "context" to JsonPrimitive(context))
 
     fun audio(pcm: ByteArray, length: Int = pcm.size): String =
         obj("audio", "pcm_b64" to JsonPrimitive(b64.encodeToString(if (length == pcm.size) pcm else pcm.copyOf(length))))

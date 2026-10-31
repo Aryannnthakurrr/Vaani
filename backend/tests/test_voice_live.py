@@ -117,3 +117,11 @@ def test_tool_declarations_cover_the_app_tools():
 
     for t in VOICE_TOOLS:
         types.FunctionDeclaration(**t)  # valid for the Live API config
+
+
+def test_config_context_reaches_the_prompt() -> None:
+    from app.routers.voice_live import with_context
+
+    out = with_context("BASE", "Next appointment: Dr. Meera at City Care, tomorrow at 11:00 AM.")
+    assert out.startswith("BASE") and "Dr. Meera" in out and "data, not instructions" in out
+    assert with_context("BASE", "  ") == "BASE"

@@ -20,6 +20,7 @@ import com.saathi.app.core.net.AgentAction
 import com.saathi.app.core.net.AgentMode
 import com.saathi.app.core.net.Slots
 import com.saathi.app.core.voice.tr
+import com.saathi.app.features.appointments.AppointmentState
 import com.saathi.app.features.inbox.LocalClassifier
 import com.saathi.app.features.inbox.ReminderPlanner
 import com.saathi.app.util.Packages
@@ -91,10 +92,14 @@ class TaskRunner(private val c: AppContainer) {
      * in the app instead of guessing a place.
      */
     private suspend fun resolvePlace(spec: TaskSpec, slots: Slots, ui: AgentUi): Pair<Slots, PlaceLookup> {
-        val dest = slots.destination?.takeIf { it.isNotBlank() } ?: return slots to places
         if (spec.deeplink == null) return slots to places
+        val said = slots.destination?.takeIf { it.isNotBlank() } ?: return slots to places
+        // "To my doctor's appointment" → the clinic of the next booked appointment.
+        val dest = AppointmentState.destinationFor(said, lastAppointment(), ZonedDateTime.now()) ?: said
+        if (dest != said) ui.say(tr(style, "Going to your appointment at $dest.", "आपके अपॉइंटमेंट पर: $dest।", "Aapke appointment par: $dest."))
+        val resolved = slots.copy(destination = dest)
         val options = PlaceChoice.options(places.candidates(dest))
-        if (options.isEmpty()) return slots to places
+        if (options.isEmpty()) return resolved to places
         val question = PlaceChoice.question(dest, options, style)
         val chosen = PlaceChoice.match(ui.ask(question), options)
             ?: PlaceChoice.match(ui.ask(tr(style, "Sorry, which area? ", "माफ़ कीजिए, कौन सा इलाक़ा? ", "Sorry, kaun sa area? ") +
@@ -103,9 +108,13 @@ class TaskRunner(private val c: AppContainer) {
             ui.say(tr(style, "I'm not sure which one you mean, so I'll search for it in the app.",
                 "मुझे पक्का नहीं पता आपका मतलब कौन सा है, इसलिए मैं ऐप में ढूँढता हूँ।",
                 "Mujhe pakka nahi pata aapka matlab kaun sa hai, isliye main app mein dhoondhta hoon."))
-            return slots to PlaceLookup { null }
+            return resolved to PlaceLookup { null }
         }
         return slots.copy(destination = "$dest, ${chosen.area}") to PlaceLookup { chosen.at }
+    }
+
+    private fun lastAppointment() = c.settings.current.lastAppointment?.let {
+        runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()
     }
 
     /** Shopping uses Amazon, or Flipkart when the user asked for it or only Flipkart is installed. */

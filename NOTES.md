@@ -594,3 +594,24 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   phone-side tool `care_done`; Saathi finishes its closing sentence, then Path A or B continues as before.
 - Falls back to the turn-based intake only if Live never connects (offline, mock backend: the server closes 4404).
 - The intake speaks in the Live voice (Sulafat); Path B's yes/no and booking steps stay turn-based (Aparna).
+
+## Batch 1 of the "smarter and safer" list (2026-11-01)
+
+- **Ask, don't guess:** one shared `prompts/_judgement.md` block (via `{judgement}`) in the voice, care-intake,
+  agent, triage and intent prompts: act on the clear reading, ask one short question only when the choices really
+  differ, admit uncertainty, never re-ask.
+- **Place choice:** the geocoder now returns up to 5 matches with their city. When a destination is in several
+  areas (Apollo Hospital: Delhi, Faridabad), `PlaceChoice` asks which one, matches "Faridabad wala" or "doosra",
+  asks once more if unclear, then admits it isn't sure and lets the agent search in the app.
+- **Language:** "mujhe English nahi aati" / "speak English" (`LanguageSwitch`) saves the language, so the UI and
+  replies switch for good.
+- **Emergency filter:** negations now work in Devanagari and without "hai". New combination rules: thunderclap
+  headache, fever with stiff neck or confusion, GI bleed, low sugar in a diabetic, fall without getting up. The
+  triage prompt weighs combinations no rule covers. The countdown defaults to 15 s.
+- **Shared appointment state:** care bookings now also save `lastAppointment` and set reminders, like Practo.
+  "Cab to my doctor's appointment" resolves to that clinic (`AppointmentState`), and the live conversation is told
+  the next appointment (config `context` → "What Saathi already knows" in its prompt).
+- **Still to do, in this order:** OTP/account redaction with local TTS hand-off; real-time voice everywhere plus
+  voice-wave cards for key decisions; on-device price-check guard before booking taps, with the comparison logic
+  kept portable to the server; demo profiles (Settings picker), simulations and cost/bandwidth metrics; shopping
+  aisle guidance and health-aware nudges; confirming an appointment mid-call (depends on Bolna support).
