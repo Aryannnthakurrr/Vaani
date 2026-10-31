@@ -76,8 +76,10 @@ checks from that PC fail even when the server is fine. Details in `deploy/README
 
 ## Open items
 
-- Meko is live (key in the server `.env`) but slow (5-16 s per call), so it is only ever written in the
-  background; the local copy answers anything a user waits for.
+- Meko is live (key in the server `.env`) but **write-only**: its search returns other elders' facts, and each call
+  takes 5-21 s. The local copy answers every read. Re-verify isolation (NOTES.md) before reading from Meko.
+- Memory carries over only into the Live voice prompt. Keep it out of `/intent` and `/agent/step` (they train the
+  compiled skills) and out of the clinic call (its prompt forbids sharing medical history).
 - Live voice is tested with typed turns and on the deployed server, not yet with microphone audio on a device.
 - Pronto's checkout screen and logged-in flows are not yet recorded; the agent stops at the cart either way.
 - Not built: SMS parser skills; Meko artifacts, token tracking and run resume.

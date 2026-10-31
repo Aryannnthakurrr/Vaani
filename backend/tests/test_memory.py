@@ -101,6 +101,25 @@ async def test_fallback_hides_primary_outage(tmp_path):
     assert await mem.run_state("dev1", "r") == [{"seq": 0}]
 
 
+class LeakyMeko(LocalMemory):
+    """Meko as observed live: a fast search that returns facts written for other elders."""
+
+    name = "leaky"
+
+    async def remember(self, *a: Any, **k: Any) -> None:
+        return None
+
+    async def recall(self, *a: Any, **k: Any) -> list[str]:
+        return ["Daughter Priya lives in Pune"]  # belongs to someone else
+
+
+async def test_recall_never_reads_meko_so_elders_cannot_see_each_others_facts(tmp_path):
+    mem = FallbackMemory(LeakyMeko(tmp_path / "k.db"), LocalMemory(tmp_path / "l.db"))
+    await mem.remember("dev1", "Home is Sector 18")
+    assert await mem.recall("dev1", "home") == ["Home is Sector 18"]
+    assert await mem.recall("dev2", "daughter") == []  # a new elder with nothing stored gets nothing
+
+
 def test_format_memories():
     assert format_memories([]) == ""
     assert "- likes tea" in format_memories(["likes tea"])

@@ -33,10 +33,14 @@ class Memory(Protocol):
 
 
 class FallbackMemory:
-    """Local first, Meko in the background. Meko answers in 5-16 s, so nobody ever waits on it: writes land locally
-    at once and reach Meko later; recall gives Meko a short window, then answers from the local copy."""
+    """Local answers every read; Meko is a write-only mirror, written in the background.
 
-    RECALL_WAIT_S = 2.5
+    Meko answers in 5-21 s, so nobody waits on it: writes land locally at once and reach Meko later. It is never
+    read back, because its `memory_search` does not isolate elders: on 2026-10-31 a brand-new elder holding one
+    fact got back two facts written for other elders, despite our `conversation_id` and `agent_id`. Reading it could
+    tell one elder about another's family. Every fact is written locally first, so the local copy holds them all.
+    Re-check isolation with a fresh elder before ever reading from Meko.
+    """
 
     def __init__(self, primary: Memory, local: Memory) -> None:
         self.primary, self.local = primary, local
@@ -59,13 +63,7 @@ class FallbackMemory:
         self._later("remember", self.primary.remember(device, text, kind, **meta))
 
     async def recall(self, device: str, query: str, limit: int = 5) -> list[str]:
-        try:
-            got = await asyncio.wait_for(self.primary.recall(device, query, limit), self.RECALL_WAIT_S)
-            if got:
-                return got
-        except Exception as exc:  # noqa: BLE001 - includes the timeout
-            log.info("meko recall skipped: %s", type(exc).__name__)
-        return await self.local.recall(device, query, limit)
+        return await self.local.recall(device, query, limit)  # never Meko: see the class docstring
 
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         await self.local.log_step(device, run_id, goal, step)

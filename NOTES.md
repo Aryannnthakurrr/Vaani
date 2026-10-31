@@ -420,9 +420,13 @@ project, with the elder served by voice and the family by Telegram plus the fami
   `conversation_id`), so each elder has one profile conversation whose id is kept locally; `metadata` must be a
   JSON string and `plan` a list; errors arrive as `{"result": "{\"error\": …}"}` text; datapack tools also need a
   conversation, so Saathi uses Meko's default datapack. **Each call takes 5-16 s**, so writes go to the local
-  store at once and to Meko in the background, and recall waits 2.5 s for Meko before answering locally.
-- `agent_id` is now `elder-<sha256(device)[:16]>`: 8-character prefixes of two test device ids collided and
-  returned each other's memories.
+  store at once and to Meko in the background.
+- `agent_id` is now `elder-<sha256(device)[:16]>`: 8-character prefixes of two test device ids collided.
+- **Meko's `memory_search` does not isolate elders, even with distinct ids.** Test (2026-10-31): two new random
+  devices with hashed agent ids, each in its own profile conversation, one unique fact each. Searching as either
+  one returned both facts. The id collision above was real, but it was not the cause. So **Meko is write-only**:
+  a durable copy of facts and the per-run agent trail. `FallbackMemory.recall` reads only the local store, which
+  holds every fact because it is always written first. Re-run that two-elder test before ever reading from Meko.
 
 ### Deviations
 - Turn-based speech keeps Sarvam first and uses Gemini as the fallback: Gemini TTS measured 2.4–3.9 s against
@@ -446,8 +450,11 @@ project, with the elder served by voice and the family by Telegram plus the fami
   HTTPS; use `http://10.0.2.2:8000` locally or a phone on mobile data.
 
 ### Gaps
-- Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Memories reach only
-  the Live prompt, not `/intent` or `/agent/step`. Meko's 5-16 s latency rules it out of any request path.
+- Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Meko is never read
+  (no isolation, above) and its 5-21 s latency rules it out of any request path anyway.
+- Memories carry over only into the Live voice prompt, by design. Not `/intent` or `/agent/step`: both produce
+  the training data for compiled skills, and varying prompt text would make the same request map to different
+  answers, which breaks the held-out replay tests. Not the clinic call: its prompt forbids sharing medical history.
 - Code skills: no SMS `parser` kind. Each sandboxed call is a fresh `docker run`: 0.52–0.61 s on the droplet
   (measured after deploy; a memory bomb was killed in 0.7 s). Serving gives up after 3 s and asks the LLM.
 - Deployed check: `wss://165-245-196-218.sslip.io/live/voice` through Caddy → `start_task book_doctor` with the

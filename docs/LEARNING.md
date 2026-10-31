@@ -108,7 +108,7 @@ tokens spent compiling. Not built yet: USD estimates and the "handled N steps on
 
 The elder taps the mic bubble or "Talk to Saathi" and has a **natural spoken conversation**. The app streams 16 kHz
 PCM up and plays 24 kHz PCM down. The backend relays to `gemini-3.8-live` with the Saathi persona, the reply style, the
-user's memories from Meko, and these **tools**, which the app executes:
+user's remembered facts (from the local store), and these **tools**, which the app executes:
 
 | Tool | Args | App does |
 |---|---|---|
@@ -117,7 +117,7 @@ user's memories from Meko, and these **tools**, which the app executes:
 | `open_screen` | `screen` (digest, camera, alerts, settings, clinic_call) | Navigates |
 | `read_updates` | — | Returns digest items (fixed code) for the model to speak |
 | `check_link` | `url` | `/links/check` verdict |
-| `remember` | `fact` | Stores in Meko (server side, no app round trip) |
+| `remember` | `fact` | Stores locally, mirrored to Meko (server side, no app round trip) |
 
 Client → server messages: `{"type":"config","reply_style"}`, `{"type":"audio","pcm_b64"}`, `{"type":"text","text"}`
 (typed input), `{"type":"tool_result","id","result"}`, `{"type":"end"}`.
@@ -132,7 +132,8 @@ and transcription (or on-device speech if those are slow or offline). Typing sti
 
 Meko is reached through MCP at `https://mcp.mekodata.ai/mcp` (`Authorization: Bearer mko_tkn_…`, `MEKO_API_KEY`),
 Meko's default datapack. `app/memory/` uses one interface with two backends:
-`MekoMemory` (MCP) and `LocalMemory` (SQLite, used whenever there is no key or Meko is unreachable).
+`LocalMemory` (SQLite) answers every read, and `MekoMemory` (MCP) is a **write-only** mirror filled in the background.
+Meko is never read: its search returned other elders' facts, and each call takes 5-21 s (NOTES.md).
 
 | What | Meko tool | Used for |
 |---|---|---|
