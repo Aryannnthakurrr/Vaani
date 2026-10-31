@@ -416,8 +416,13 @@ project, with the elder served by voice and the family by Telegram plus the fami
   Dr. Mehta (recalled into the system prompt).
 - Live latency: connect ~1.5 s, first audio ~0.9 s after a text turn (3.1-flash-live: 2.0 s / 0.7 s).
 - `gemini-3.5-transcribe` returns `audio_transcription` parts, not text parts (`response.text` is empty).
-- Meko MCP endpoint answers (405 to a plain GET, as expected for MCP). The adapter was tested with faked MCP
-  calls only: **no `MEKO_API_KEY` yet**, so the real tool argument names are unverified.
+- Meko, verified with the real key: memories are scoped to a conversation (`memory_add`/`memory_search` require
+  `conversation_id`), so each elder has one profile conversation whose id is kept locally; `metadata` must be a
+  JSON string and `plan` a list; errors arrive as `{"result": "{\"error\": …}"}` text; datapack tools also need a
+  conversation, so Saathi uses Meko's default datapack. **Each call takes 5-16 s**, so writes go to the local
+  store at once and to Meko in the background, and recall waits 2.5 s for Meko before answering locally.
+- `agent_id` is now `elder-<sha256(device)[:16]>`: 8-character prefixes of two test device ids collided and
+  returned each other's memories.
 
 ### Deviations
 - Turn-based speech keeps Sarvam first and uses Gemini as the fallback: Gemini TTS measured 2.4–3.9 s against
@@ -441,8 +446,8 @@ project, with the elder served by voice and the family by Telegram plus the fami
   HTTPS; use `http://10.0.2.2:8000` locally or a phone on mobile data.
 
 ### Gaps
-- Meko: no key yet; `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Memories
-  reach only the Live prompt, not `/intent` or `/agent/step`.
+- Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Memories reach only
+  the Live prompt, not `/intent` or `/agent/step`. Meko's 5-16 s latency rules it out of any request path.
 - Code skills: no SMS `parser` kind. Each sandboxed call is a fresh `docker run`: 0.52–0.61 s on the droplet
   (measured after deploy; a memory bomb was killed in 0.7 s). Serving gives up after 3 s and asks the LLM.
 - Deployed check: `wss://165-245-196-218.sslip.io/live/voice` through Caddy → `start_task book_doctor` with the

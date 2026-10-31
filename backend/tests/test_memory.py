@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from app.memory import FallbackMemory, format_memories
@@ -34,39 +35,47 @@ async def test_local_run_state_checkpoints(tmp_path):
 
 
 class FakeMeko(MekoMemory):
-    def __init__(self) -> None:
-        super().__init__("mko_tkn_test", "https://example.invalid/mcp", "saathi")
+    def __init__(self, ids=None) -> None:
+        super().__init__("mko_tkn_test", "https://example.invalid/mcp", ids=ids)
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def _call(self, tool: str, args: dict[str, Any]) -> Any:
         self.calls.append((tool, args))
-        if tool == "datapack_list":
-            return {"datapacks": []}
-        if tool == "datapack_create":
-            return {"datapack": {"id": "dp-1", "name": args["name"]}}
+        if tool == "conversation_create":
+            return {"id": f"conv-{len(self.calls)}"}
         if tool == "memory_search":
             return {"results": [{"memory": "Daughter Priya lives in Pune"}]}
-        if tool == "conversation_create":
-            return {"conversation_id": "conv-9"}
         return {"ok": True}
 
 
-async def test_meko_maps_calls_and_reuses_datapack_and_conversation():
-    meko = FakeMeko()
+async def test_meko_maps_calls_and_reuses_conversations(tmp_path):
+    local = LocalMemory(tmp_path / "m.db")
+    meko = FakeMeko(ids=local)
     await meko.remember("abcdef123456", "Daughter Priya lives in Pune")
     assert await meko.recall("abcdef123456", "daughter") == ["Daughter Priya lives in Pune"]
-    await meko.log_step(
-        "abcdef123456", "run-1", "book a ride", {"action": {"action": "tap"}, "handler": "llm"}
-    )
-    await meko.log_step(
-        "abcdef123456", "run-1", "book a ride", {"action": {"action": "done"}, "handler": "llm"}
-    )
+    for action in ("tap", "done"):
+        await meko.log_step(
+            "abcdef123456", "run-1", "book a ride", {"action": {"action": action}, "handler": "llm"}
+        )
     tools = [t for t, _ in meko.calls]
-    assert tools.count("datapack_create") == 1 and tools.count("conversation_create") == 1
+    assert tools.count("conversation_create") == 2  # one profile, one run
     assert tools.count("conversation_add_message") == 2
     add = dict(meko.calls)["memory_add"]
-    assert add["agent_id"] == agent_for("abcdef123456") == "elder-abcdef12"
-    assert add["datapack_id"] == "dp-1" and "scope" not in add
+    assert add["agent_id"] == agent_for("abcdef123456") != agent_for("abcdef12-other")
+    assert add["conversation_id"] == "conv-1" and isinstance(add["metadata"], str) and "scope" not in add
+    # The profile conversation id survives a restart through the local store.
+    again = FakeMeko(ids=local)
+    await again.remember("abcdef123456", "Likes tea")
+    assert [t for t, _ in again.calls] == ["memory_add"]
+
+
+def test_meko_unwraps_result_strings_and_errors():
+    from types import SimpleNamespace as NS
+
+    from app.memory.meko import _payload
+
+    ok = NS(is_error=False, structured_content=None, content=[NS(text='{"result": "{\\"id\\": \\"c1\\"}"}')])
+    assert _payload(ok) == {"id": "c1"}
 
 
 class BrokenMemory(LocalMemory):
@@ -85,8 +94,10 @@ class BrokenMemory(LocalMemory):
 async def test_fallback_hides_primary_outage(tmp_path):
     mem = FallbackMemory(BrokenMemory(tmp_path / "b.db"), LocalMemory(tmp_path / "l.db"))
     await mem.remember("dev1", "Takes BP tablets at 9am")
+    await asyncio.gather(*mem._bg)
     assert await mem.recall("dev1", "tablets") == ["Takes BP tablets at 9am"]
     await mem.log_step("dev1", "r", "g", {"seq": 0})
+    await asyncio.gather(*mem._bg)
     assert await mem.run_state("dev1", "r") == [{"seq": 0}]
 
 

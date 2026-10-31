@@ -131,12 +131,12 @@ and transcription (or on-device speech if those are slow or offline). Typing sti
 ## 3. Memory and agent state — Meko (Yugabyte)
 
 Meko is reached through MCP at `https://mcp.mekodata.ai/mcp` (`Authorization: Bearer mko_tkn_…`, `MEKO_API_KEY`),
-datapack `MEKO_DATAPACK` (created on first use). `app/memory/` uses one interface with two backends:
+Meko's default datapack. `app/memory/` uses one interface with two backends:
 `MekoMemory` (MCP) and `LocalMemory` (SQLite, used whenever there is no key or Meko is unreachable).
 
 | What | Meko tool | Used for |
 |---|---|---|
-| Facts and preferences about the elder ("prefers Uber Go", "Dr. Mehta is her cardiologist") | `memory_add` / `memory_search`, `agent_id = elder-<device8>` | Built: the voice `remember` tool stores them; they are recalled into the Live system prompt at the start of every conversation |
+| Facts and preferences about the elder ("prefers Uber Go", "Dr. Mehta is her cardiologist") | `memory_add` / `memory_search`, `agent_id = elder-<sha256(device)[:16]>`, one profile conversation per elder | Built: the voice `remember` tool stores them; they are recalled into the Live system prompt at the start of every conversation |
 | Agent run state: per step the task, mode, screen size and app, action, reason, and which handler answered (skill or LLM) | `conversation_create` per run + `conversation_add_message` per step (`reasoning`, `plan`) | Built: a decision trail per run, written off the request path. Not built: resuming a run after an app restart |
 | Compiled skills, token usage, shared learnings | `artifact_put`, `track_token_usage`, `memory_promote` | Not built yet |
 

@@ -6,8 +6,10 @@ enhancement), they are logged and the local store is used instead.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+from collections.abc import Coroutine
 from functools import lru_cache
 from typing import Any, Protocol
 
@@ -31,44 +33,49 @@ class Memory(Protocol):
 
 
 class FallbackMemory:
-    """Meko first; the local store on any error, so a memory outage is invisible to the elder."""
+    """Local first, Meko in the background. Meko answers in 5-16 s, so nobody ever waits on it: writes land locally
+    at once and reach Meko later; recall gives Meko a short window, then answers from the local copy."""
+
+    RECALL_WAIT_S = 2.5
 
     def __init__(self, primary: Memory, local: Memory) -> None:
         self.primary, self.local = primary, local
         self.name = f"{primary.name}+{local.name}"
+        self._bg: set[asyncio.Task[Any]] = set()
+
+    def _later(self, what: str, coro: Coroutine[Any, Any, Any]) -> None:
+        async def guarded() -> None:
+            try:
+                await coro
+            except Exception as exc:  # noqa: BLE001
+                log.warning("meko %s failed: %s", what, type(exc).__name__)
+
+        task = asyncio.create_task(guarded())
+        self._bg.add(task)
+        task.add_done_callback(self._bg.discard)
 
     async def remember(self, device: str, text: str, kind: str = "fact", **meta: Any) -> None:
-        await self.local.remember(device, text, kind, **meta)  # always keep a local copy
-        try:
-            await self.primary.remember(device, text, kind, **meta)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("meko remember failed: %s", type(exc).__name__)
+        await self.local.remember(device, text, kind, **meta)
+        self._later("remember", self.primary.remember(device, text, kind, **meta))
 
     async def recall(self, device: str, query: str, limit: int = 5) -> list[str]:
         try:
-            got = await self.primary.recall(device, query, limit)
+            got = await asyncio.wait_for(self.primary.recall(device, query, limit), self.RECALL_WAIT_S)
             if got:
                 return got
-        except Exception as exc:  # noqa: BLE001
-            log.warning("meko recall failed: %s", type(exc).__name__)
+        except Exception as exc:  # noqa: BLE001 - includes the timeout
+            log.info("meko recall skipped: %s", type(exc).__name__)
         return await self.local.recall(device, query, limit)
 
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         await self.local.log_step(device, run_id, goal, step)
-        try:
-            await self.primary.log_step(device, run_id, goal, step)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("meko log_step failed: %s", type(exc).__name__)
+        self._later("log_step", self.primary.log_step(device, run_id, goal, step))
 
     async def run_state(self, device: str, run_id: str) -> list[dict[str, Any]]:
         return await self.local.run_state(device, run_id)
 
     async def health(self) -> dict[str, Any]:
-        try:
-            primary = await self.primary.health()
-        except Exception as exc:  # noqa: BLE001
-            primary = {"ok": False, "error": type(exc).__name__}
-        return {"backend": self.name, "meko": primary, "local": await self.local.health()}
+        return {"backend": self.name, "meko": await self.primary.health(), "local": await self.local.health()}
 
 
 @lru_cache
@@ -86,7 +93,7 @@ def get_memory() -> Memory:
     meko = MekoMemory(
         api_key=key,
         url=os.environ.get("MEKO_URL", "https://mcp.mekodata.ai/mcp").strip(),
-        datapack=os.environ.get("MEKO_DATAPACK", "saathi").strip(),
+        ids=local,
     )
     return FallbackMemory(meko, local)
 

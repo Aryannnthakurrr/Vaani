@@ -1,33 +1,40 @@
-"""Meko (Yugabyte) over MCP: per-elder memories, agent run traces (conversations), and token usage.
+"""Meko (Yugabyte) over MCP: per-elder memories and agent run traces (conversations).
 
 Endpoint `https://mcp.mekodata.ai/mcp`, `Authorization: Bearer mko_tkn_…` plus a User-Agent (Meko rejects requests
-without one). Each call opens a short MCP session: memory traffic is a few calls per task, so simplicity wins over a
-pooled connection. Elders are separated by `agent_id = elder-<device8>` inside one datapack.
+without one). Verified against the live service on 2026-10-31:
+- memories are scoped to a conversation, so each elder has one long-lived "profile" conversation, created once and
+  its id kept in the local database (`ids`), so it survives restarts;
+- `metadata` must be a JSON string; a conversation only accepts messages from the agent_id that created it;
+- tool errors come back as `{"result": "{\"error\": …}"}` text rather than MCP errors;
+- each call takes 5-16 s, so callers never wait on Meko (see `FallbackMemory`).
+Datapacks are left to Meko's default (its datapack tools also require a conversation).
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 from typing import Any
 
 log = logging.getLogger("saathi.memory.meko")
-TIMEOUT_S = 8.0
+TIMEOUT_S = 30.0
 
 
 def agent_for(device: str) -> str:
-    return f"elder-{device[:8]}"
+    """A stable, non-reversible id per phone (prefixes of device ids can collide)."""
+    return "elder-" + hashlib.sha256(device.encode()).hexdigest()[:16]
 
 
 class MekoMemory:
     name = "meko"
 
-    def __init__(self, api_key: str, url: str, datapack: str) -> None:
-        self.api_key, self.url, self.datapack_name = api_key, url, datapack
-        self._datapack_id: str | None = None
-        self._conversations: dict[str, str] = {}  # run_id -> conversation_id
-        self._lock = asyncio.Lock()
+    def __init__(self, api_key: str, url: str, ids: Any = None) -> None:
+        self.api_key, self.url = api_key, url
+        self.ids = ids  # persistent key → Meko id map (LocalMemory)
+        self._cache: dict[str, str] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
 
     async def _call(self, tool: str, args: dict[str, Any]) -> Any:
         from mcp import ClientSession
@@ -41,36 +48,43 @@ class MekoMemory:
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     result = await session.call_tool(tool, args)
-        if getattr(result, "isError", False):
+        if getattr(result, "is_error", False) or getattr(result, "isError", False):  # mcp 2.x uses snake_case
             raise RuntimeError(f"meko {tool} error: {_text(result)[:200]}")
-        return _payload(result)
+        payload = _payload(result)
+        if isinstance(payload, dict) and payload.get("error"):
+            raise RuntimeError(f"meko {tool} error: {payload['error']}")
+        return payload
 
-    async def datapack(self) -> str:
-        if self._datapack_id:
-            return self._datapack_id
-        async with self._lock:
-            if self._datapack_id:
-                return self._datapack_id
-            found = await self._call("datapack_list", {"query": self.datapack_name, "limit": 20})
-            for dp in _items(found, "datapacks"):
-                if dp.get("name") == self.datapack_name:
-                    self._datapack_id = str(dp.get("id") or dp.get("datapack_id"))
-                    break
-            if not self._datapack_id:
-                made = await self._call("datapack_create", {"name": self.datapack_name})
-                self._datapack_id = str(_get(made, "id", "datapack_id"))
-                log.info("created Meko datapack %s", self.datapack_name)
-            return self._datapack_id
+    async def _conversation(self, key: str, device: str, title: str, meta: dict[str, str]) -> str:
+        """Create a conversation once per key (profile or run) and remember its id."""
+        if key in self._cache:
+            return self._cache[key]
+        lock = self._locks.setdefault(key, asyncio.Lock())
+        async with lock:
+            cached = self._cache.get(key) or (self.ids.get_id(key) if self.ids else None)
+            if not cached:
+                made = await self._call("conversation_create", {
+                    "agent_id": agent_for(device), "title": title[:80], "metadata": json.dumps(meta),
+                })  # fmt: skip
+                cached = str(_get(made, "id", "conversation_id"))
+                if self.ids:
+                    self.ids.set_id(key, cached)
+            self._cache[key] = cached
+            return cached
+
+    async def profile(self, device: str) -> str:
+        return await self._conversation(f"meko:profile:{device}", device, "profile", {"kind": "profile"})
 
     async def remember(self, device: str, text: str, kind: str = "fact", **meta: Any) -> None:
         await self._call("memory_add", {
-            "text": text, "agent_id": agent_for(device), "datapack_id": await self.datapack(),
-            "metadata": {"kind": kind, **{k: str(v) for k, v in meta.items()}},
+            "conversation_id": await self.profile(device), "text": text, "agent_id": agent_for(device),
+            "metadata": json.dumps({"kind": kind, **{k: str(v) for k, v in meta.items()}}),
         })  # fmt: skip
 
     async def recall(self, device: str, query: str, limit: int = 5) -> list[str]:
         found = await self._call("memory_search", {
-            "query": query, "agent_id": agent_for(device), "datapack_id": await self.datapack(), "limit": limit,
+            "conversation_id": await self.profile(device), "query": query, "agent_id": agent_for(device),
+            "limit": limit,
         })  # fmt: skip
         out: list[str] = []
         for m in _items(found, "memories", "results"):
@@ -81,35 +95,27 @@ class MekoMemory:
 
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         """One Meko conversation per agent run; each step is a message with the action and the reasoning."""
-        dp = await self.datapack()
-        conv = self._conversations.get(run_id)
-        if conv is None:
-            made = await self._call("conversation_create", {
-                "agent_id": agent_for(device), "datapack_id": dp, "title": goal[:80], "run_id": run_id,
-                "metadata": {"task": str(step.get("task", "")), "kind": "agent_run"},
-            })  # fmt: skip
-            conv = str(_get(made, "id", "conversation_id"))
-            self._conversations[run_id] = conv
+        conv = await self._conversation(f"meko:run:{run_id}", device, goal,
+                                        {"kind": "agent_run", "task": str(step.get("task", ""))})  # fmt: skip
         await self._call("conversation_add_message", {
-            "conversation_id": conv, "agent_id": agent_for(device), "datapack_id": dp,
+            "conversation_id": conv, "agent_id": agent_for(device),
             "input": f"screen ({step.get('screen_chars', 0)} chars, {step.get('package', '')})",
             "output": json.dumps(step.get("action", {}), ensure_ascii=False),
-            "reasoning": str(step.get("reason", "")), "plan": str(step.get("handler", "")),
-            "metadata": {"seq": str(step.get("seq", "")), "handler": str(step.get("handler", ""))},
+            "reasoning": str(step.get("reason", "")), "plan": [str(step.get("handler", ""))],
+            "metadata": json.dumps({"seq": str(step.get("seq", "")), "handler": str(step.get("handler", ""))}),
         })  # fmt: skip
 
     async def run_state(self, device: str, run_id: str) -> list[dict[str, Any]]:
-        conv = self._conversations.get(run_id)
+        conv = self._cache.get(f"meko:run:{run_id}")
         if not conv:
             return []
         got = await self._call("conversation_get", {
             "conversation_id": conv, "agent_id": agent_for(device), "include_messages": True,
-            "datapack_id": await self.datapack(),
         })  # fmt: skip
         return list(_items(got, "messages"))
 
     async def health(self) -> dict[str, Any]:
-        return {"ok": True, "datapack": await self.datapack()}
+        return {"ok": True}
 
 
 # --------------------------------------------------------------------------- result helpers
@@ -120,10 +126,15 @@ def _text(result: Any) -> str:
 
 
 def _payload(result: Any) -> Any:
-    structured = getattr(result, "structuredContent", None)
-    if structured:
-        return structured
-    raw = _text(result)
+    """Meko wraps its JSON answer as a string under "result"; unwrap it."""
+    structured = getattr(result, "structured_content", None) or getattr(result, "structuredContent", None)
+    payload: Any = structured if structured else _loads(_text(result))
+    if isinstance(payload, dict) and isinstance(payload.get("result"), str):
+        payload = _loads(payload["result"])
+    return payload
+
+
+def _loads(raw: str) -> Any:
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):

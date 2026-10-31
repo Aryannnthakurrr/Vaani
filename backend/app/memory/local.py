@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS agent_state (
     ts REAL NOT NULL,
     PRIMARY KEY (run_id, seq)
 );
+CREATE TABLE IF NOT EXISTS memory_ids (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 _WORD = re.compile(r"[\wऀ-ॿ]+")
@@ -119,6 +120,15 @@ class LocalMemory:
                 "SELECT step FROM agent_state WHERE run_id=? AND device_id=? ORDER BY seq", (run_id, device)
             ).fetchall()
         return [json.loads(r[0]) for r in rows]
+
+    def get_id(self, key: str) -> str | None:
+        with self._conn() as c:
+            row = c.execute("SELECT value FROM memory_ids WHERE key=?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def set_id(self, key: str, value: str) -> None:
+        with self._conn() as c:
+            c.execute("INSERT OR REPLACE INTO memory_ids VALUES (?,?)", (key, value))
 
     async def health(self) -> dict[str, Any]:
         with self._conn() as c:

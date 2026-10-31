@@ -52,7 +52,7 @@ Elder speaks ──► app (LiveVoiceSession) ──WS /live/voice──► back
 
 `GEMINI_API_KEY`, `SARVAM_API_KEY`, `SAFE_BROWSING_API_KEY`, `TELEGRAM_BOT_TOKEN`, `DASHBOARD_SECRET`,
 `PUBLIC_BASE_URL`, `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `TWILIO_*` (fallback only), `CALL_ALLOWED_NUMBERS`,
-`MEKO_API_KEY`, `MEKO_DATAPACK`, `SKILL_MIN_RUNS`, `SKILL_SHADOW_AGREE`, `SKILL_MIN_SAMPLES`, `SKILL_AUTO_APPROVE`,
+`MEKO_API_KEY`, `SKILL_MIN_RUNS`, `SKILL_SHADOW_AGREE`, `SKILL_MIN_SAMPLES`, `SKILL_AUTO_APPROVE`,
 `SKILL_SANDBOX` (`docker` on the server, `subprocess` on a laptop, `off`). See `.env.example`.
 
 ## Deploying
@@ -76,8 +76,8 @@ checks from that PC fail even when the server is fine. Details in `deploy/README
 
 ## Open items
 
-- `MEKO_API_KEY` is not set yet; memory uses the local database until it is, and the Meko adapter is untested
-  against the real service.
+- Meko is live (key in the server `.env`) but slow (5-16 s per call), so it is only ever written in the
+  background; the local copy answers anything a user waits for.
 - Live voice is tested with typed turns and on the deployed server, not yet with microphone audio on a device.
 - Pronto's checkout screen and logged-in flows are not yet recorded; the agent stops at the cart either way.
 - Not built: SMS parser skills; Meko artifacts, token tracking and run resume.
