@@ -54,9 +54,22 @@ def _when(appt: Appointment) -> str:
     return t.strftime("%d %B at %I:%M %p").lstrip("0").replace(" 0", " ")
 
 
+# Spoken Hindi fractions of an hour, as receptionists say them ("aadha ghanta", "dedh ghanta").
+_FRACTION_HOURS = re.compile(
+    r"\b(half an hour|aadha|adha|aadhe|pauna|paune|sava|sawa|dedh|dhai|dhaai)\b|आधा|आधे|पौना|सवा|डेढ़|ढाई", re.I
+)
+_FRACTION_MINUTES = {
+    "half an hour": 30, "aadha": 30, "adha": 30, "aadhe": 30, "आधा": 30, "आधे": 30,
+    "pauna": 45, "paune": 45, "पौना": 45, "sava": 75, "sawa": 75, "सवा": 75,
+    "dedh": 90, "डेढ़": 90, "dhai": 150, "dhaai": 150, "ढाई": 150,
+}  # fmt: skip
+
+
 def waiting_minutes(text: str) -> int | None:
     if m := _MINUTES.search(text):
         return int(m.group(1))
+    if m := _FRACTION_HOURS.search(text):
+        return _FRACTION_MINUTES[m.group(0).lower()]
     if m := _HOURS.search(text):
         n = m.group(1).lower()
         return 60 * (int(n) if n.isdigit() else 1)

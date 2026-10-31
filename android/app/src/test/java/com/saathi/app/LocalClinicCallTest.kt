@@ -42,6 +42,9 @@ class LocalClinicCallTest {
         assertEquals(45, LocalClinicCall.waitingMinutes("roughly 45 mins"))
         assertEquals(60, LocalClinicCall.waitingMinutes("an hour"))
         assertEquals(120, LocalClinicCall.waitingMinutes("2 ghante"))
+        assertEquals(30, LocalClinicCall.waitingMinutes("abhi aadha ghanta wait hai"))
+        assertEquals(90, LocalClinicCall.waitingMinutes("dedh ghanta lagega"))
+        assertEquals(30, LocalClinicCall.waitingMinutes("about half an hour"))
         assertNull(LocalClinicCall.waitingMinutes("not sure"))
     }
 }

@@ -54,6 +54,9 @@ def test_hindi_summary_and_hinglish_clinic() -> None:
 def test_waiting_minutes_parsing() -> None:
     assert waiting_minutes("roughly 45 mins") == 45
     assert waiting_minutes("an hour") == 60
+    assert waiting_minutes("abhi aadha ghanta wait hai") == 30
+    assert waiting_minutes("dedh ghanta lagega") == 90
+    assert waiting_minutes("about half an hour") == 30
     assert waiting_minutes("2 ghante") == 120
     assert waiting_minutes("not sure") is None
 

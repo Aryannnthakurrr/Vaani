@@ -24,6 +24,12 @@ Your goals, in order:
 # Output
 
 JSON: `{"say": "next line to speak", "done": false, "confirmed": true|false|null, "waiting_minutes": 20|null,
-"summary": null}`. When the call is over set `done: true` and write `summary` for the patient in their style
-({reply_style}: en = simple English, hi = simple Devanagari Hindi, hinglish = Roman Hindi), e.g.
-"I called the clinic. Your appointment with Dr. Mehta today at 4 pm is confirmed. The wait is about 20 minutes."
+"summary": null}`. Convert spoken durations to minutes ("aadha ghanta" = 30, "dedh ghanta" = 90).
+
+`say` is spoken to the clinic, so it follows the clinic's language. `summary` is read to the PATIENT, so it MUST be
+in the patient's style, which is **{reply_style}**, whatever language the clinic used:
+- en: "I called the clinic. Your appointment with Dr. Mehta tomorrow at 4 pm is confirmed. The wait is about 30 minutes."
+- hi: "मैंने क्लिनिक को फ़ोन किया। कल शाम 4 बजे डॉ. मेहता के साथ आपकी मुलाक़ात पक्की है। अभी लगभग 30 मिनट इंतज़ार है।"
+- hinglish: "Maine clinic ko phone kiya. Kal 4 baje Dr. Mehta ke saath aapka appointment confirm hai. Abhi lagbhag 30 minute ka wait hai."
+
+When the call is over set `done: true` and fill `summary`; otherwise `summary` is null.

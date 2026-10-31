@@ -12,7 +12,8 @@ from fastapi import FastAPI, Request, Response
 
 from app.config import get_settings
 from app.deps import get_db
-from app.routers import agent, calls, family, health, links, live, voice, welfare
+from app.routers import agent, calls, family, health, links, live, telephony, voice, welfare
+from app.speech import sarvam_tts
 from app.welfare import telegram
 from app.welfare.scheduler import start_scheduler
 
@@ -30,6 +31,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         settings.telegram_enabled,
         settings.sandbox_enabled,
     )
+    # Import the Sarvam SDK and open its client now, not inside the first request's deadline.
+    await asyncio.to_thread(sarvam_tts.warm_up, settings)
     scheduler = start_scheduler(settings, get_db())
     poller = (
         asyncio.create_task(telegram.poll_start_commands(settings, get_db()))
@@ -63,5 +66,5 @@ async def access_log(request: Request, call_next: Callable[[Request], Awaitable[
     return response
 
 
-for module in (health, agent, links, welfare, voice, live, family, calls):
+for module in (health, agent, links, welfare, voice, live, family, calls, telephony):
     app.include_router(module.router)

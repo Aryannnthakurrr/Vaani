@@ -17,8 +17,18 @@ object LocalClinicCall {
     private val MINUTES = Regex("(?i)(\\d{1,3})\\s*(min|mins|minute|minutes|मिनट)")
     private val HOURS = Regex("(?i)(\\d{1,2}|an?|one|ek)\\s*(hour|hours|hr|ghanta|ghante|घंटा|घंटे)")
 
+    /** Spoken Hindi fractions of an hour ("aadha ghanta" = 30 min), as receptionists say them. */
+    private val FRACTIONS = listOf(
+        Regex("(?i)half an hour|\\baa?dhe?a?\\b|आधा|आधे") to 30,
+        Regex("(?i)\\bpaune?a?\\b|पौना") to 45,
+        Regex("(?i)\\bsa[vw]a\\b|सवा") to 75,
+        Regex("(?i)\\bdedh\\b|डेढ़") to 90,
+        Regex("(?i)\\bdhaa?i\\b|ढाई") to 150,
+    )
+
     fun waitingMinutes(text: String): Int? {
         MINUTES.find(text)?.let { return it.groupValues[1].toInt() }
+        FRACTIONS.firstOrNull { (re, _) -> re.containsMatchIn(text) }?.let { return it.second }
         HOURS.find(text)?.let { m -> return 60 * (m.groupValues[1].toIntOrNull() ?: 1) }
         return null
     }
