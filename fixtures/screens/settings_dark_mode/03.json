@@ -1,0 +1,187 @@
+{
+ "package": "com.android.settings",
+ "title": "Display",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Navigate up",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    20,
+    100,
+    140,
+    220
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Display",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    180,
+    120,
+    1040,
+    240
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "RecyclerView",
+   "text": null,
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    300,
+    1040,
+    2300
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": true,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Brightness level",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    360,
+    1040,
+    480
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Adaptive brightness",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    510,
+    1040,
+    630
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Switch",
+   "text": "Dark theme",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    660,
+    1040,
+    780
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": true,
+   "checked": true,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Font size",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    810,
+    1040,
+    930
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Screen timeout",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    960,
+    1040,
+    1080
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Auto-rotate screen",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1110,
+    1040,
+    1230
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two hands holding: a simple "companion" mark (a heart inside a speech bubble). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M30,32h48a8,8 0,0 1,8 8v26a8,8 0,0 1,-8 8H50l-12,10v-10h-8a8,8 0,0 1,-8 -8V40a8,8 0,0 1,8 -8z" />
+    <path
+        android:fillColor="#FFE0662B"
+        android:pathData="M54,66c-1,0 -14,-8 -14,-17a7,7 0,0 1,14 -2a7,7 0,0 1,14 2c0,9 -13,17 -14,17z" />
+</vector>

@@ -1,0 +1,67 @@
+{
+ "package": "com.urbanclap.urbanclap",
+ "title": "Urban Company",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Women's Salon & Spa",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    400,
+    1040,
+    520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Cleaning",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    560,
+    400,
+    1040,
+    520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Electrician, Plumber & Carpenter",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    700,
+    1040,
+    820
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

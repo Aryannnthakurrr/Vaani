@@ -1,0 +1,227 @@
+{
+ "package": "com.android.settings",
+ "title": "Settings",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Settings",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    120,
+    1040,
+    240
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 0
+  },
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "Search settings",
+   "viewId": null,
+   "bounds": [
+    40,
+    240,
+    1040,
+    360
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "RecyclerView",
+   "text": null,
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    340,
+    1040,
+    2340
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": true,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Network & internet",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    360,
+    1040,
+    480
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Connected devices",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    510,
+    1040,
+    630
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Apps",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    660,
+    1040,
+    780
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Notifications",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    810,
+    1040,
+    930
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Battery",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    960,
+    1040,
+    1080
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Display",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1110,
+    1040,
+    1230
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Sound & vibration",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1260,
+    1040,
+    1380
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Accessibility",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1410,
+    1040,
+    1530
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

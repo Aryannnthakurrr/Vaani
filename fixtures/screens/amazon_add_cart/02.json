@@ -1,0 +1,27 @@
+{
+ "package": "in.amazon.mShop.android.shopping",
+ "title": "Amazon.in",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "Search Amazon.in",
+   "viewId": null,
+   "bounds": [
+    40,
+    160,
+    1040,
+    280
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": true,
+   "depth": 1
+  }
+ ]
+}

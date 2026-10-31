@@ -1,0 +1,43 @@
+{
+ "scenario": "settings_dark_mode",
+ "mode": "ACT",
+ "goal_keywords": [
+  "dark mode",
+  "dark theme",
+  "andhera",
+  "dark"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Network & internet",
+    "Display"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 9,
+    "reason": "Dark theme lives under Display"
+   }
+  },
+  {
+   "when_contains": [
+    "Dark theme"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 6,
+    "reason": "Toggle the dark theme switch"
+   }
+  },
+  {
+   "when_contains": [
+    "Dark theme"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Dark mode is on now.",
+    "reason": "Switch is now checked"
+   }
+  }
+ ]
+}

@@ -1,0 +1,87 @@
+{
+ "package": "com.ubercab",
+ "title": "Plan your ride",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Back",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    20,
+    100,
+    140,
+    220
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "EditText",
+   "text": "Current location",
+   "desc": null,
+   "hint": "Pickup location",
+   "viewId": null,
+   "bounds": [
+    40,
+    220,
+    1040,
+    340
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "Where to?",
+   "viewId": null,
+   "bounds": [
+    40,
+    360,
+    1040,
+    480
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": true,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Saved places",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    520,
+    1040,
+    640
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Saathi</string>
+    <string name="accessibility_description">Saathi reads the screen so it can help you use apps, book rides and doctors, and warn you about scams. It never taps payment or booking buttons without your spoken yes, and it never reads your PINs or passwords.</string>
+</resources>

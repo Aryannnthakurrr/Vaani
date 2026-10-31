@@ -1,0 +1,67 @@
+{
+ "package": "com.urbanclap.urbanclap",
+ "title": "Summary",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Kitchen cleaning · Tomorrow 10:00 AM · ₹549",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    300,
+    1040,
+    420
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Pay after service",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    420,
+    1040,
+    540
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "Confirm booking",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1800,
+    1040,
+    1920
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

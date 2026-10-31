@@ -1,0 +1,87 @@
+{
+ "package": "com.flipkart.android",
+ "title": "Flipkart",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "Search for products",
+   "viewId": null,
+   "bounds": [
+    40,
+    180,
+    1040,
+    300
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "Grocery",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    340,
+    330,
+    460
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "Mobiles",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    380,
+    340,
+    670,
+    460
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Top offers",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    540,
+    1040,
+    660
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

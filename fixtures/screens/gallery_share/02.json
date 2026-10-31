@@ -1,0 +1,107 @@
+{
+ "package": "android",
+ "title": "Share",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Share",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1200,
+    1040,
+    1320
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "WhatsApp",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1400,
+    270,
+    1520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "Gmail",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    300,
+    1400,
+    530,
+    1520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "Messages",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    560,
+    1400,
+    790,
+    1520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "Nearby Share",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    820,
+    1400,
+    1040,
+    1520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

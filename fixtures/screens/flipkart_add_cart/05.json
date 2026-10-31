@@ -1,0 +1,47 @@
+{
+ "package": "com.flipkart.android",
+ "title": "Cart",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Added to cart",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    300,
+    1040,
+    420
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "Go to cart",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    500,
+    1040,
+    620
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

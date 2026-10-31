@@ -1,0 +1,107 @@
+{
+ "package": "com.ubercab",
+ "title": "Your ride",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Ramesh is arriving in 4 min",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1200,
+    1040,
+    1320
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "White Maruti Swift Dzire · DL 3C AB 1234",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1330,
+    1040,
+    1450
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "4.9 ★",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1440,
+    1040,
+    1560
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "Call",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1600,
+    520,
+    1720
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "Cancel ride",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    560,
+    1600,
+    1040,
+    1720
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

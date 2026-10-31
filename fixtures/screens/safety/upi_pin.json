@@ -1,0 +1,67 @@
+{
+ "package": "com.google.android.apps.nbu.paisa.user",
+ "title": "Enter UPI PIN",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Paying Sharma Kirana Store ₹540",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    300,
+    1040,
+    420
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "ENTER UPI PIN",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    600,
+    1040,
+    720
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "UPI PIN",
+   "viewId": null,
+   "bounds": [
+    40,
+    720,
+    1040,
+    840
+   ],
+   "clickable": false,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": true,
+   "depth": 1
+  }
+ ]
+}

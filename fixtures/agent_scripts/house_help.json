@@ -1,0 +1,70 @@
+{
+ "scenario": "house_help",
+ "mode": "ACT",
+ "goal_keywords": [
+  "cleaning",
+  "maid",
+  "house help",
+  "bai",
+  "safai",
+  "सफाई",
+  "kaamwali"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Cleaning"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 2,
+    "reason": "Cleaning category"
+   }
+  },
+  {
+   "when_contains": [
+    "Kitchen cleaning"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 2,
+    "reason": "Add kitchen cleaning"
+   }
+  },
+  {
+   "when_contains": [
+    "10:00 AM"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 2,
+    "reason": "Morning slot"
+   }
+  },
+  {
+   "when_contains": [
+    "Confirm booking"
+   ],
+   "action": {
+    "action": "confirm",
+    "summary": "Kitchen cleaning tomorrow at 10 am for ₹549, pay after the service. Book it?",
+    "then": {
+     "action": "tap",
+     "id": 3,
+     "reason": "User approved"
+    },
+    "reason": "Booking needs a yes"
+   }
+  },
+  {
+   "when_contains": [
+    "Booking confirmed"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Kitchen cleaning is booked for tomorrow at 10 am.",
+    "reason": "Booked"
+   }
+  }
+ ]
+}

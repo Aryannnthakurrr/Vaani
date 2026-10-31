@@ -1,0 +1,71 @@
+{
+ "scenario": "gallery_share",
+ "mode": "GUIDE",
+ "goal_keywords": [
+  "photo",
+  "share",
+  "bhej",
+  "भेज",
+  "send",
+  "aarav"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Share",
+    "Edit"
+   ],
+   "action": {
+    "action": "highlight",
+    "id": 2,
+    "instruction": "Tap the Share button at the bottom left.",
+    "reason": "Share is bottom-left"
+   }
+  },
+  {
+   "when_contains": [
+    "WhatsApp",
+    "Gmail"
+   ],
+   "action": {
+    "action": "highlight",
+    "id": 2,
+    "instruction": "Tap the green WhatsApp button.",
+    "reason": "WhatsApp in share sheet"
+   }
+  },
+  {
+   "when_contains": [
+    "Aarav",
+    "Family group"
+   ],
+   "action": {
+    "action": "highlight",
+    "id": 2,
+    "instruction": "Tap Aarav's name.",
+    "reason": "Aarav is the grandson"
+   }
+  },
+  {
+   "when_contains": [
+    "Send"
+   ],
+   "action": {
+    "action": "highlight",
+    "id": 2,
+    "instruction": "Tap the green arrow at the bottom right to send.",
+    "reason": "Send button bottom-right"
+   }
+  },
+  {
+   "when_contains": [
+    "Photo, sent"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Well done! The photo has been sent to Aarav.",
+    "reason": "Photo delivered"
+   }
+  }
+ ]
+}

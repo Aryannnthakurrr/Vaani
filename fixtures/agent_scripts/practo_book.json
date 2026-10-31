@@ -1,0 +1,90 @@
+{
+ "scenario": "practo_book",
+ "mode": "ACT",
+ "goal_keywords": [
+  "doctor",
+  "practo",
+  "appointment",
+  "cardiolog",
+  "डॉक्टर",
+  "daktar"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Book appointment"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 1,
+    "reason": "Open search"
+   }
+  },
+  {
+   "when_contains": [
+    "Noida"
+   ],
+   "action": {
+    "action": "type",
+    "id": 1,
+    "text": "Cardiologist",
+    "reason": "Search the specialty"
+   }
+  },
+  {
+   "when_contains": [
+    "Dr. Anil Mehta"
+   ],
+   "action": {
+    "action": "ask_user",
+    "question": "I found three heart doctors. Dr. Anil Mehta, ₹800, today 4 pm. Dr. Sunita Rao, ₹600, tomorrow 10 am. Dr. Vikram Shah, ₹1000, today 6:30 pm. Which one?",
+    "reason": "User should pick a doctor"
+   }
+  },
+  {
+   "when_contains": [
+    "Dr. Anil Mehta"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 1,
+    "reason": "User chose Dr. Mehta"
+   }
+  },
+  {
+   "when_contains": [
+    "4:00 PM"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 3,
+    "reason": "Earliest slot"
+   }
+  },
+  {
+   "when_contains": [
+    "Confirm Clinic Visit"
+   ],
+   "action": {
+    "action": "confirm",
+    "summary": "Dr. Anil Mehta at Mehta Heart Clinic, today 4 pm. Fee ₹800, paid at the clinic. Book it?",
+    "then": {
+     "action": "tap",
+     "id": 3,
+     "reason": "User approved"
+    },
+    "reason": "Booking needs a yes"
+   }
+  },
+  {
+   "when_contains": [
+    "Appointment confirmed"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Your appointment with Dr. Mehta is booked for today at 4 pm.",
+    "reason": "Booked"
+   }
+  }
+ ]
+}

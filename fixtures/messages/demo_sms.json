@@ -1,0 +1,15 @@
+[
+  {"sender": "VM-BSESDL", "text": "Dear Customer, your electricity bill of Rs.1,240.00 for CA 150398811 is due on 08-11-2026. Pay via BSES app or bsesdelhi.com.", "expected_category": "bill_due"},
+  {"sender": "JD-NFLXIN", "text": "Your Netflix membership will renew on 01-11-2026 for Rs 199. Manage your plan at netflix.com/account", "expected_category": "subscription_renewal"},
+  {"sender": "AD-PRACTO", "text": "Appointment confirmed with Dr. Mehta at Mehta Heart Clinic on 31-10-2026 at 4:00 PM. Fee Rs 800, pay at clinic.", "expected_category": "appointment"},
+  {"sender": "AX-AMAZON", "text": "Out for delivery: Parle-G Gold Biscuits 1kg will be delivered today by 8 PM.", "expected_category": "delivery"},
+  {"sender": "VK-BIGBZR", "text": "Diwali SALE! Flat 50% off on all groceries this weekend. Shop now. T&C apply", "expected_category": "promo"},
+  {"sender": "AD-HDFCBK", "text": "482913 is your OTP for transaction of Rs 5,000 at AMAZON. Do not share it with anyone.", "expected_category": "other", "otp": true},
+  {"sender": "+919812345670", "text": "Dear SBI customer your KYC has expired and account will be BLOCKED today. Update now: http://sbi-kyc-update.in/verify", "expected_category": "scam_suspected"},
+  {"sender": "+919000000001", "text": "Courier on hold. Dial *401*9876543210 to reschedule", "expected_category": "scam_suspected"},
+  {"sender": "+918888812345", "text": "Electricity connection will be disconnected tonight 9.30 PM. Download app to pay: http://bit.ly/bses-pay.apk", "expected_category": "scam_suspected"},
+  {"sender": "JM-ICICIB", "text": "Rs 540.00 debited from A/c XX4521 on 30-Oct-26 to Sharma Kirana via UPI. Ref 630112345678.", "expected_category": "payment_done"},
+  {"sender": "VM-AIRTEL", "text": "Your Airtel postpaid bill of Rs 599 is due on 05-11-2026. Pay at airtel.in/pay", "expected_category": "bill_due"},
+  {"sender": "+917700099999", "text": "Congratulations! You won Rs 25,00,000 in KBC lottery. Call Rana ji on 7700099999 to claim your prize", "expected_category": "scam_suspected"},
+  {"sender": "Beta Rohit", "text": "Mummy, I will come home on Sunday for lunch", "expected_category": "personal", "from_contact": true}
+]

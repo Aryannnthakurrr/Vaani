@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">साथी</string>
+    <string name="accessibility_description">साथी स्क्रीन पढ़कर आपको ऐप चलाने, कैब और डॉक्टर बुक करने और धोखाधड़ी से बचने में मदद करता है। यह आपकी "हाँ" के बिना कभी भुगतान या बुकिंग का बटन नहीं दबाता और कभी आपका पिन या पासवर्ड नहीं पढ़ता।</string>
+</resources>

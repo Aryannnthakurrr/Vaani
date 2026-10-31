@@ -1,0 +1,7 @@
+# Shell scripts must keep LF endings or bash fails with "$'\r': command not found" (also in Git Bash on Windows).
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.mp4 binary
+*.jpg binary
+*.jar binary

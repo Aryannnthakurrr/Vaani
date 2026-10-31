@@ -1,0 +1,47 @@
+{
+ "package": "com.practo.fabric",
+ "title": "Search",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "Search for doctors, clinics, hospitals",
+   "viewId": null,
+   "bounds": [
+    40,
+    200,
+    1040,
+    320
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": true,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Noida",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    340,
+    1040,
+    460
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

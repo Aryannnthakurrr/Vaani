@@ -1,0 +1,87 @@
+{
+ "package": "in.amazon.mShop.android.shopping",
+ "title": "Amazon.in",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "Search Amazon.in",
+   "viewId": null,
+   "bounds": [
+    40,
+    160,
+    1040,
+    280
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "Fresh",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    320,
+    330,
+    440
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "Mobiles",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    380,
+    320,
+    670,
+    440
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Deals for you",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    520,
+    1040,
+    640
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

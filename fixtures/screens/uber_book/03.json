@@ -1,0 +1,107 @@
+{
+ "package": "com.ubercab",
+ "title": "Plan your ride",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Back",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    20,
+    100,
+    140,
+    220
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "EditText",
+   "text": "Apollo Hospital",
+   "desc": null,
+   "hint": "Where to?",
+   "viewId": null,
+   "bounds": [
+    40,
+    360,
+    1040,
+    480
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": true,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Apollo Hospital, Sarita Vihar, Mathura Road, New Delhi",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    520,
+    1040,
+    640
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Apollo Hospital, Sector 26, Noida",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    680,
+    1040,
+    800
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Apollo Pharmacy, Lajpat Nagar",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    840,
+    1040,
+    960
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

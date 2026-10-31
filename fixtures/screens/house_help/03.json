@@ -1,0 +1,87 @@
+{
+ "package": "com.urbanclap.urbanclap",
+ "title": "Select slot",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "Button",
+   "text": "Tomorrow",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    300,
+    330,
+    420
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": true,
+   "checked": true,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "10:00 AM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    600,
+    330,
+    720
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "12:00 PM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    380,
+    600,
+    670,
+    720
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "3:00 PM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    720,
+    600,
+    1040,
+    720
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

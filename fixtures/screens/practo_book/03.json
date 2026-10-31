@@ -1,0 +1,67 @@
+{
+ "package": "com.practo.fabric",
+ "title": "Cardiologist in Noida",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Dr. Anil Mehta · Cardiologist · 22 years · ₹800 · 2.1 km · Next: Today 4:00 PM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    400,
+    1040,
+    520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Dr. Sunita Rao · Cardiologist · 15 years · ₹600 · 3.4 km · Next: Tomorrow 10:00 AM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    700,
+    1040,
+    820
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Dr. Vikram Shah · Cardiologist · 30 years · ₹1000 · 5.0 km · Next: Today 6:30 PM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1000,
+    1040,
+    1120
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

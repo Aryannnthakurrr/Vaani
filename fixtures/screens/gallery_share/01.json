@@ -1,0 +1,107 @@
+{
+ "package": "com.google.android.apps.photos",
+ "title": "Photo",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "ImageView",
+   "text": null,
+   "desc": "Photo taken on 30 Oct",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    200,
+    1040,
+    1700
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Share",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    2050,
+    240,
+    2170
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Edit",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    300,
+    2050,
+    500,
+    2170
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Favourite",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    560,
+    2050,
+    760,
+    2170
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Delete",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    840,
+    2050,
+    1040,
+    2170
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

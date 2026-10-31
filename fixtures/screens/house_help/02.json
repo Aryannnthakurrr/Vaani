@@ -1,0 +1,87 @@
+{
+ "package": "com.urbanclap.urbanclap",
+ "title": "Cleaning",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Kitchen cleaning · ₹549 · 2 hrs",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    400,
+    1040,
+    520
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "Add",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    840,
+    400,
+    1040,
+    520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Bathroom cleaning · ₹449 · 1 hr",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    650,
+    1040,
+    770
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "Add",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    840,
+    650,
+    1040,
+    770
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

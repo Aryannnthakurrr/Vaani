@@ -1,0 +1,42 @@
+# Secrets — never commit real keys. Only the documented template is public.
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.pem
+google-services.json
+service-account*.json
+
+# Local tool / editor state
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Runtime data (may contain device IDs, alerts, cached link verdicts)
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Android / Gradle
+.gradle/
+.kotlin/
+build/
+local.properties
+captures/
+*.apk
+*.aab

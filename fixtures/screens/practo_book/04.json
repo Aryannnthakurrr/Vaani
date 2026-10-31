@@ -1,0 +1,107 @@
+{
+ "package": "com.practo.fabric",
+ "title": "Dr. Anil Mehta",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Mehta Heart Clinic, Sector 18, Noida",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    300,
+    1040,
+    420
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Today",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    500,
+    1040,
+    620
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "Button",
+   "text": "4:00 PM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    620,
+    330,
+    740
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "4:30 PM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    380,
+    620,
+    670,
+    740
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "Button",
+   "text": "5:00 PM",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    720,
+    620,
+    1040,
+    740
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

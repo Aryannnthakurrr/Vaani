@@ -1,0 +1,47 @@
+{
+ "package": "com.whatsapp",
+ "title": "Send to…",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Aarav",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    2000,
+    700,
+    2120
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Send",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    880,
+    1980,
+    1040,
+    2100
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

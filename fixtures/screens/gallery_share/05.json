@@ -1,0 +1,67 @@
+{
+ "package": "com.whatsapp",
+ "title": "Aarav",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "TextView",
+   "text": "Aarav",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    120,
+    1040,
+    240
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ImageView",
+   "text": null,
+   "desc": "Photo, sent",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    900,
+    1040,
+    1500
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "EditText",
+   "text": null,
+   "desc": null,
+   "hint": "Message",
+   "viewId": null,
+   "bounds": [
+    40,
+    2050,
+    1040,
+    2170
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

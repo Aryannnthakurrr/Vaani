@@ -1,0 +1,66 @@
+{
+ "scenario": "flipkart_add_cart",
+ "mode": "ACT",
+ "goal_keywords": [
+  "flipkart"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Search for products",
+    "Top offers"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 1,
+    "reason": "Open search"
+   }
+  },
+  {
+   "when_contains": [
+    "Search for products"
+   ],
+   "action": {
+    "action": "type",
+    "id": 1,
+    "text": "Parle-G biscuits",
+    "reason": "Search for the product"
+   }
+  },
+  {
+   "when_contains": [
+    "Parle-G Gold"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 3,
+    "reason": "Top match that is not an ad"
+   }
+  },
+  {
+   "when_contains": [
+    "Add to cart"
+   ],
+   "action": {
+    "action": "confirm",
+    "summary": "Parle-G Gold Biscuits, 1 kg on Flipkart. Price ₹140, rated 4.3. Add it to your cart?",
+    "then": {
+     "action": "tap",
+     "id": 4,
+     "reason": "User approved"
+    },
+    "reason": "Adding to cart needs a yes"
+   }
+  },
+  {
+   "when_contains": [
+    "Added to cart"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Done. Parle-G Gold is in your Flipkart cart. I have not placed the order.",
+    "reason": "Item is in the cart; never check out"
+   }
+  }
+ ]
+}

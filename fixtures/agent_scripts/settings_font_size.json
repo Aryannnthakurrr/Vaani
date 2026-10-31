@@ -1,0 +1,60 @@
+{
+ "scenario": "settings_font_size",
+ "mode": "GUIDE",
+ "goal_keywords": [
+  "font",
+  "text size",
+  "bigger text",
+  "akshar",
+  "अक्षर",
+  "text bada"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Network & internet",
+    "Display"
+   ],
+   "action": {
+    "action": "highlight",
+    "id": 9,
+    "instruction": "Tap Display. It is in the list, below Battery.",
+    "reason": "Display opens font settings"
+   }
+  },
+  {
+   "when_contains": [
+    "Dark theme",
+    "Font size"
+   ],
+   "action": {
+    "action": "highlight",
+    "id": 7,
+    "instruction": "Now tap Font size.",
+    "reason": "Font size row is visible"
+   }
+  },
+  {
+   "when_contains": [
+    "Preview",
+    "Default"
+   ],
+   "action": {
+    "action": "highlight",
+    "id": 5,
+    "instruction": "Drag the round button on the line to the right. The text will get bigger.",
+    "reason": "Slider controls the size"
+   }
+  },
+  {
+   "when_contains": [
+    "Largest"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Well done! Your text is bigger now.",
+    "reason": "Font is now largest"
+   }
+  }
+ ]
+}

@@ -1,0 +1,127 @@
+{
+ "package": "com.android.settings",
+ "title": "Font size",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "ImageButton",
+   "text": null,
+   "desc": "Navigate up",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    20,
+    100,
+    140,
+    220
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Font size",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    180,
+    120,
+    1040,
+    240
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Preview",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    400,
+    1040,
+    520
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Make the text on your screen smaller or larger.",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    520,
+    1040,
+    640
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "SeekBar",
+   "text": null,
+   "desc": "Font size",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1500,
+    1040,
+    1620
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": true,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Largest",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1640,
+    1040,
+    1760
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  }
+ ]
+}

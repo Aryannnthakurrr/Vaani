@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Saathi" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/saathi_bg_night</item>
+        <item name="android:statusBarColor">@color/saathi_bg_night</item>
+    </style>
+    <color name="saathi_bg_night">#FF15120F</color>
+</resources>

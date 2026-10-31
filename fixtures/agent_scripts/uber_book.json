@@ -1,0 +1,72 @@
+{
+ "scenario": "uber_book",
+ "mode": "ACT",
+ "goal_keywords": [
+  "cab",
+  "uber",
+  "taxi",
+  "ride",
+  "कैब",
+  "गाड़ी",
+  "gaadi"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Where to?",
+    "Ride"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 1,
+    "reason": "Open destination search"
+   }
+  },
+  {
+   "when_contains": [
+    "Pickup location"
+   ],
+   "action": {
+    "action": "type",
+    "id": 3,
+    "text": "Apollo Hospital",
+    "reason": "Type the destination"
+   }
+  },
+  {
+   "when_contains": [
+    "Sarita Vihar"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 3,
+    "reason": "Top result matches the goal"
+   }
+  },
+  {
+   "when_contains": [
+    "Confirm Uber Go"
+   ],
+   "action": {
+    "action": "confirm",
+    "summary": "Uber Go to Apollo Hospital, Sarita Vihar. Fare ₹184, the car is 4 minutes away. Book it?",
+    "then": {
+     "action": "tap",
+     "id": 6,
+     "reason": "User approved"
+    },
+    "reason": "Booking needs a spoken yes"
+   }
+  },
+  {
+   "when_contains": [
+    "arriving"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Your cab is booked. Ramesh is coming in a white Swift Dzire, 4 minutes away.",
+    "reason": "Driver assigned"
+   }
+  }
+ ]
+}

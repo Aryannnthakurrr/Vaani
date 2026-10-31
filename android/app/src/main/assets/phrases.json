@@ -1,0 +1,97 @@
+{
+  "scam_red_ussd": {
+    "en": "Warning. This message asks you to dial a code that sends your calls to a stranger. Do not dial it.",
+    "hi": "सावधान। यह संदेश आपसे एक कोड डायल करवाना चाहता है जिससे आपकी कॉल किसी अनजान व्यक्ति के पास चली जाएगी। इसे डायल मत कीजिए।",
+    "hinglish": "Savdhaan. Yeh message aapse ek code dial karwana chahta hai jisse aapki calls kisi anjaan ke paas chali jayengi. Ise dial mat kijiye."
+  },
+  "scam_red_apk": {
+    "en": "Warning. This message has a link that installs an app. It can steal your money. Do not open it.",
+    "hi": "सावधान। इस संदेश में एक लिंक है जो ऐप डाउनलोड करता है। यह आपके पैसे चुरा सकता है। इसे मत खोलिए।",
+    "hinglish": "Savdhaan. Is message mein ek link hai jo app download karta hai. Yeh aapke paise chura sakta hai. Ise mat kholiye."
+  },
+  "scam_red_link": {
+    "en": "Warning. This message has a dangerous link. Do not open it, and do not share any code.",
+    "hi": "सावधान। इस संदेश में खतरनाक लिंक है। इसे मत खोलिए और कोई कोड किसी को मत बताइए।",
+    "hinglish": "Savdhaan. Is message mein khatarnaak link hai. Ise mat kholiye aur koi code kisi ko mat bataiye."
+  },
+  "scam_amber_message": {
+    "en": "Be careful. This message looks like a trick. Please check with your family before doing anything.",
+    "hi": "ध्यान दीजिए। यह संदेश धोखा लग रहा है। कुछ भी करने से पहले परिवार से पूछ लीजिए।",
+    "hinglish": "Dhyaan dijiye. Yeh message dhokha lag raha hai. Kuch bhi karne se pehle family se pooch lijiye."
+  },
+  "call_red_otp": {
+    "en": "Warning. You are on a call and an O T P just arrived. Banks and police never ask for O T Ps. Hang up now.",
+    "hi": "सावधान। आप कॉल पर हैं और अभी एक ओटीपी आया है। बैंक और पुलिस कभी ओटीपी नहीं माँगते। अभी फ़ोन काट दीजिए।",
+    "hinglish": "Savdhaan. Aap call par hain aur abhi ek OTP aaya hai. Bank aur police kabhi OTP nahi maangte. Abhi phone kaat dijiye."
+  },
+  "call_red_money_app": {
+    "en": "Warning. A payment app opened while you are on a call with a stranger. Do not send money. Hang up now.",
+    "hi": "सावधान। अनजान व्यक्ति से बात करते हुए पैसे वाला ऐप खुला है। पैसे मत भेजिए। अभी फ़ोन काट दीजिए।",
+    "hinglish": "Savdhaan. Anjaan insaan se baat karte hue paise wala app khula hai. Paise mat bhejiye. Abhi phone kaat dijiye."
+  },
+  "call_red_remote_app": {
+    "en": "Warning. A screen sharing app opened during this call. The caller could see everything on your phone. Hang up now.",
+    "hi": "सावधान। इस कॉल के दौरान स्क्रीन दिखाने वाला ऐप खुला है। सामने वाला आपके फ़ोन की हर चीज़ देख सकता है। अभी फ़ोन काट दीजिए।",
+    "hinglish": "Savdhaan. Is call ke dauraan screen share karne wala app khula hai. Saamne wala aapke phone ki har cheez dekh sakta hai. Abhi phone kaat dijiye."
+  },
+  "call_amber": {
+    "en": "Be careful on this call. Do not share any code or send money to someone you do not know.",
+    "hi": "इस कॉल पर ध्यान रखिए। किसी अनजान को कोई कोड मत बताइए और पैसे मत भेजिए।",
+    "hinglish": "Is call par dhyaan rakhiye. Kisi anjaan ko koi code mat bataiye aur paise mat bhejiye."
+  },
+  "call_press_red": {
+    "en": "Please press the red button to end the call.",
+    "hi": "कृपया कॉल बंद करने के लिए लाल बटन दबाइए।",
+    "hinglish": "Please call band karne ke liye laal button dabaiye."
+  },
+  "welfare_prompt": {
+    "en": "Good morning! Tap here to tell your family you are okay.",
+    "hi": "सुप्रभात! अपने परिवार को बताने के लिए यहाँ दबाइए कि आप ठीक हैं।",
+    "hinglish": "Good morning! Family ko batane ke liye yahan dabaiye ki aap theek hain."
+  },
+  "confirm_yes_ack": {
+    "en": "Okay, doing it now.",
+    "hi": "ठीक है, अभी कर रहा हूँ।",
+    "hinglish": "Theek hai, abhi kar raha hoon."
+  },
+  "confirm_no_ack": {
+    "en": "Okay, I have stopped. Nothing was booked.",
+    "hi": "ठीक है, मैंने रोक दिया। कुछ भी बुक नहीं हुआ।",
+    "hinglish": "Theek hai, maine rok diya. Kuch bhi book nahi hua."
+  },
+  "pin_screen": {
+    "en": "This screen needs your PIN. Please enter it yourself. I will wait. Say done when you finish.",
+    "hi": "इस स्क्रीन पर आपका पिन चाहिए। कृपया इसे खुद डालिए। मैं इंतज़ार करूँगा। हो जाए तो बोलिए हो गया।",
+    "hinglish": "Is screen par aapka PIN chahiye. Please ise khud daaliye. Main wait karunga. Ho jaye to boliye ho gaya."
+  },
+  "login_screen": {
+    "en": "This app wants you to log in. Please log in yourself, then tell me to continue.",
+    "hi": "यह ऐप लॉग इन करने को कह रहा है। कृपया खुद लॉग इन कीजिए, फिर मुझे आगे बढ़ने को कहिए।",
+    "hinglish": "Yeh app login karne ko keh raha hai. Please khud login kijiye, phir mujhe continue karne ko kahiye."
+  },
+  "filler": {
+    "en": "One moment.",
+    "hi": "एक सेकंड।",
+    "hinglish": "Ek second."
+  },
+  "stopped": {
+    "en": "Stopped.",
+    "hi": "रोक दिया।",
+    "hinglish": "Ruk gaya."
+  },
+  "listening": {
+    "en": "I am listening.",
+    "hi": "मैं सुन रहा हूँ।",
+    "hinglish": "Main sun raha hoon."
+  },
+  "didnt_understand": {
+    "en": "Sorry, I did not understand. Please say it again.",
+    "hi": "माफ़ कीजिए, मैं समझ नहीं पाया। कृपया फिर से बोलिए।",
+    "hinglish": "Maaf kijiye, main samjha nahi. Please phir se boliye."
+  },
+  "ask_yes_no_again": {
+    "en": "Please say yes or no.",
+    "hi": "कृपया हाँ या ना बोलिए।",
+    "hinglish": "Please haan ya na boliye."
+  }
+}

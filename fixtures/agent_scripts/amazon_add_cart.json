@@ -1,0 +1,72 @@
+{
+ "scenario": "amazon_add_cart",
+ "mode": "ACT",
+ "goal_keywords": [
+  "amazon",
+  "cart",
+  "order",
+  "buy",
+  "kharid",
+  "मंगा",
+  "manga"
+ ],
+ "steps": [
+  {
+   "when_contains": [
+    "Search Amazon.in",
+    "Deals"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 1,
+    "reason": "Open search"
+   }
+  },
+  {
+   "when_contains": [
+    "Search Amazon.in"
+   ],
+   "action": {
+    "action": "type",
+    "id": 1,
+    "text": "Parle-G biscuits",
+    "reason": "Search for the product"
+   }
+  },
+  {
+   "when_contains": [
+    "Parle-G Gold"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 3,
+    "reason": "Top non-sponsored match"
+   }
+  },
+  {
+   "when_contains": [
+    "Add to Cart"
+   ],
+   "action": {
+    "action": "confirm",
+    "summary": "Parle-G Gold Biscuits, 1 kg. Price ₹140, rated 4.3 out of 5. Add it to your cart?",
+    "then": {
+     "action": "tap",
+     "id": 4,
+     "reason": "User approved"
+    },
+    "reason": "Adding to cart needs a yes"
+   }
+  },
+  {
+   "when_contains": [
+    "Added to Cart"
+   ],
+   "action": {
+    "action": "done",
+    "message": "Done. Parle-G Gold is in your Amazon cart. I have not placed the order.",
+    "reason": "Item is in the cart; never check out"
+   }
+  }
+ ]
+}

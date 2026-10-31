@@ -1,0 +1,87 @@
+{
+ "package": "com.flipkart.android",
+ "title": "Results",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "EditText",
+   "text": "Parle-G biscuits",
+   "desc": null,
+   "hint": "Search for products",
+   "viewId": null,
+   "bounds": [
+    40,
+    180,
+    1040,
+    300
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Ad · Britannia Marie Gold 1 kg · ₹130",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    420,
+    1040,
+    540
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Parle-G Gold Biscuits 1 kg · ₹140 · 4.3 ★ (8,214)",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    720,
+    1040,
+    840
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Parle-G Original Glucose Biscuits 800 g · ₹90 · 4.4 ★",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1020,
+    1040,
+    1140
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}

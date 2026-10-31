@@ -1,0 +1,87 @@
+{
+ "package": "in.amazon.mShop.android.shopping",
+ "title": "Results",
+ "secure": false,
+ "nodes": [
+  {
+   "cls": "EditText",
+   "text": "Parle-G biscuits",
+   "desc": null,
+   "hint": "Search Amazon.in",
+   "viewId": null,
+   "bounds": [
+    40,
+    160,
+    1040,
+    280
+   ],
+   "clickable": true,
+   "editable": true,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Sponsored · Sunfeast Marie Light 1 kg ₹120",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    400,
+    1040,
+    520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Parle-G Gold Biscuits, 1 kg · ₹140 · 4.3 out of 5 stars",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    700,
+    1040,
+    820
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Parle-G Original Glucose Biscuits 800 g · ₹90 · 4.4 out of 5 stars",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    1000,
+    1040,
+    1120
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  }
+ ]
+}
