@@ -23,6 +23,9 @@ import com.saathi.app.ui.OnboardingScreen
 import com.saathi.app.ui.Permissions
 import com.saathi.app.ui.SettingsScreen
 import com.saathi.app.ui.theme.SaathiTheme
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -31,7 +34,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // The app is always light, so the status and navigation bar icons are always dark.
+        enableEdgeToEdge(
+            statusBarStyle = androidx.activity.SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = androidx.activity.SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+        )
         val c = SaathiApp.container
         handle(intent)
         OverlayService.start(this)
@@ -46,7 +53,10 @@ class MainActivity : ComponentActivity() {
                         pendingRoute.value = null
                     }
                 }
-                NavHost(nav, startDestination = start) {
+                // Gentle only: a short cross-fade between screens, nothing that slides or bounces.
+                NavHost(nav, startDestination = start,
+                    enterTransition = { fadeIn(tween(220)) }, exitTransition = { fadeOut(tween(180)) },
+                    popEnterTransition = { fadeIn(tween(220)) }, popExitTransition = { fadeOut(tween(180)) }) {
                     val back: () -> Unit = { if (!nav.popBackStack()) nav.navigate("home") }
                     composable("onboarding") { OnboardingScreen(c) { nav.navigate("home") { popUpTo("onboarding") { inclusive = true } } } }
                     composable("home") { HomeScreen(c) { nav.navigate(it) { launchSingleTop = true } } }

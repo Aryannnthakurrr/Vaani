@@ -1,5 +1,12 @@
 package com.saathi.app.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -10,8 +17,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.graphics.lerp
 import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.voice.tr
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +33,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import com.saathi.app.ui.theme.Leaf
+import com.saathi.app.ui.theme.Leaf50
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -60,7 +75,7 @@ fun SaathiScaffold(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
-        topBar = {
+        topBar = { Column {
             TopAppBar(
                 title = { Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.fillMaxWidth().semantics { heading() }) },
                 navigationIcon = {
@@ -70,9 +85,10 @@ fun SaathiScaffold(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
-        },
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+        } },
     ) { pad ->
         val base = Modifier.fillMaxSize().padding(pad).padding(horizontal = 16.dp)
         Column(
@@ -95,14 +111,38 @@ fun BigButton(
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
     enabled: Boolean = true,
 ) {
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "press")
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().heightIn(min = 72.dp),
+        interactionSource = press,
+        modifier = modifier.fillMaxWidth().heightIn(min = 72.dp).graphicsLayer { scaleX = scale; scaleY = scale },
         shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
     ) { Text(text, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
+}
+
+/** The calm second choice next to a [BigButton] ("No", "Other times"): soft grey, dark text, same size. */
+@Composable
+fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) =
+    BigButton(text, onClick, modifier, color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)
+
+/** The end of a task: a large green tick, one sentence, and an optional small line ("Added to calendar"). */
+@Composable
+fun SuccessView(title: String, line: String, note: String? = null, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(120.dp).clip(CircleShape).background(Leaf50), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Check, contentDescription = null, tint = Leaf, modifier = Modifier.size(72.dp))
+        }
+        Text(title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading(); liveRegion = LiveRegionMode.Polite })
+        Text(line, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        note?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center) }
+    }
 }
 
 /**
@@ -124,9 +164,9 @@ fun InfoCard(
         modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) {
             contentDescription = listOfNotNull(badge, title, body).joinToString(". ")
         },
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
     ) {
         // The accent stripe is drawn, not laid out: an intrinsic-height row mis-measures Devanagari text.
         Row(Modifier.drawBehind { if (accent != null) drawRect(accent, size = Size(8.dp.toPx(), size.height)) }) {
@@ -163,9 +203,45 @@ fun Pill(text: String, color: Color, filled: Boolean = false) {
     )
 }
 
-/** Accent colours are tuned for light backgrounds; in dark mode lift them towards white so text stays readable. */
+/** Accent colours are tuned for the white theme (the app is always light), so they are used as they are. */
 @Composable
-fun readable(color: Color): Color = if (isSystemInDarkTheme()) lerp(color, Color.White, 0.45f) else color
+fun readable(color: Color): Color = color
+
+/**
+ * One large action per row (Home and menus): a white card with an icon on a soft tinted tile and a few words.
+ * The tint is the only colour, so actions are easy to tell apart without anything loud. At least 96dp tall.
+ */
+@Composable
+fun ActionRow(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    tintBg: Color = MaterialTheme.colorScheme.primaryContainer,
+    border: Color = MaterialTheme.colorScheme.outline,
+) {
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "press")
+    Surface(
+        onClick = onClick,
+        interactionSource = press,
+        modifier = modifier.fillMaxWidth().heightIn(min = 96.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+            .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = label },
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        border = BorderStroke(1.5.dp, border),
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            Box(Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)).background(tintBg), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(34.dp))
+            }
+            Text(label, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
 
 /** "2 hours ago" / "2 घंटे पहले" for list rows. */
 fun relativeTime(ts: Long, style: ReplyStyle, now: Long = System.currentTimeMillis()): String {

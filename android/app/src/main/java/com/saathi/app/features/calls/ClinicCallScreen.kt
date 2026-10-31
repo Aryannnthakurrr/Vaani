@@ -54,8 +54,8 @@ import com.saathi.app.ui.BigButton
 import com.saathi.app.ui.InfoCard
 import com.saathi.app.ui.theme.Danger
 import com.saathi.app.ui.theme.Leaf
-import com.saathi.app.ui.theme.Saffron
-import com.saathi.app.ui.theme.SaffronDark
+import com.saathi.app.ui.theme.Accent
+import com.saathi.app.ui.theme.AccentDark
 import com.saathi.app.util.SaathiJson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -155,7 +155,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding()) {
         // Call header, like a phone's in-call screen.
         Column(
-            Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(SaffronDark, Saffron)))
+            Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(AccentDark, Accent)))
                 .statusBarsPadding().padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -255,11 +255,11 @@ private fun Bubble(line: CallLine) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (agent) Arrangement.Start else Arrangement.End) {
         Column(
             Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(20.dp))
-                .background(if (agent) Saffron.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant)
+                .background(if (agent) Accent.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant)
                 .padding(14.dp).semantics { liveRegion = LiveRegionMode.Polite },
         ) {
             Text(if (agent) "🤖 Saathi" else "🏥 Clinic", style = MaterialTheme.typography.labelLarge,
-                color = if (agent) SaffronDark else MaterialTheme.colorScheme.onSurfaceVariant)
+                color = if (agent) AccentDark else MaterialTheme.colorScheme.onSurfaceVariant)
             Text(line.text, style = MaterialTheme.typography.bodyLarge)
         }
     }

@@ -267,8 +267,27 @@ class OverlayController(private val ctx: Context, private val container: AppCont
         vib.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 700, 250, 700, 250, 700), -1))
     }
 
+    private var success: View? = null
+
+    /** A green tick card at the end of a task, over the app it ran in; it goes away on its own after a few seconds. */
+    fun showSuccess(message: String) = ui {
+        remove(success)
+        val v = OverlayViews.successCard(ctx, message)
+        val margin = OverlayViews.dp(ctx, 16)
+        if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER, touchable = false, type = type).apply { horizontalMargin = 0f; x = 0 } }) {
+            v.setPadding(v.paddingLeft + margin, v.paddingTop, v.paddingRight + margin, v.paddingBottom)
+            success = v
+            main.postDelayed({ if (success === v) { remove(v); success = null } }, SUCCESS_MS)
+        }
+    }
+
     fun removeAll() = ui {
         added.keys.toList().forEach { remove(it) }
-        bubble = null; stopChip = null; caption = null; highlight = null; sheet = null; alertView = null
+        bubble = null; stopChip = null; caption = null; highlight = null; sheet = null; alertView = null; success = null
+    }
+
+    private companion object {
+        const val SUCCESS_MS = 6_000L
     }
 }

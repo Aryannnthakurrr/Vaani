@@ -22,19 +22,19 @@ class HighlightView(context: Context) : View(context) {
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 6 * density
-        color = Color.rgb(255, 196, 0)
+        color = Color.rgb(11, 122, 100) // the app's teal, not a loud yellow
     }
     private val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 14 * density
-        color = Color.argb(110, 255, 140, 0)
+        color = Color.argb(90, 11, 122, 100)
     }
     private val scrim = Paint().apply { color = Color.argb(70, 0, 0, 0) }
     private val arrow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 10 * density
         strokeCap = Paint.Cap.ROUND
-        color = Color.rgb(255, 196, 0)
+        color = Color.rgb(11, 122, 100)
     }
     private var phase = 0f
     private val loc = IntArray(2)

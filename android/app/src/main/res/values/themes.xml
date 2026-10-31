@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Saathi" parent="android:Theme.Material.NoActionBar">
+    <!-- Always light, like the Compose theme: white launch screen, dark status-bar icons. -->
+    <style name="Theme.Saathi" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/saathi_bg</item>
-        <item name="android:statusBarColor">@color/saathi_primary_dark</item>
+        <item name="android:statusBarColor">@color/saathi_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
-    <color name="saathi_bg">#FFFDF7EE</color>
-    <color name="saathi_primary">#FFE0662B</color>
-    <color name="saathi_primary_dark">#FF9C3D12</color>
-    <color name="saathi_icon_bg">#FFE0662B</color>
+    <color name="saathi_bg">#FFFAF8F4</color>
+    <color name="saathi_primary">#FF0B7A64</color>
+    <color name="saathi_primary_dark">#FF08624F</color>
+    <color name="saathi_icon_bg">#FF0B7A64</color>
 </resources>

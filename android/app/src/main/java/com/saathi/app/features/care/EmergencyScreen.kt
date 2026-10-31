@@ -3,7 +3,16 @@ package com.saathi.app.features.care
 import android.annotation.SuppressLint
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,7 +51,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.voice.tr
 import com.saathi.app.ui.BigButton
-import com.saathi.app.ui.InfoCard
 import com.saathi.app.ui.theme.Danger
 import com.saathi.app.ui.theme.Leaf
 import kotlinx.coroutines.delay
@@ -73,17 +81,17 @@ fun EmergencyScreen(c: AppContainer, onBack: () -> Unit) {
                     "Koi ambulance available nahi.\nAbhi 108 par call kijiye."),
                     color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
-                BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) },
+                BigButton(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), { c.emergency.call108(context) },
                     Modifier.heightIn(min = 140.dp), color = Color.White, contentColor = Danger)
                 if (ui.familyAlerted) {
                     Text(s("Your family has been alerted.", "आपके परिवार को बता दिया गया है।", "Aapke family ko bata diya gaya hai."), color = Color.White)
                 }
             }
             EmergencyPhase.CANCELLED -> {
-                InfoCard(s("Cancelled", "रद्द किया गया", "Cancel kiya gaya"),
-                    s("No ambulance is coming. If you feel worse, call 108.", "कोई एम्बुलेंस नहीं आ रही। तबीयत बिगड़े तो 108 पर फ़ोन कीजिए।",
-                        "Koi ambulance nahi aa rahi. Tabiyat bigde to 108 par call kijiye."), icon = "✅")
-                BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) }, color = Danger)
+                com.saathi.app.ui.SuccessView(s("Cancelled", "रद्द किया गया", "Cancel kiya gaya"),
+                    s("No ambulance is coming.", "कोई एम्बुलेंस नहीं आ रही।", "Koi ambulance nahi aa rahi."),
+                    s("If you feel worse, call 108.", "तबीयत बिगड़े तो 108 पर फ़ोन कीजिए।", "Tabiyat bigde to 108 par call kijiye."))
+                BigButton(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), { c.emergency.call108(context) }, color = Danger)
                 BigButton(s("Close", "बंद करें", "Band karein"), { c.emergency.close(); onBack() })
             }
             else -> Tracking(ui, ::s, c, onBack)
@@ -96,17 +104,24 @@ fun EmergencyScreen(c: AppContainer, onBack: () -> Unit) {
 @Composable
 private fun Countdown(ui: EmergencyUi, s: (String, String, String) -> String, c: AppContainer) {
     val context = LocalContext.current
-    Text(s("Sending an ambulance in", "एम्बुलेंस भेजी जाएगी", "Ambulance bheji jayegi"), color = Color.White, fontSize = 24.sp)
-    Text("${ui.secondsLeft}", color = Color.White, fontSize = 110.sp, fontWeight = FontWeight.Black,
-        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+    Text(s("Sending an ambulance in", "एम्बुलेंस भेजी जाएगी", "Ambulance bheji jayegi"), color = Color.White, fontSize = 26.sp,
+        fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
+    // The number is the whole screen's message: huge, inside a soft white ring.
+    Box(Modifier.size(220.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+        Text("${ui.secondsLeft}", color = Color.White, fontSize = 150.sp, fontWeight = FontWeight.Black, lineHeight = 150.sp,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+    }
     com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
         s("Say \"I'm OK\" or \"send now\"", "\"मैं ठीक हूँ\" या \"अभी भेजो\" बोलिए", "\"Main theek hoon\" ya \"abhi bhejo\" boliye"), Color.White)
     // The biggest target on the screen: someone who is fine must be able to stop this instantly.
-    BigButton(s("I'M OK, CANCEL", "मैं ठीक हूँ, रोकें", "Main theek hoon, rokein"), { c.emergency.imOk() },
-        Modifier.heightIn(min = 160.dp), color = Leaf, contentColor = Color.White)
-    BigButton(s("SEND AMBULANCE NOW", "अभी एम्बुलेंस भेजें", "Abhi ambulance bhejein"), { c.emergency.sendNow() },
-        color = Color.White, contentColor = Danger)
-    BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) },
+    BigButton(s("I'm OK", "मैं ठीक हूँ", "Main theek hoon"), { c.emergency.imOk() },
+        Modifier.heightIn(min = 140.dp), color = Color.White, contentColor = Leaf)
+    OutlinedButton({ c.emergency.sendNow() }, Modifier.fillMaxWidth().heightIn(min = 72.dp), shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(2.dp, Color.White)) {
+        Text(s("Send ambulance now", "अभी एम्बुलेंस भेजें", "Abhi ambulance bhejein"), color = Color.White,
+            style = MaterialTheme.typography.titleLarge)
+    }
+    BigButton(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), { c.emergency.call108(context) },
         color = Color(0xFF7F0000), contentColor = Color.White)
     if (ui.askLandmark) {
         var landmark by remember { mutableStateOf(c.emergency.landmark) }
@@ -141,17 +156,32 @@ private fun Tracking(ui: EmergencyUi, s: (String, String, String) -> String, c: 
         eta = ui.etaSec ?: return@LaunchedEffect
         while (eta > 0) { delay(1_000); eta-- }
     }
-    val etaText = ui.etaSec?.let { s("ETA ${eta / 60} min ${eta % 60} s", "${eta / 60} मिनट ${eta % 60} सेकंड में", "${eta / 60} min ${eta % 60} sec mein") }
+    val etaMin = (eta + 59) / 60
     val km = ui.distanceM?.let { "%.1f km".format(it / 1000.0) }
-    InfoCard(title, listOfNotNull(etaText, km, ui.vehicle, ui.crew).joinToString(" · ").ifBlank { null }, accent = Danger, icon = "🚑")
-    Text(STEPS.joinToString("   ") { (if (it in ui.timeline) "✔ " else "○ ") + it.replace('_', ' ').lowercase() }, fontSize = 15.sp)
-    AmbulanceMap(ui, Modifier.fillMaxWidth().height(340.dp))
+    // The map is the moment: large, rounded, at the top. One card below says when, who and which vehicle.
+    AmbulanceMap(ui, Modifier.fillMaxWidth().height(420.dp).clip(RoundedCornerShape(24.dp)))
+    Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, style = MaterialTheme.typography.titleLarge, color = Danger,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            if (ui.etaSec != null && ui.status in setOf("ASSIGNED", "EN_ROUTE")) {
+                Text(s("$etaMin min away", "$etaMin मिनट में", "$etaMin min mein"), style = MaterialTheme.typography.displaySmall)
+            }
+            listOfNotNull(ui.vehicle, ui.crew, km).joinToString(" · ").ifBlank { null }?.let {
+                Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            val done = STEPS.count { it in ui.timeline }
+            LinearProgressIndicator({ done / STEPS.size.toFloat() }, Modifier.fillMaxWidth().padding(top = 8.dp).height(8.dp).clip(CircleShape),
+                color = Danger, trackColor = MaterialTheme.colorScheme.surfaceVariant)
+        }
+    }
     if (ui.status == null || ui.status == "RECEIVED") { // once an ambulance is assigned, a 108 call would only send a second one
-        BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) }, color = Danger)
+        BigButton(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), { c.emergency.call108(context) }, color = Danger)
     }
     if (ui.phase == EmergencyPhase.TRACKING || ui.status == "ARRIVED_AT_SCENE") { // no cancelling once on board
         BigButton(s("I'm OK, cancel the ambulance", "मैं ठीक हूँ, एम्बुलेंस रद्द करें", "Main theek hoon, ambulance cancel karein"),
-            { c.emergency.imOk() }, color = Leaf)
+            { c.emergency.imOk() }, color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface)
     }
     if (ui.status == "ARRIVED_AT_HOSPITAL" || ui.status == "COMPLETED") {
         BigButton(s("Close", "बंद करें", "Band karein"), { c.emergency.close(); onBack() })

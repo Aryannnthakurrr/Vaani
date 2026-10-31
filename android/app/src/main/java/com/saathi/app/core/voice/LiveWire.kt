@@ -88,7 +88,8 @@ class TranscriptLog(private val max: Int = 20) {
         if (open != null) {
             lines[lines.lastIndex] = open.copy(text = join(open.text, t.text), final = t.final)
         } else if (t.text.isNotBlank()) {
-            lines += TranscriptLine(t.role, t.text.trim(), t.final)
+            // Keep a trailing space: the next piece ("Saathi") must not stick to this one ("I am ").
+            lines += TranscriptLine(t.role, t.text.trimStart(), t.final)
         }
         while (lines.size > max) lines.removeAt(0)
         return lines.toList()
@@ -102,8 +103,8 @@ class TranscriptLog(private val max: Int = 20) {
 
     private fun join(a: String, b: String): String = when {
         b.isEmpty() -> a
-        a.isEmpty() -> b.trim()
-        a.endsWith(" ") || b.startsWith(" ") -> (a + b).replace(Regex("\\s+"), " ").trim()
+        a.isEmpty() -> b.trimStart()
+        a.endsWith(" ") || b.startsWith(" ") -> (a + b).replace(Regex("\\s+"), " ").trimStart()
         else -> "$a$b"
     }
 }

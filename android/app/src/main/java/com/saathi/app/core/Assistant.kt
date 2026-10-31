@@ -94,7 +94,7 @@ class Assistant(private val c: AppContainer) {
         _live.value = session
         _state.value = AssistantState.LISTENING
         OverlayService.start(c.context, OverlayService.ACTION_MIC_ON)
-        OverlayService.controller?.showCaption(c.phrases.text("listening", style), "🎤")
+        OverlayService.controller?.showCaption(c.phrases.text("listening", style), "Saathi")
         liveWatch = c.scope.launch {
             launch {
                 session.transcripts.collect { lines ->
@@ -102,7 +102,7 @@ class Assistant(private val c: AppContainer) {
                     val saathi = lines.lastOrNull { it.role == "saathi" }?.text
                     user?.let { _lastHeard.value = it; c.scope.launch { switchLanguageIfAsked(it, speak = false) } }
                     if (user != null || saathi != null) {
-                        OverlayService.controller?.showCaption(listOfNotNull(user?.let { "“$it”" }, saathi).joinToString("\n"), "🎤")
+                        OverlayService.controller?.showCaption(listOfNotNull(user?.let { "“$it”" }, saathi).joinToString("\n"), "Saathi")
                     }
                 }
             }
@@ -137,7 +137,7 @@ class Assistant(private val c: AppContainer) {
         launch {
             _state.value = AssistantState.LISTENING
             OverlayService.start(c.context, OverlayService.ACTION_MIC_ON)
-            OverlayService.controller?.showCaption(c.phrases.text("listening", style), "🎤")
+            OverlayService.controller?.showCaption(c.phrases.text("listening", style), "Saathi")
             val heard = try { speech.listen(cue = true) } finally { OverlayService.start(c.context, OverlayService.ACTION_MIC_OFF) }
             if (heard == null || heard.transcript.isBlank()) {
                 c.speaker.sayPhrase("didnt_understand", style)
@@ -235,6 +235,7 @@ class Assistant(private val c: AppContainer) {
 
     private fun report(outcome: AgentOutcome) {
         _lastOutcome.value = outcome
+        if (outcome is AgentOutcome.Done && outcome.message.isNotBlank()) OverlayService.controller?.showSuccess(outcome.message)
         if (outcome is AgentOutcome.Failed) {
             c.notifier.post(Notifier.CH_ASSISTANT, 7, "Saathi", outcome.message)
         }
