@@ -1,5 +1,5 @@
 {
- "package": "com.urbanclap.urbanclap",
+ "package": "com.company.pronto",
  "title": "Booking confirmed",
  "secure": false,
  "nodes": [
@@ -25,7 +25,7 @@
   },
   {
    "cls": "TextView",
-   "text": "A professional will be assigned 1 hour before the slot.",
+   "text": "Your expert is on the way.",
    "desc": null,
    "hint": null,
    "viewId": null,

@@ -8,8 +8,8 @@ object Packages {
     const val AMAZON = "in.amazon.mShop.android.shopping"
     const val FLIPKART = "com.flipkart.android"
     const val PRACTO = "com.practo.fabric"
-    /** House-help app chosen for the build: Urban Company (see NOTES.md). */
-    const val HOUSE_HELP = "com.urbanclap.urbanclap"
+    /** House-help app chosen for the build: Pronto (see NOTES.md). */
+    const val HOUSE_HELP = "com.company.pronto"
     const val GOOGLE_CALENDAR = "com.google.android.calendar"
     const val SETTINGS = "com.android.settings"
 
@@ -54,7 +54,7 @@ object Packages {
         AMAZON -> "Amazon"
         FLIPKART -> "Flipkart"
         PRACTO -> "Practo"
-        HOUSE_HELP -> "Urban Company"
+        HOUSE_HELP -> "Pronto"
         GOOGLE_CALENDAR -> "Google Calendar"
         SETTINGS -> "Settings"
         WHATSAPP -> "WhatsApp"

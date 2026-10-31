@@ -8,46 +8,48 @@
   "bai",
   "safai",
   "सफाई",
-  "kaamwali"
+  "kaamwali",
+  "pronto"
  ],
  "steps": [
   {
    "when_contains": [
-    "Cleaning"
+    "Kitchen cleaning",
+    "Laundry"
    ],
    "action": {
     "action": "tap",
-    "id": 2,
-    "reason": "Cleaning category"
+    "id": 3,
+    "reason": "Kitchen cleaning"
    }
   },
   {
    "when_contains": [
-    "Kitchen cleaning"
+    "30 mins"
    ],
    "action": {
     "action": "tap",
     "id": 2,
-    "reason": "Add kitchen cleaning"
+    "reason": "Shortest duration"
    }
   },
   {
    "when_contains": [
-    "10:00 AM"
+    "Now · arrives"
    ],
    "action": {
     "action": "tap",
-    "id": 2,
-    "reason": "Morning slot"
+    "id": 1,
+    "reason": "No time asked, so now"
    }
   },
   {
    "when_contains": [
-    "Confirm booking"
+    "Book now"
    ],
    "action": {
     "action": "confirm",
-    "summary": "Kitchen cleaning tomorrow at 10 am for ₹549, pay after the service. Book it?",
+    "summary": "Kitchen cleaning for 30 minutes, ₹49, someone arrives in about 15 minutes. You pay after the service. Book it?",
     "then": {
      "action": "tap",
      "id": 3,
@@ -62,7 +64,7 @@
    ],
    "action": {
     "action": "done",
-    "message": "Kitchen cleaning is booked for tomorrow at 10 am.",
+    "message": "Kitchen cleaning is booked. Someone from Pronto will arrive in about 15 minutes.",
     "reason": "Booked"
    }
   }

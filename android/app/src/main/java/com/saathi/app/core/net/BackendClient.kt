@@ -27,8 +27,9 @@ class BackendClient(
     private val sttHttp = http.newBuilder().callTimeout(4, TimeUnit.SECONDS).build()
     // Upper bound only; Speaker applies a length-scaled deadline (4–12 s) per sentence.
     private val ttsHttp = http.newBuilder().callTimeout(13, TimeUnit.SECONDS).build()
-    // Gemini occasionally takes ~10 s (overload + server-side fallback); the agent loop also retries once.
-    private val agentHttp = http.newBuilder().readTimeout(25, TimeUnit.SECONDS).callTimeout(25, TimeUnit.SECONDS).build()
+    // Gemini has taken 10–17 s per model under load, and the backend may try a fallback model (models.yaml allows
+    // 20–25 s each), so a step can take ~50 s. The agent loop also retries once; the user can tap Stop at any time.
+    private val agentHttp = http.newBuilder().readTimeout(55, TimeUnit.SECONDS).callTimeout(55, TimeUnit.SECONDS).build()
     private val linkHttp = http.newBuilder().callTimeout(20, TimeUnit.SECONDS).build()
     private val jsonType = "application/json".toMediaType()
 

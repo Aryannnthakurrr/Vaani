@@ -1,79 +1,39 @@
 {
- "package": "com.urbanclap.urbanclap",
- "title": "Select slot",
+ "package": "com.company.pronto",
+ "title": "When?",
  "secure": false,
  "nodes": [
   {
-   "cls": "Button",
-   "text": "Tomorrow",
-   "desc": null,
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Now · arrives in 15 mins",
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    300,
-    330,
-    420
-   ],
-   "clickable": true,
-   "editable": false,
-   "scrollable": false,
-   "checkable": true,
-   "checked": true,
-   "focused": false,
-   "depth": 2
-  },
-  {
-   "cls": "Button",
-   "text": "10:00 AM",
-   "desc": null,
-   "hint": null,
-   "viewId": null,
-   "bounds": [
-    40,
-    600,
-    330,
-    720
-   ],
-   "clickable": true,
-   "editable": false,
-   "scrollable": false,
-   "checkable": false,
-   "checked": false,
-   "focused": false,
-   "depth": 2
-  },
-  {
-   "cls": "Button",
-   "text": "12:00 PM",
-   "desc": null,
-   "hint": null,
-   "viewId": null,
-   "bounds": [
-    380,
-    600,
-    670,
-    720
-   ],
-   "clickable": true,
-   "editable": false,
-   "scrollable": false,
-   "checkable": false,
-   "checked": false,
-   "focused": false,
-   "depth": 2
-  },
-  {
-   "cls": "Button",
-   "text": "3:00 PM",
-   "desc": null,
-   "hint": null,
-   "viewId": null,
-   "bounds": [
-    720,
-    600,
+    400,
     1040,
-    720
+    520
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Later",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    560,
+    1040,
+    680
    ],
    "clickable": true,
    "editable": false,

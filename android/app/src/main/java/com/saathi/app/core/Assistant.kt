@@ -153,7 +153,7 @@ class Assistant(private val c: AppContainer) {
     /** Words Sarvam should listen out for: app names, family names, doctors from reminders. */
     private fun keyterms(): List<String> {
         val s = c.settings.current
-        return listOf("Saathi", "Uber", "Practo", "Amazon", "Flipkart", "Urban Company", "WhatsApp", "Apollo") +
+        return listOf("Saathi", "Uber", "Practo", "Amazon", "Flipkart", "Pronto", "WhatsApp", "Apollo") +
             s.contacts.map { it.name } + listOf(s.userName).filter { it.isNotBlank() }
     }
 }

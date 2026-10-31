@@ -1,11 +1,11 @@
 {
- "package": "com.urbanclap.urbanclap",
+ "package": "com.company.pronto",
  "title": "Summary",
  "secure": false,
  "nodes": [
   {
    "cls": "TextView",
-   "text": "Kitchen cleaning · Tomorrow 10:00 AM · ₹549",
+   "text": "Kitchen cleaning · 30 mins · ₹49",
    "desc": null,
    "hint": null,
    "viewId": null,
@@ -25,7 +25,7 @@
   },
   {
    "cls": "TextView",
-   "text": "Pay after service",
+   "text": "Arrives in about 15 minutes · Pay after service",
    "desc": null,
    "hint": null,
    "viewId": null,
@@ -44,9 +44,9 @@
    "depth": 1
   },
   {
-   "cls": "Button",
-   "text": "Confirm booking",
-   "desc": null,
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Book now",
    "hint": null,
    "viewId": null,
    "bounds": [

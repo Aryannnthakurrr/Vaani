@@ -32,7 +32,8 @@ _INTENTS: list[tuple[str, str]] = [
     (
         "book_house_help",
         r"\bmaid\b|\bcleaning\b|\bhouse ?help\b|\bsafai\b|\bkaamwali\b|\bbai\b|\bcook\b|"
-        r"\burban ?company\b|\bplumber\b|\belectrician\b|सफाई|सफ़ाई|कामवाली",
+        r"\bpronto\b|\bbartan\b|\bjhadu\b|\bpocha\b|\bdishes\b|\blaundry\b|"
+        r"सफाई|सफ़ाई|कामवाली|बर्तन|झाड़ू|पोछा",
     ),
     (
         "shop_online",
@@ -53,6 +54,14 @@ _SPECIALTIES = {
     "dermatologist": r"skin|derma|chamdi|त्वचा",
     "orthopedist": r"bone|knee|joint|ortho|haddi|घुटन|हड्डी",
     "general physician": r"fever|bukhar|बुखार|general|physician",
+}
+# Pronto's chores, most specific first; anything else is plain home cleaning.
+_HOUSE_SERVICES = {
+    "kitchen cleaning": r"kitchen|rasoi|रसोई",
+    "bathroom cleaning": r"bathroom|toilet|बाथरूम",
+    "dishwashing": r"dish|bartan|बर्तन",
+    "laundry": r"laundry|kapde|कपड़े",
+    "cooking": r"\bcook|khana|खाना",
 }
 _FILLER = r"^(please |mujhe |muje |main |mai |i want to go to |i need to go to |मुझे |मैं )+"
 # "Flipkart se biscuit" / "biscuit from Amazon" -> "biscuit": the app is a preference, not the product.
@@ -160,15 +169,8 @@ def extract_slots(text: str, intent: str) -> Slots:
         d = re.search(r"\b(?:dr\.?|doctor)\s+([A-Z][a-z]+)", text)
         slots.doctor = f"Dr. {d.group(1)}" if d else None
     elif intent == "book_house_help":
-        for service in (
-            "kitchen cleaning",
-            "bathroom cleaning",
-            "full home cleaning",
-            "cook",
-            "plumber",
-            "electrician",
-        ):
-            if service.split()[0] in low.lower():
+        for service, pattern in _HOUSE_SERVICES.items():
+            if re.search(pattern, low, re.IGNORECASE):
                 slots.service = service
                 break
         slots.service = slots.service or "home cleaning"

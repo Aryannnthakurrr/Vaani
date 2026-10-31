@@ -81,7 +81,7 @@ To record backup videos of 5, 9, 10 and the scam flow: `bash scripts/record_demo
 3. Run `bash scripts/backend_dev.sh` on the PC, then `bash scripts/dev_install.sh`. This builds, installs, grants
    every permission and runs `adb reverse tcp:8000 tcp:8000`, so the phone can reach the PC's backend.
 4. In Saathi, go to Settings → Connection → Backend URL, enter `http://localhost:8000` and tap Save.
-5. Real apps: install Uber, Practo, Amazon or Urban Company and log in yourself. Turn **Demo replay OFF** so tasks
+5. Real apps: install Uber, Practo, Amazon or Pronto and log in yourself. Turn **Demo replay OFF** so tasks
    drive the real apps (this needs `GEMINI_API_KEY` on the backend; without it, real-app tasks reply "I don't know
    how to do that yet").
 6. Speak to it: tap the orange bubble or "Talk to Saathi". Without `SARVAM_API_KEY` it uses the phone's own speech

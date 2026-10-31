@@ -69,8 +69,10 @@ object Tasks {
     )
     val HOUSE_HELP = TaskSpec(
         id = "book_house_help", pkg = Packages.HOUSE_HELP, scenario = "house_help", required = emptyList(),
-        goal = { "Book ${it.service ?: "home cleaning"} on Urban Company${it.date?.let { d -> " for $d" } ?: ""}${it.time?.let { t -> " at $t" } ?: ""}." },
-        addendum = "Pick the service, then the earliest matching slot. The final 'Confirm booking' must be wrapped in confirm. Never pay.",
+        goal = { "Book ${it.service ?: "home cleaning"} on Pronto${it.date?.let { d -> " for $d" } ?: ""}${it.time?.let { t -> " at $t" } ?: ""}." },
+        addendum = "Pick the service and the shortest duration. With no date or time asked, choose 'Now'; otherwise 'Schedule' " +
+            "and the matching slot. Read the price and duration, and wrap the final 'Book' button in confirm. Never pay; " +
+            "stop at any payment or UPI screen.",
     )
     val SHOP = TaskSpec(
         id = "shop_online", pkg = Packages.AMAZON, scenario = "amazon_add_cart", required = listOf(product),

@@ -15,7 +15,8 @@ object LocalIntentRules {
         "guide" to listOf("show me", "how do i", "how to", "teach", "kaise", "sikhao", "dikhao", "bhejni", "bhejna", "bhejun",
             "कैसे", "सिखाओ", "दिखाओ", "भेजनी", "भेजना"),
         "book_cab" to listOf("cab", "taxi", "uber", "ola", "ride", "auto", "कैब", "टैक्सी", "गाड़ी", "gaadi", "gadi"),
-        "book_house_help" to listOf("house help", "maid", "cleaning", "cleaner", "bai", "kaamwali", "safai", "सफाई", "बाई", "urban company"),
+        "book_house_help" to listOf("house help", "maid", "cleaning", "cleaner", "bai", "kaamwali", "safai", "सफाई", "बाई", "pronto",
+            "bartan", "jhadu", "pocha", "बर्तन", "झाड़ू", "पोछा"),
         "book_doctor" to listOf("doctor", "practo", "appointment", "cardiolog", "dentist", "physician", "डॉक्टर", "daktar", "dr."),
         "shop_online" to listOf("amazon", "flipkart", "order", "buy", "cart", "kharid", "mangwa", "manga", "खरीद", "मंगा", "ऑर्डर"),
         "digest" to listOf("update", "digest", "bill", "messages", "what's new", "kya aaya", "khabar", "संदेश", "अपडेट", "बिल"),
@@ -53,7 +54,11 @@ object LocalIntentRules {
             "book_cab" -> Slots(destination = destination(utterance))
             "shop_online" -> Slots(product = product(utterance))
             "book_doctor" -> Slots(specialty = SPECIALTY.find(utterance)?.value?.lowercase()?.let(::specialty))
-            "book_house_help" -> Slots(service = if (t.contains("kitchen")) "kitchen cleaning" else "home cleaning")
+            "book_house_help" -> Slots(service = when {
+                t.contains("kitchen") -> "kitchen cleaning"
+                t.contains("bartan") || t.contains("dish") || t.contains("बर्तन") -> "dishwashing"
+                else -> "home cleaning"
+            })
             else -> Slots()
         }
         return IntentResult(intent, slots, style.wire, reply(intent, slots, style))

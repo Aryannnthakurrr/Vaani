@@ -1,19 +1,39 @@
 {
- "package": "com.urbanclap.urbanclap",
- "title": "Urban Company",
+ "package": "com.company.pronto",
+ "title": "Pronto",
  "secure": false,
  "nodes": [
   {
    "cls": "TextView",
-   "text": "Women's Salon & Spa",
+   "text": "House help in 15 minutes",
    "desc": null,
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    400,
+    250,
     1040,
-    520
+    370
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Home cleaning",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    450,
+    520,
+    750
    ],
    "clickable": true,
    "editable": false,
@@ -24,16 +44,16 @@
    "depth": 2
   },
   {
-   "cls": "TextView",
-   "text": "Cleaning",
-   "desc": null,
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Kitchen cleaning",
    "hint": null,
    "viewId": null,
    "bounds": [
     560,
-    400,
+    450,
     1040,
-    520
+    750
    ],
    "clickable": true,
    "editable": false,
@@ -44,16 +64,36 @@
    "depth": 2
   },
   {
-   "cls": "TextView",
-   "text": "Electrician, Plumber & Carpenter",
-   "desc": null,
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Dishwashing",
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    700,
+    800,
+    520,
+    1100
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Laundry",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    560,
+    800,
     1040,
-    820
+    1100
    ],
    "clickable": true,
    "editable": false,

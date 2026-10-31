@@ -1,19 +1,19 @@
 {
- "package": "com.urbanclap.urbanclap",
- "title": "Cleaning",
+ "package": "com.company.pronto",
+ "title": "Kitchen cleaning",
  "secure": false,
  "nodes": [
   {
    "cls": "TextView",
-   "text": "Kitchen cleaning · ₹549 · 2 hrs",
+   "text": "How long do you need?",
    "desc": null,
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    400,
+    250,
     1040,
-    520
+    370
    ],
    "clickable": false,
    "editable": false,
@@ -21,16 +21,16 @@
    "checkable": false,
    "checked": false,
    "focused": false,
-   "depth": 2
+   "depth": 1
   },
   {
-   "cls": "Button",
-   "text": "Add",
-   "desc": null,
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "30 mins · ₹49",
    "hint": null,
    "viewId": null,
    "bounds": [
-    840,
+    40,
     400,
     1040,
     520
@@ -44,36 +44,16 @@
    "depth": 2
   },
   {
-   "cls": "TextView",
-   "text": "Bathroom cleaning · ₹449 · 1 hr",
-   "desc": null,
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "60 mins · ₹98",
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    650,
+    560,
     1040,
-    770
-   ],
-   "clickable": false,
-   "editable": false,
-   "scrollable": false,
-   "checkable": false,
-   "checked": false,
-   "focused": false,
-   "depth": 2
-  },
-  {
-   "cls": "Button",
-   "text": "Add",
-   "desc": null,
-   "hint": null,
-   "viewId": null,
-   "bounds": [
-    840,
-    650,
-    1040,
-    770
+    680
    ],
    "clickable": true,
    "editable": false,

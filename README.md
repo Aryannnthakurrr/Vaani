@@ -4,7 +4,7 @@ Saathi is an Android app and a small Python backend. You talk to it in **English
 
 | | Feature | What it does |
 |---|---|---|
-| 🚕 | **Acts for you** | Books an Uber, house help (Urban Company) or a Practo doctor, or adds an item to your Amazon cart, by reading the screen and tapping through the app with an AccessibilityService. **Every booking or payment waits for your spoken "haan".** |
+| 🚕 | **Acts for you** | Books an Uber, house help (Pronto) or a Practo doctor, or adds an item to your Amazon cart, by reading the screen and tapping through the app with an AccessibilityService. **Every booking or payment waits for your spoken "haan".** |
 | ❓ | **Shows you how** | Guide mode puts a pulsing ring around the next button and speaks the instruction. You do the tapping, and Saathi never taps in this mode. |
 | 🛒 | **Shopping camera** | Point the camera at a pack: it reads the product name, printed MRP and expiry, warns if the pack is expired or close to expiry, and can hand the product to the Amazon task. |
 | 📬 | **Morning digest** | Reads bank, bill and delivery messages, masks OTPs, card numbers and Aadhaar numbers on the phone, then speaks a digest and sets reminders. |
@@ -80,7 +80,7 @@ cd backend && .venv/Scripts/python -m pytest -q      # (bin/python on macOS/Linu
 
 ### Try it without real apps (replay mode)
 
-In the app, go to **Settings → Developer → Demo replay**. Turning it on makes every task and guide flow run against the recorded screens in `fixtures/screens/` (Uber, Amazon, Practo, Urban Company, Settings → Font size, and sharing a photo on WhatsApp), using the real agent loop, safety policy, confirm sheet and highlight ring. Settings → **Work offline** also replaces the backend with the on-device `FakeBackendClient`.
+In the app, go to **Settings → Developer → Demo replay**. Turning it on makes every task and guide flow run against the recorded screens in `fixtures/screens/` (Uber, Amazon, Practo, Pronto, Settings → Font size, and sharing a photo on WhatsApp), using the real agent loop, safety policy, confirm sheet and highlight ring. Settings → **Work offline** also replaces the backend with the on-device `FakeBackendClient`.
 
 ### Adding keys later
 

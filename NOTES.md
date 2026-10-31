@@ -24,7 +24,7 @@ machine; anything not verified is listed under **Gaps**.
 | HTTP | OkHttp 4.12 (REST + WebSocket) | One client for both |
 | Overlays | Plain Views, not Compose | ComposeView inside a Service needs lifecycle plumbing, and plain Views are lighter |
 | Overlay window type | `TYPE_ACCESSIBILITY_OVERLAY` when the accessibility service is on, else `TYPE_APPLICATION_OVERLAY` | Always on top, and no overlay permission needed once accessibility is on |
-| House-help app | **Urban Company** `com.urbanclap.urbanclap` | Largest Indian home-services app. Not checked on a device: confirm its accessibility tree in Phase 6 |
+| House-help app | **Pronto** `com.company.pronto` (was Urban Company) | Single-purpose house-help app: few screens from chore to booking, so fewer agent steps than Urban Company's multi-category flow. Installs on the API 35 emulator; its accessibility tree exposes clickable, labelled buttons. Covers 11 cities only. |
 | UI strings | `tr(style, en, hi, hinglish)` in Kotlin, not `strings.xml` | The app language follows the user's *spoken* style (auto), not the system locale |
 | Confirm gate words | The spec's list plus `booking` and `add to cart` / `कार्ट में` | §7.1 requires add-to-cart to sit behind the gate, but the §6.4 regex didn't include it |
 | Direct taps on commit buttons | Turned into a yes/no question, not just refused | Safer, and better for the user. The tap still only runs after an explicit yes. |
@@ -45,7 +45,7 @@ machine; anything not verified is listed under **Gaps**.
 | Amazon India | `in.amazon.mShop.android.shopping` |
 | Flipkart | `com.flipkart.android` |
 | Practo | `com.practo.fabric` |
-| Urban Company | `com.urbanclap.urbanclap` |
+| Pronto | `com.company.pronto` (checked with `pm list packages` on the emulator) |
 | GPay / PhonePe / Paytm / BHIM | `com.google.android.apps.nbu.paisa.user`, `com.phonepe.app`, `net.one97.paytm`, `in.org.npci.upiapp` |
 | AnyDesk / TeamViewer QS / TeamViewer / RustDesk | `com.anydesk.anydeskandroid`, `com.teamviewer.quicksupport.market`, `com.teamviewer.teamviewer.market.mobile`, `com.carriez.flutter_hbb` |
 
@@ -176,7 +176,7 @@ camera WebSocket, and a mock agent replay of every scenario in `fixtures/agent_s
 
 - **Needs keys:** real Gemini agent steps, vision, Live camera; Sarvam STT/TTS and the Hinglish script check; Telegram delivery;
   rendering the safety clips (`render_alert_clips.py`). Until then speech uses Android's on-device engines.
-- **Needs a real phone:** Uber/Amazon/Practo/Urban Company live flows (the fixtures are hand-written, not recorded from
+- **Needs a real phone:** Uber/Amazon/Practo/Pronto live flows (the fixtures are hand-written, not recorded from
   the real apps); the camera on a real pack; background mic on Android 14+; highlight alignment on a device with a
   display cutout.
 - **Needs Docker:** the Playwright link sandbox.
@@ -353,3 +353,31 @@ Keys go in the repo-root `.env` (git-ignored). Status with the keys provided:
   - It re-locates the target right before drawing the ring (the ring was landing one row off after a fling).
   - The Stop chip moves to the top when the target is in the lower 40% of the screen.
 - **Digest dates:** Gemini called a Sunday "next Friday". Each item now gets a precomputed `when` ("tomorrow", "on Friday", "on 8 November"), and the prompt says to use it verbatim.
+
+## House help switched to Pronto (2026-10-31)
+
+- `Packages.HOUSE_HELP` is now `com.company.pronto`; the task, intent rules (EN/HI/Hinglish: bartan, jhadu, pocha,
+  dishes, laundry), intent prompt and `house_help` replay fixtures follow. Plumber/electrician no longer route to
+  house help, because Pronto only does chores.
+- **No usable deep link.** On the emulator Pronto declares `pronto://`, `exp+pronto://`, `myapp://` (Expo / React
+  Native) and `https://pronto.onelink.me`, but the in-app routes are unpublished, so the task opens the app and the
+  agent taps through. Re-check with `adb shell dumpsys package com.company.pronto` if Pronto publishes routes.
+- **Accessibility tree:** buttons are clickable ViewGroups labelled by content-desc (seen on the location screen).
+  The fixtures copy that shape. The screens after login are guessed, not recorded.
+- **Payment risk:** the APK bundles Juspay (`juspay://` filter), so Pronto may ask for payment before booking. The
+  agent never pays, so a pay-first flow ends the task at the payment screen. Confirm on a logged-in device.
+- **Confirm gate:** `schedule` is a confirm word, so if Pronto labels its later-booking choice "Schedule", tapping it
+  becomes a yes/no question. Safe, but one extra question.
+- **Emulator:** first launch asks for location, and the emulator defaults to California, outside Pronto's hubs. Set
+  an Indian location (`adb emu geo fix 77.03 28.46` for Gurugram) before testing. Login is by phone OTP, done by hand.
+- Urban Company's `com.urbanclap.urbanclap` is no longer referenced anywhere in the code.
+
+## Gemini latency and agent-step limits (2026-10-31, afternoon)
+
+- Same key, "Say OK", from the dev laptop: `gemini-3.5-flash-lite` 8–10 s, `gemini-3.5-flash` 17 s,
+  `gemini-3.8-flash` 238 s, `gemini-3.1-pro-preview` 503 after 25 s. Ping 5 ms and a warm TLS connection ~50 ms, so the
+  time is Google-side queueing (responses report `serviceTier: standard`), not the network or the backend.
+- Raised `agent_step` to 20 s and `agent_step_hard` to 25 s per model in `models.yaml`, and the phone's
+  `BackendClient.agentHttp` to 55 s, so a step that needs the fallback model still fits.
+- Left `intent_router` at 5 s on purpose: the phone waits only 4 s (`Assistant.kt`) and then answers from
+  `LocalIntentRules`, so users never sit through a slow model after speaking.

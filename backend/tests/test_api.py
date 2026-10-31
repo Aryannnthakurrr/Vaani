@@ -44,6 +44,8 @@ def test_intent_routes_cab_in_users_style(client, utterance: str, style: str) ->
         ("how do I send this photo to my grandson", "guide"),
         ("Parle-G biscuits order kar do", "shop_online"),
         ("kal subah safai wali bulao", "book_house_help"),
+        ("Pronto se bartan wali bula do", "book_house_help"),
+        ("I need someone to do the laundry", "book_house_help"),
         ("what are my updates today", "digest"),
         ("namaste", "chitchat"),
         ("check the expiry on this packet", "camera"),
@@ -51,6 +53,19 @@ def test_intent_routes_cab_in_users_style(client, utterance: str, style: str) ->
 )
 def test_intent_variety(client, utterance: str, intent: str) -> None:
     assert client.post("/intent", json={"utterance": utterance}, headers=HEADERS).json()["intent"] == intent
+
+
+@pytest.mark.parametrize(
+    ("utterance", "service"),
+    [
+        ("Pronto se bartan wali bula do", "dishwashing"),
+        ("kitchen ki safai karwani hai", "kitchen cleaning"),
+        ("ghar ki safai wali bulao", "home cleaning"),
+    ],
+)
+def test_house_help_service(client, utterance: str, service: str) -> None:
+    body = client.post("/intent", json={"utterance": utterance}, headers=HEADERS).json()
+    assert body["slots"]["service"] == service
 
 
 def _walk(client, scenario: str) -> list[dict]:
