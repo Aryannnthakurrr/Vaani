@@ -15,7 +15,12 @@ def _raw(name: str) -> str:
 
 
 def render(name: str, **values: str) -> str:
-    text = _raw(name).replace("{safety}", _raw("_safety")).replace("{language}", _raw("_language"))
+    text = (
+        _raw(name)
+        .replace("{safety}", _raw("_safety"))
+        .replace("{language}", _raw("_language"))
+        .replace("{judgement}", _raw("_judgement"))
+    )
     values.setdefault("today", date.today().isoformat())
     for key, value in values.items():
         text = text.replace("{" + key + "}", value)

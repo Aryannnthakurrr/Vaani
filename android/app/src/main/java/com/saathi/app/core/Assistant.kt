@@ -84,7 +84,7 @@ class Assistant(private val c: AppContainer) {
                 session.transcripts.collect { lines ->
                     val user = lines.lastOrNull { it.role == "user" }?.text
                     val saathi = lines.lastOrNull { it.role == "saathi" }?.text
-                    user?.let { _lastHeard.value = it }
+                    user?.let { _lastHeard.value = it; c.scope.launch { switchLanguageIfAsked(it, speak = false) } }
                     if (user != null || saathi != null) {
                         OverlayService.controller?.showCaption(listOfNotNull(user?.let { "“$it”" }, saathi).joinToString("\n"), "🎤")
                     }
@@ -143,6 +143,7 @@ class Assistant(private val c: AppContainer) {
 
     private suspend fun handleUtterance(text: String, heardStyle: ReplyStyle) {
         _lastHeard.value = text
+        if (switchLanguageIfAsked(text)) return
         if (c.settings.current.language == "auto") c.settings.setLastStyle(heardStyle)
         _state.value = AssistantState.THINKING
         OverlayService.controller?.showCaption("“$text”", tr(heardStyle, "Thinking…", "सोच रहा हूँ…", "Soch raha hoon…"))
@@ -240,6 +241,18 @@ class Assistant(private val c: AppContainer) {
         c.context.startActivity(Intent(c.context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             .putExtra(MainActivity.EXTRA_ROUTE, route))
+    }
+
+    /**
+     * "Mujhe English nahi aati" / "speak English": saves the language for good, so every screen and reply follows.
+     * In a live conversation Gemini answers the sentence itself, so only the setting changes there.
+     */
+    private suspend fun switchLanguageIfAsked(text: String, speak: Boolean = true): Boolean {
+        val code = com.saathi.app.core.voice.LanguageSwitch.detect(text) ?: return false
+        if (c.settings.current.language == code) return false
+        c.settings.setLanguage(code)
+        if (speak) c.speaker.say(com.saathi.app.core.voice.LanguageSwitch.confirmation(code), ReplyStyle.from(code))
+        return true
     }
 
     /** Words Sarvam should listen out for: app names, family names, doctors from reminders. */

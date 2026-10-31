@@ -17,9 +17,15 @@ import kotlin.coroutines.resume
 
 data class LatLng(val lat: Double, val lng: Double)
 
+/** One geocoder match: where it is and the city or district it is in. */
+data class PlaceCandidate(val at: LatLng, val area: String?)
+
 /** Finds a named place near the user, or null (no permission, no position, no match, too slow). */
 fun interface PlaceLookup {
     suspend fun find(name: String): LatLng?
+
+    /** Every nearby match, so "Apollo Hospital" in Delhi and in Faridabad can be told apart. */
+    suspend fun candidates(name: String): List<PlaceCandidate> = find(name)?.let { listOf(PlaceCandidate(it, null)) }.orEmpty()
 }
 
 /** The search area around the user, so "Apollo Hospital" means the nearby one, not one in another city. */
@@ -39,32 +45,36 @@ object NearbyBox {
 class AndroidPlaceFinder(private val context: Context) : PlaceLookup {
     private companion object {
         const val TIMEOUT_MS = 3_000L
+        const val MAX_RESULTS = 5
     }
 
-    override suspend fun find(name: String): LatLng? {
-        if (!Geocoder.isPresent()) return null
+    override suspend fun find(name: String): LatLng? = candidates(name).firstOrNull()?.at
+
+    override suspend fun candidates(name: String): List<PlaceCandidate> {
+        if (!Geocoder.isPresent()) return emptyList()
         return withTimeoutOrNull(TIMEOUT_MS) {
-            val here = DeviceLocation.lastKnown(context)?.at ?: return@withTimeoutOrNull null
+            val here = DeviceLocation.lastKnown(context)?.at ?: return@withTimeoutOrNull emptyList()
             geocode(name, NearbyBox.around(here))
-        }
+        }.orEmpty()
     }
 
-    private suspend fun geocode(name: String, box: DoubleArray): LatLng? {
+    private suspend fun geocode(name: String, box: DoubleArray): List<PlaceCandidate> {
         val geocoder = Geocoder(context, Locale("en", "IN"))
-        val address: Address? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val found: List<Address> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             suspendCancellableCoroutine { cont ->
-                geocoder.getFromLocationName(name, 1, box[0], box[1], box[2], box[3], object : Geocoder.GeocodeListener {
-                    override fun onGeocode(addresses: MutableList<Address>) = cont.resume(addresses.firstOrNull())
-                    override fun onError(errorMessage: String?) = cont.resume(null)
+                geocoder.getFromLocationName(name, MAX_RESULTS, box[0], box[1], box[2], box[3], object : Geocoder.GeocodeListener {
+                    override fun onGeocode(addresses: MutableList<Address>) = cont.resume(addresses.toList())
+                    override fun onError(errorMessage: String?) = cont.resume(emptyList())
                 })
             }
         } else {
             withContext(Dispatchers.IO) {
                 @Suppress("DEPRECATION")
-                runCatching { geocoder.getFromLocationName(name, 1, box[0], box[1], box[2], box[3]) }.getOrNull()?.firstOrNull()
+                runCatching { geocoder.getFromLocationName(name, MAX_RESULTS, box[0], box[1], box[2], box[3]) }.getOrNull().orEmpty()
             }
         }
-        return address?.takeIf { it.hasLatitude() && it.hasLongitude() }?.let { LatLng(it.latitude, it.longitude) }
+        return found.filter { it.hasLatitude() && it.hasLongitude() }
+            .map { PlaceCandidate(LatLng(it.latitude, it.longitude), it.locality ?: it.subAdminArea ?: it.adminArea) }
     }
 }
 

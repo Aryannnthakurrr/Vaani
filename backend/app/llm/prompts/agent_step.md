@@ -29,6 +29,8 @@ A screenshot may be attached when the element list is sparse; only then may you 
   the user went the wrong way, gently redirect ("That opened the camera. Let us go back: tap the arrow at the top
   left"). When done, praise warmly ("Well done! The photo has been sent to Aarav.").
 
+{judgement}
+
 {safety}
 
 # Output schema

@@ -65,7 +65,8 @@ class TaskRunner(private val c: AppContainer) {
             return AgentOutcome.Failed(msg)
         }
         // Replay runs on recorded screens, so it never looks up places or opens links.
-        val link = if (replay) null else spec.deeplink?.invoke(slots, places)
+        val (taskSlots, lookup) = if (replay) slots to places else resolvePlace(spec, slots, ui)
+        val link = if (replay) null else spec.deeplink?.invoke(taskSlots, lookup)
         val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link))
         if (!replay) {
             // The first hop is Saathi's own code, still checked by the same policy as model actions.
@@ -78,10 +79,33 @@ class TaskRunner(private val c: AppContainer) {
                 performer.awaitSettle()
             }
         }
-        val goal = spec.goal(slots) + "\nTask notes: " + spec.addendum
+        val goal = spec.goal(taskSlots) + "\nTask notes: " + spec.addendum
         val outcome = loop(screen, performer, ui).run(goal, AgentMode.ACT, task)
         if (outcome is AgentOutcome.Done && spec.id == Tasks.PRACTO.id) afterPracto(outcome, ui)
         return outcome
+    }
+
+    /**
+     * A destination with matches in different cities ("Apollo Hospital": Delhi or Faridabad) is asked about once,
+     * then pinned. An unclear answer is asked once more; still unclear, Saathi says so and lets the agent search
+     * in the app instead of guessing a place.
+     */
+    private suspend fun resolvePlace(spec: TaskSpec, slots: Slots, ui: AgentUi): Pair<Slots, PlaceLookup> {
+        val dest = slots.destination?.takeIf { it.isNotBlank() } ?: return slots to places
+        if (spec.deeplink == null) return slots to places
+        val options = PlaceChoice.options(places.candidates(dest))
+        if (options.isEmpty()) return slots to places
+        val question = PlaceChoice.question(dest, options, style)
+        val chosen = PlaceChoice.match(ui.ask(question), options)
+            ?: PlaceChoice.match(ui.ask(tr(style, "Sorry, which area? ", "माफ़ कीजिए, कौन सा इलाक़ा? ", "Sorry, kaun sa area? ") +
+                options.mapNotNull { it.area }.joinToString(", ")), options)
+        if (chosen == null) {
+            ui.say(tr(style, "I'm not sure which one you mean, so I'll search for it in the app.",
+                "मुझे पक्का नहीं पता आपका मतलब कौन सा है, इसलिए मैं ऐप में ढूँढता हूँ।",
+                "Mujhe pakka nahi pata aapka matlab kaun sa hai, isliye main app mein dhoondhta hoon."))
+            return slots to PlaceLookup { null }
+        }
+        return slots.copy(destination = "$dest, ${chosen.area}") to PlaceLookup { chosen.at }
     }
 
     /** Shopping uses Amazon, or Flipkart when the user asked for it or only Flipkart is installed. */
