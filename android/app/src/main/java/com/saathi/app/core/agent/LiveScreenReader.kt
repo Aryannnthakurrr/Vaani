@@ -79,9 +79,21 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
     }
 
     /** Downscaled JPEG (max 1080 px tall, q70) for sparse trees. Null for FLAG_SECURE windows. */
+    /** A full-size screenshot for on-device checks (the booking price OCR); never sent anywhere. */
+    suspend fun captureBitmap(): Bitmap? = service()?.let { captureBitmap(it) }
+
     private suspend fun screenshot(svc: AgentService): String? {
+        val bitmap = captureBitmap(svc) ?: return null
+        val scale = minOf(1f, 1080f / bitmap.height)
+        val scaled = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, 70, out)
+        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    }
+
+    private suspend fun captureBitmap(svc: AgentService): Bitmap? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        val bitmap = withTimeoutOrNull(2_000) {
+        return withTimeoutOrNull(2_000) {
             suspendCancellableCoroutine<Bitmap?> { cont ->
                 svc.takeScreenshot(Display.DEFAULT_DISPLAY, executor, object : AccessibilityService.TakeScreenshotCallback {
                     override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
@@ -96,12 +108,7 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
                     }
                 })
             }
-        } ?: return null
-        val scale = minOf(1f, 1080f / bitmap.height)
-        val scaled = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
-        val out = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 70, out)
-        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+        }
     }
 
     companion object {

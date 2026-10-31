@@ -645,3 +645,17 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   ambulance countdown) move with the open mic (`Assistant.voiceLevel()`: live mic RMS, else the turn-based mic),
   with a hint that saying yes/no works as well as tapping. The bar maths is pure (`VoiceLevel`).
 - **Not yet live:** the post-intake doctor decisions and the house-help/cab flows started from Home tiles.
+
+## Batch 4: price check before a cab booking tap (2026-11-01)
+
+- After the user's yes and before the booking tap, the phone takes a screenshot and reads it with **ML Kit text
+  recognition (bundled model, on-device)**. `PriceGuard` (pure) pairs each price with the ride on its row and checks
+  that the agreed price is the cheapest ride of the asked type (car unless they said auto or bike; ₹2 tolerance; a
+  row's lowest price counts, so struck-through fares don't confuse it). It also flags when a cab is cheaper than the
+  auto or bike they chose. A mismatch is asked once more with both prices ("Wait: Uber Mini is ₹150, cheaper than
+  ₹184. Book the ₹184 one anyway?"); "no" sends the agent back to pick the cheaper ride and confirm again.
+  Unreadable screens don't block. Cabs only for now; replayed fixture screens skip it.
+- **Server-ready:** `backend/app/guard/price_guard.py` is a line-for-line twin with the same rules, not wired to any
+  route. Both `PriceGuardTest` and `test_price_guard.py` run `fixtures/price_guard/cases.json`, so the copies can't
+  drift: change them together.
+- Screenshots never leave the phone and OCR text is never logged; the activity log notes only the verdict.

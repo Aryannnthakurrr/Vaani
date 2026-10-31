@@ -1,0 +1,46 @@
+{
+  "_about": "Shared cases for the booking price check. Kotlin (PriceGuardTest) and Python (test_price_guard.py) must agree on every one. lines: [text, left, top, right, bottom] as OCR reads an Uber ride list.",
+  "layouts": {
+    "uber_car_cheapest": [
+      ["Choose a ride", 40, 700, 500, 760],
+      ["Uber Go", 200, 900, 480, 950], ["3 min away", 200, 955, 480, 990], ["₹180", 860, 905, 1020, 955],
+      ["Go Sedan", 200, 1050, 480, 1100], ["₹230", 860, 1055, 1020, 1105],
+      ["Premier", 200, 1200, 480, 1250], ["₹310", 860, 1205, 1020, 1255],
+      ["Uber Auto", 200, 1350, 480, 1400], ["₹195", 860, 1355, 1020, 1405],
+      ["Moto", 200, 1500, 480, 1550], ["₹95", 860, 1505, 1020, 1555],
+      ["Confirm Uber Go", 100, 2100, 980, 2200]
+    ],
+    "uber_auto_dearer_than_cab": [
+      ["Uber Go", 200, 900, 480, 950], ["₹150", 860, 905, 1020, 955],
+      ["Uber Auto", 200, 1050, 480, 1100], ["₹170", 860, 1055, 1020, 1105],
+      ["Moto", 200, 1200, 480, 1250], ["₹80", 860, 1205, 1020, 1255]
+    ],
+    "uber_discounted_row": [
+      ["Uber Go", 200, 900, 480, 950], ["₹220", 700, 905, 840, 955], ["₹180", 860, 905, 1020, 955],
+      ["Go Sedan", 200, 1050, 480, 1100], ["₹230", 860, 1055, 1020, 1105]
+    ],
+    "no_prices": [
+      ["Where to?", 40, 300, 900, 360], ["Uber Go", 200, 900, 480, 950]
+    ]
+  },
+  "cases": [
+    {"name": "cheapest car agreed", "layout": "uber_car_cheapest", "wanted": "CAR", "summary": "Book Uber Go for ₹180?",
+     "expect": {"verdict": "Ok", "option": "Uber Go"}},
+    {"name": "dearer car than the cheapest", "layout": "uber_car_cheapest", "wanted": "CAR", "summary": "Book Go Sedan for ₹230?",
+     "expect": {"verdict": "CheaperSameType", "quoted": 230, "option": "Uber Go", "price": 180}},
+    {"name": "auto asked, cab cheaper right now", "layout": "uber_auto_dearer_than_cab", "wanted": "AUTO", "summary": "Book Uber Auto for ₹170?",
+     "expect": {"verdict": "CheaperOtherType", "quoted": 170, "option": "Uber Go", "price": 150}},
+    {"name": "auto asked, a cab is cheaper too", "layout": "uber_car_cheapest", "wanted": "AUTO", "summary": "Book Uber Auto for ₹195?",
+     "expect": {"verdict": "CheaperOtherType", "quoted": 195, "option": "Uber Go", "price": 180}},
+    {"name": "bike is never suggested over a car", "layout": "uber_car_cheapest", "wanted": "CAR", "summary": "Book Uber Go for ₹180?",
+     "expect": {"verdict": "Ok", "option": "Uber Go"}},
+    {"name": "a rupee off is the same price", "layout": "uber_car_cheapest", "wanted": "CAR", "summary": "Book Uber Go for ₹181?",
+     "expect": {"verdict": "Ok", "option": "Uber Go"}},
+    {"name": "price taken from the named row", "layout": "uber_car_cheapest", "wanted": "CAR", "summary": "Book Uber Go?",
+     "expect": {"verdict": "Ok", "option": "Uber Go"}},
+    {"name": "discounted row uses its lowest price", "layout": "uber_discounted_row", "wanted": "CAR", "summary": "Book Uber Go for ₹180?",
+     "expect": {"verdict": "Ok", "option": "Uber Go"}},
+    {"name": "nothing readable says nothing", "layout": "no_prices", "wanted": "CAR", "summary": "Book Uber Go for ₹180?",
+     "expect": {"verdict": "Unread"}}
+  ]
+}

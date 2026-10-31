@@ -16,6 +16,8 @@ import com.saathi.app.core.agent.ScreenSource
 import com.saathi.app.core.agent.TaskContext
 import com.saathi.app.core.agent.TreeSerializer
 import com.saathi.app.core.agent.Verdict
+import com.saathi.app.core.guard.RideClass
+import com.saathi.app.features.guard.OcrScreen
 import com.saathi.app.core.net.AgentAction
 import com.saathi.app.core.net.AgentMode
 import com.saathi.app.core.net.Slots
@@ -51,6 +53,8 @@ class TaskRunner(private val c: AppContainer) {
     fun loop(screen: ScreenSource, performer: ActionPerformer, ui: AgentUi) = AgentLoop(
         backend = { c.backend }, screen = screen, performer = performer, ui = ui,
         style = { c.settings.current.replyStyle }, log = { c.db.actionLog().insert(it) },
+        // The price check reads real screenshots only; replayed fixture screens have nothing to photograph.
+        priceLines = (screen as? LiveScreenReader)?.let { live -> OcrScreen { live.captureBitmap() }::lines },
     )
 
     /** @param preferredPkg an app the user named ("on Flipkart"); used when it can do the task. */
@@ -68,7 +72,7 @@ class TaskRunner(private val c: AppContainer) {
         // Replay runs on recorded screens, so it never looks up places or opens links.
         val (taskSlots, lookup) = if (replay) slots to places else resolvePlace(spec, slots, ui)
         val link = if (replay) null else spec.deeplink?.invoke(taskSlots, lookup)
-        val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link))
+        val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link), rideClass = rideClassFor(spec, taskSlots))
         if (!replay) {
             // The first hop is Saathi's own code, still checked by the same policy as model actions.
             val launch = link?.let { AgentAction(AgentAction.OPEN_DEEPLINK, uri = it, reason = "task launch") }
@@ -115,6 +119,14 @@ class TaskRunner(private val c: AppContainer) {
 
     private fun lastAppointment() = c.settings.current.lastAppointment?.let {
         runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()
+    }
+
+    /** Cabs only: the ride type the user asked for (a car unless they said auto or bike). */
+    private fun rideClassFor(spec: TaskSpec, slots: Slots): RideClass? = when {
+        spec.id != Tasks.UBER.id -> null
+        slots.vehicle.equals("auto", true) -> RideClass.AUTO
+        slots.vehicle.equals("bike", true) -> RideClass.BIKE
+        else -> RideClass.CAR
     }
 
     /** Shopping uses Amazon, or Flipkart when the user asked for it or only Flipkart is installed. */
