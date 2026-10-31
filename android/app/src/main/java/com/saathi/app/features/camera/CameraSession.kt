@@ -36,34 +36,88 @@ class CameraSession(private val c: AppContainer) {
 
     val muted = MutableStateFlow(false)
 
+    /** Whether Saathi can hear the user: the Mute button only makes sense while the mic is streaming. */
+    enum class Mic { STARTING, LISTENING, OFFLINE, UNAVAILABLE, LOST }
+    private val _mic = MutableStateFlow(Mic.STARTING)
+    val mic: StateFlow<Mic> = _mic
+
     private val style: ReplyStyle get() = c.settings.current.replyStyle
     private var socket: LiveSocket? = null
     private var player: PcmPlayer? = null
     private var micJob: Job? = null
     private var watchdog: Job? = null
+    /** Welcome line, then connect: cancelled by [stop], so the mic and socket never start after the screen is gone. */
+    private var startJob: Job? = null
+    /** Phone speech (product description, read again): cancelling it stops the playback, without touching other speech. */
+    private var sayJob: Job? = null
+    private var url: String? = null
+    @Volatile private var stopped = false
     private var lastFrameAt = 0L
     private var framesSent = 0
     @Volatile private var lastActivity = System.currentTimeMillis()
 
     fun start() {
-        val url = c.backend.liveCameraUrl()
+        stopped = false
+        url = c.backend.liveCameraUrl()
         online = url != null
-        _caption.value = tr(style, "Hold the pack in front of the camera.", "पैकेट कैमरे के सामने रखिए।", "Packet camera ke saamne rakhiye.")
-        // Finish the welcome line before the model starts talking, so the two voices never overlap.
-        c.scope.launch {
-            sayLocal(_caption.value)
-            if (url != null) {
-                player = PcmPlayer()
-                socket = LiveSocket(url, style.wire, ::onEvent, shopperContext()).also { it.connect() }
-                startMic()
-            }
+        _mic.value = if (online) Mic.STARTING else Mic.OFFLINE
+        val instruction = tr(style, "Hold the pack in front of the camera.", "पैकेट कैमरे के सामने रखिए।", "Packet camera ke saamne rakhiye.")
+        _caption.value = instruction
+        // Opened by voice, the assistant has just said this (or the live conversation will): don't say it twice.
+        val welcome = System.currentTimeMillis() - instructedAt > INSTRUCTED_FRESH_MS && c.assistant.live.value == null
+        instructedAt = 0L
+        // Finish the welcome line before the model starts talking, so the two voices never overlap. On the main
+        // thread, like stop(), so a Close during the welcome line can't race the socket opening.
+        startJob = c.scope.launch(Dispatchers.Main) {
+            if (welcome) sayLocal(instruction)
+            connect()
         }
-        watchdog = c.scope.launch {
+        watchdog = c.scope.launch(Dispatchers.Main) {
             while (isActive) {
                 delay(10_000)
                 if (System.currentTimeMillis() - lastActivity > INACTIVITY_MS) { stop(); _ended.value = true }
             }
         }
+    }
+
+    /** Opens the Live socket and the mic (online only). Main thread. */
+    private fun connect() {
+        val u = url ?: return
+        if (stopped) return
+        player = PcmPlayer()
+        socket = LiveSocket(u, style.wire, ::onEvent, shopperContext()).also { it.connect() }
+        startMic()
+    }
+
+    /** "Connection lost" → Retry: a fresh socket and mic. */
+    fun retry() {
+        if (stopped || _mic.value != Mic.LOST) return
+        lastActivity = System.currentTimeMillis()
+        _mic.value = Mic.STARTING
+        _caption.value = tr(style, "Hold the pack in front of the camera.", "पैकेट कैमरे के सामने रखिए।", "Packet camera ke saamne rakhiye.")
+        connect()
+    }
+
+    /** The relay gave up: stop streaming the mic into a dead socket and offer Retry. Main thread. */
+    private fun dropConnection() {
+        if (stopped) return
+        micJob?.cancel()
+        micJob = null
+        socket?.close()
+        socket = null
+        player?.release()
+        player = null
+        turnText.clear()
+        audioThisTurn = false
+        _mic.value = Mic.LOST
+        _caption.value = tr(style, "Connection lost. Tap Retry to try again.", "कनेक्शन टूट गया। फिर से कोशिश करने के लिए 'फिर से' दबाइए।",
+            "Connection toot gaya. Dobara try karne ke liye 'Retry' dabaiye.")
+    }
+
+    private fun speak(text: String) {
+        if (stopped) return
+        sayJob?.cancel()
+        sayJob = c.scope.launch(Dispatchers.Main) { sayLocal(text) }
     }
 
     /** Speaks on the phone (Sarvam) with the microphone muted meanwhile, so the model doesn't hear it. */
@@ -110,7 +164,7 @@ class CameraSession(private val c: AppContainer) {
             LiveEvent.TurnComplete -> {
                 // Only text-only replies (mock mode, offline demo) are spoken on the phone, once, as a whole.
                 val text = turnText.toString().trim()
-                if (!audioThisTurn && text.isNotEmpty()) c.scope.launch { sayLocal(text) }
+                if (!audioThisTurn && text.isNotEmpty()) speak(text)
                 turnText.clear()
                 audioThisTurn = false
             }
@@ -119,8 +173,7 @@ class CameraSession(private val c: AppContainer) {
                 turnText.clear()
                 audioThisTurn = false
             }
-            is LiveEvent.Error -> _caption.value = tr(style, "Connection lost. Please try again.", "कनेक्शन टूट गया। फिर से कोशिश कीजिए।",
-                "Connection toot gaya. Phir se try kijiye.")
+            is LiveEvent.Error -> c.scope.launch(Dispatchers.Main) { dropConnection() }
             LiveEvent.Closed -> Unit
         }
     }
@@ -161,19 +214,27 @@ class CameraSession(private val c: AppContainer) {
         val line = listOfNotNull(card.name, card.quantity, card.mrpText?.let { tr(style, "Printed MRP $it.", "छपा एमआरपी $it।", "Printed MRP $it.") }, status)
             .joinToString(". ")
         player?.flush() // "read again" replaces whatever the model was saying
-        c.scope.launch { sayLocal(line) }
+        speak(line)
     }
 
     @SuppressLint("MissingPermission")
     private fun startMic() {
-        if (c.context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
+        if (c.context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            _mic.value = Mic.UNAVAILABLE
+            return
+        }
         micJob = c.scope.launch(Dispatchers.IO) {
             val rate = 16_000
             val rec = AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, rate, AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, rate)
-            if (rec.state != AudioRecord.STATE_INITIALIZED) return@launch
+            if (rec.state != AudioRecord.STATE_INITIALIZED) {
+                rec.release()
+                _mic.value = Mic.UNAVAILABLE
+                return@launch
+            }
             val buf = ByteArray(rate / 10 * 2) // 100 ms
             rec.startRecording()
+            if (isActive) _mic.value = Mic.LISTENING
             try {
                 while (isActive) {
                     val n = rec.read(buf, 0, buf.size)
@@ -189,19 +250,34 @@ class CameraSession(private val c: AppContainer) {
         }
     }
 
+    /**
+     * Ends the session; safe to call twice. Only this session's own speech is cancelled (that stops its playback),
+     * never the shared speaker, so a task started from "Order online" keeps its first line.
+     */
     fun stop() {
+        stopped = true
+        startJob?.cancel()
+        sayJob?.cancel()
         micJob?.cancel()
         watchdog?.cancel()
         socket?.close()
         socket = null
         player?.release()
         player = null
-        c.speaker.stop()
     }
 
     companion object {
         const val FRAME_INTERVAL_MS = 1_000L
         const val INACTIVITY_MS = 3 * 60_000L
+        private const val INSTRUCTED_FRESH_MS = 15_000L
+
+        @Volatile private var instructedAt = 0L
+
+        /**
+         * Call right after saying "hold the pack in front of the camera" and before opening the camera screen: the
+         * screen then skips its own welcome line instead of saying it a second time.
+         */
+        fun instructionSpoken() { instructedAt = System.currentTimeMillis() }
     }
 
     /** Profile and next appointment, so the camera can say "very salty, and your BP check is on Monday". */

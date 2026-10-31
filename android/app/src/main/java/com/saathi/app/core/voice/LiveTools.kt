@@ -133,12 +133,10 @@ class LiveTools(
      * real time (LiveAgentUi). Without a session it falls back to the turn-based overlay. Ends with a note to Gemini.
      */
     private fun runInBackground(start: () -> Job) {
-        val live = session()
-        c.assistant.liveUi = live?.let { LiveAgentUi(it, c.assistant.ui) }
+        // The Assistant binds the run to this session itself (and unbinds it only if it is still the current run).
         val job = start()
         c.scope.launch {
             job.join()
-            c.assistant.liveUi = null
             val note = when (val o = c.assistant.lastOutcome.value) {
                 is AgentOutcome.Done -> "[task finished: ${o.message}]"
                 is AgentOutcome.Failed -> "[task failed: ${o.message}]"

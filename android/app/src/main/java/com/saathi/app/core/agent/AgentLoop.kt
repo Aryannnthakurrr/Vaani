@@ -67,7 +67,7 @@ class AgentLoop(
             reportOutcome(goal, task, outcome)
             return outcome
         } catch (e: CancellationException) {
-            logLine(goal, AgentAction("stop", reason = "user pressed stop"), "-", "Stopped by you", "cancelled")
+            logLine(goal, AgentAction("stop", reason = "user pressed stop"), "-", stoppedByYou(), "cancelled")
             withContext(NonCancellable) { reportOutcome(goal, task, AgentOutcome.Cancelled) }
             throw e
         } finally {
@@ -170,7 +170,7 @@ class AgentLoop(
         when (action.action) {
             AgentAction.DONE -> {
                 val msg = action.message.orEmpty()
-                logLine(goal, action, snap.pkg, "Finished: $msg", "done")
+                logLine(goal, action, snap.pkg, s("Finished: $msg", "पूरा हुआ: $msg", "Poora hua: $msg"), "done")
                 ui.say(msg)
                 return AgentOutcome.Done(msg, snap)
             }
@@ -178,7 +178,7 @@ class AgentLoop(
             AgentAction.ASK_USER -> {
                 val answer = ui.ask(action.question.orEmpty()) ?: return cancelled(goal, snap)
                 remember(action, "user answered: $answer")
-                logLine(goal, action, snap.pkg, "Asked you: ${action.question}", "ok")
+                logLine(goal, action, snap.pkg, s("Asked you: ${action.question}", "आपसे पूछा: ${action.question}", "Aapse poocha: ${action.question}"), "ok")
                 return null
             }
             AgentAction.WAIT -> {
@@ -195,7 +195,7 @@ class AgentLoop(
                     s("Tap the $app icon.", "$app वाले आइकन पर टैप कीजिए।", "$app wale icon par tap kijiye.")
                 } else action.instruction.orEmpty()
                 ui.showHighlight(node?.let { currentBounds(it) }, instruction, if (shortcut != null) null else action.gesture)
-                logLine(goal, action, snap.pkg, "Showed you: $instruction", "ok")
+                logLine(goal, action, snap.pkg, s("Showed you: $instruction", "आपको दिखाया: $instruction", "Aapko dikhaya: $instruction"), "ok")
                 if (!sayAndAwaitStep(instruction)) {
                     sayAndAwaitStep(s("Take your time. ", "आराम से कीजिए। ", "Aaram se kijiye. ") + instruction)
                 }
@@ -231,7 +231,12 @@ class AgentLoop(
         summary: String, inner: AgentAction, original: AgentAction,
     ): AgentOutcome? {
         val yes = ui.confirm(summary)
-        logLine(goal, original, snap.pkg, "Asked you: $summary — you said ${if (yes) "yes" else "no"}", if (yes) "ok" else "cancelled")
+        // Logged as a confirm step even when the gate made the question, so the log shows it as a question.
+        val asked = if (original.action == AgentAction.CONFIRM) original
+            else AgentAction(AgentAction.CONFIRM, summary = summary, then = original, reason = original.reason)
+        logLine(goal, asked, snap.pkg, if (yes) s("Asked you: $summary — you said yes", "आपसे पूछा: $summary — आपने हाँ कहा", "Aapse poocha: $summary — aapne haan kaha")
+            else s("Asked you: $summary — you said no", "आपसे पूछा: $summary — आपने ना कहा", "Aapse poocha: $summary — aapne na kaha"),
+            if (yes) "ok" else "cancelled")
         if (!yes) {
             ui.sayPhrase("confirm_no_ack")
             return AgentOutcome.Cancelled
@@ -329,8 +334,8 @@ class AgentLoop(
                 throw e
             } catch (e: Exception) {
                 AgentAction.fail(s("I can't reach my helper right now. Shall I try again later?",
-                    "अभी मैं अपने सर्वर तक नहीं पहुँच पा रहा। क्या बाद में फिर कोशिश करें?",
-                    "Abhi main server tak nahi pahunch pa raha. Kya baad mein try karein?"), "network: ${e.message}")
+                    "अभी मैं अपने सर्वर तक नहीं पहुँच पा रही। क्या बाद में फिर कोशिश करें?",
+                    "Abhi main server tak nahi pahunch pa rahi. Kya baad mein try karein?"), "network: ${e.message}")
             }
         }
     }
@@ -350,26 +355,32 @@ class AgentLoop(
     }
 
     private suspend fun blocked(goal: String, snap: ScreenSnapshot, action: AgentAction, why: String): AgentOutcome? {
-        logLine(goal, action, snap.pkg, "Blocked for safety: $why", "blocked")
+        logLine(goal, action, snap.pkg, s("Blocked for safety: $why", "सुरक्षा के लिए रोका: $why", "Safety ke liye roka: $why"), "blocked")
         remember(action, "BLOCKED by safety policy: $why")
         return null
     }
 
     private suspend fun fail(goal: String, snap: ScreenSnapshot?, message: String): AgentOutcome {
-        logLine(goal, AgentAction.fail(message), snap?.pkg ?: "-", "Stopped: $message", "failed")
+        logLine(goal, AgentAction.fail(message), snap?.pkg ?: "-", s("Stopped: $message", "रुक गई: $message", "Ruk gayi: $message"), "failed")
         ui.say(message)
         return AgentOutcome.Failed(message)
     }
 
     private suspend fun cancelled(goal: String, snap: ScreenSnapshot): AgentOutcome {
-        logLine(goal, AgentAction("stop"), snap.pkg, "Stopped by you", "cancelled")
+        logLine(goal, AgentAction("stop"), snap.pkg, stoppedByYou(), "cancelled")
         return AgentOutcome.Cancelled
     }
 
-    /** Stores the action and reason — never the raw screen text (SPEC §6.3). */
+    private fun stoppedByYou() = s("Stopped by you", "आपने रोका", "Aapne roka")
+
+    /**
+     * Stores the action and reason — never the raw screen text (SPEC §6.3). [plain] is written in the language in use
+     * at the time, since the table keeps one line per step.
+     */
     private suspend fun logLine(goal: String, action: AgentAction, pkg: String, plain: String, outcome: String) {
         runCatching {
-            log(ActionLogEntity(ts = clock(), goal = goal, actionJson = SaathiJson.encodeToString(AgentAction.serializer(), action.copy(text = action.text?.let { "…" })),
+            val redacted = action.copy(text = action.text?.let { "…" }, then = action.then?.let { it.copy(text = it.text?.let { "…" }) })
+            log(ActionLogEntity(ts = clock(), goal = goal, actionJson = SaathiJson.encodeToString(AgentAction.serializer(), redacted),
                 reason = action.reason, pkg = pkg, plain = plain, outcome = outcome))
         }
     }
@@ -378,14 +389,19 @@ class AgentLoop(
         val app = Packages.displayName(snap.pkg)
         val target = snap.node(a.id)?.label?.take(40)
         return when (a.action) {
-            AgentAction.TAP -> "Tapped \"${target ?: "an item"}\" in $app"
-            AgentAction.TAP_XY -> "Tapped the screen in $app"
-            AgentAction.TYPE -> "Typed \"${a.text}\" in $app"
-            AgentAction.SCROLL -> "Scrolled ${a.direction} in $app"
-            AgentAction.BACK -> "Went back"
-            AgentAction.HOME -> "Went to the home screen"
-            AgentAction.OPEN_APP -> "Opened ${Packages.displayName(a.pkg.orEmpty())}"
-            AgentAction.OPEN_DEEPLINK -> "Opened $app with the trip details"
+            AgentAction.TAP -> if (target != null) s("Tapped \"$target\" in $app", "$app में \"$target\" दबाया", "$app mein \"$target\" dabaya")
+                else s("Tapped an item in $app", "$app में एक चीज़ दबाई", "$app mein ek cheez dabayi")
+            AgentAction.TAP_XY -> s("Tapped the screen in $app", "$app में स्क्रीन पर दबाया", "$app mein screen par dabaya")
+            AgentAction.TYPE -> s("Typed \"${a.text}\" in $app", "$app में \"${a.text}\" लिखा", "$app mein \"${a.text}\" likha")
+            AgentAction.SCROLL -> when (a.direction) {
+                "up" -> s("Scrolled up in $app", "$app में ऊपर खिसकाया", "$app mein upar scroll kiya")
+                "down" -> s("Scrolled down in $app", "$app में नीचे खिसकाया", "$app mein neeche scroll kiya")
+                else -> s("Scrolled in $app", "$app में स्क्रॉल किया", "$app mein scroll kiya")
+            }
+            AgentAction.BACK -> s("Went back", "पीछे गई", "Peeche gayi")
+            AgentAction.HOME -> s("Went to the home screen", "होम स्क्रीन पर गई", "Home screen par gayi")
+            AgentAction.OPEN_APP -> Packages.displayName(a.pkg.orEmpty()).let { s("Opened $it", "$it खोला", "$it khola") }
+            AgentAction.OPEN_DEEPLINK -> s("Opened $app with the trip details", "सफ़र की जानकारी के साथ $app खोला", "Trip details ke saath $app khola")
             else -> a.action
         }
     }

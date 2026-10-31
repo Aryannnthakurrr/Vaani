@@ -51,7 +51,7 @@ async def ask(
     hospital = session.hospital(hospital_id)
     if hospital is None:
         return {"decision": "no_answer", "say": "Say you will confirm with the patient and call back."}
-    ask_id, deadline, slot_text = session.live_pending.get(hospital_id) or _open(
+    ask_id, deadline, slot_text = session.live_pending.get(hospital_id) or await _open(
         session, hospital_id, hospital.name, doctor, slot_text, fee
     )
     future = session.live_asks[ask_id]
@@ -85,14 +85,14 @@ async def ask(
     }
 
 
-def _open(
+async def _open(
     session: CareSession, hospital_id: str, name: str, doctor: str, slot_text: str, fee: str
 ) -> tuple[str, float, str]:
     ask_id = secrets.token_urlsafe(6)
     session.live_asks[ask_id] = asyncio.get_running_loop().create_future()
     pending = (ask_id, time.monotonic() + WAIT_S, slot_text)
     session.live_pending[hospital_id] = pending
-    session.emit("live_confirm", ask_id=ask_id, hospital_id=hospital_id, hospital_name=name,
+    await session.emit_text("live_confirm", ask_id=ask_id, hospital_id=hospital_id, hospital_name=name,
                  doctor=doctor[:80], slot=slot_text[:80], fee=fee[:20], wait_s=WAIT_S)  # fmt: skip
     return pending
 

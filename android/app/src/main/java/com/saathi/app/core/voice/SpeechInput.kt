@@ -46,6 +46,10 @@ class SpeechInput(
     private val backend: () -> BackendApi,
     private val keyterms: () -> List<String>,
     private val preferredStyle: () -> ReplyStyle,
+    /** Names sent to Sarvam as hints when a name is expected: family contacts and the user, never the phone book. */
+    private val nameHints: () -> List<String> = { emptyList() },
+    /** Every name the phone knows, phone book included; used only on the phone to fix near-miss names. */
+    private val localNames: () -> List<String> = { emptyList() },
 ) {
     private val _listening = MutableStateFlow(false)
     val listening: StateFlow<Boolean> = _listening
@@ -58,19 +62,37 @@ class SpeechInput(
     /** False when `/health` reports no Sarvam key: every turn then goes straight to the on-device recognizer. */
     @Volatile var cloudSpeech = true
 
-    /** @param cue beep first, so people who can't see the screen know when to start talking. */
-    suspend fun listen(cue: Boolean = false): Heard? {
+    /**
+     * @param cue beep first, so people who can't see the screen know when to start talking.
+     * @param expectName the answer is a person's name: hint names only (app names like "Pronto" pulled names
+     *   towards them), and fix the whole answer against known names. Otherwise only words in name positions
+     *   ("send it to Keshu") are fixed.
+     */
+    suspend fun listen(cue: Boolean = false, expectName: Boolean = false): Heard? {
+        val heard = listenRaw(cue, if (expectName) nameHints() else keyterms()) ?: return null
+        val names = localNames()
+        if (names.isEmpty()) return heard
+        val fixed = if (expectName) NameMatcher.correctName(heard.transcript, names) else NameMatcher.correctInSentence(heard.transcript, names)
+        return heard.copy(transcript = fixed)
+    }
+
+    private suspend fun listenRaw(cue: Boolean, hints: List<String>): Heard? {
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return null
         if (cue) beep()
         _listening.value = true
+        // Android 14+ silences background recording unless the foreground service is typed "microphone".
+        com.saathi.app.core.overlay.OverlayService.start(context, com.saathi.app.core.overlay.OverlayService.ACTION_MIC_ON)
+        var askedCloud = false
         try {
             if (cloudSpeech && System.currentTimeMillis() > cloudDownUntil) {
+                askedCloud = true
                 val pcm = record() ?: return null
+                _listening.value = false // recorded: the mic is off while the words are transcribed
                 val wav = File(context.cacheDir, "turn.wav")
                 try {
                     withContext(Dispatchers.IO) { wav.writeBytes(WavWriter.wrap(pcm, SAMPLE_RATE)) }
                     val hint = when (preferredStyle()) { ReplyStyle.EN -> "en-IN"; ReplyStyle.HI -> "hi-IN"; else -> "unknown" }
-                    val result = withTimeoutOrNull(4_000) { runCatching { backend().stt(wav, hint, keyterms()) }.getOrNull() }
+                    val result = withTimeoutOrNull(4_000) { runCatching { backend().stt(wav, hint, hints) }.getOrNull() }
                     if (result != null && result.transcript.isNotBlank()) {
                         val style = result.replyStyle?.let(ReplyStyle::from) ?: LanguageStyle.detect(result.transcript, result.languageCode)
                         return Heard(result.transcript, style, "sarvam")
@@ -81,8 +103,12 @@ class SpeechInput(
                     wav.delete()
                 }
             }
+            // The cloud didn't answer: the words are listened to again, so say so with the beep.
+            if (askedCloud) beep()
+            _listening.value = true
             return onDevice()
         } finally {
+            com.saathi.app.core.overlay.OverlayService.start(context, com.saathi.app.core.overlay.OverlayService.ACTION_MIC_OFF)
             _listening.value = false
             _level.value = 0f
         }

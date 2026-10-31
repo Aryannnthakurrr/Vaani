@@ -1,8 +1,11 @@
 package com.saathi.app.features.care
 
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.ContextWrapper
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -25,6 +28,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -72,24 +76,44 @@ private typealias Tr = (String, String, String) -> String
 @Composable
 fun EmergencyScreen(c: AppContainer, onBack: () -> Unit) {
     val ui by c.emergency.ui.collectAsState()
-    val style = c.settings.current.replyStyle
+    val settings by c.settings.flow.collectAsState()
+    val style = settings.replyStyle
     fun s(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
     val view = LocalView.current
+    val activity = LocalContext.current.activity()
     DisposableEffect(Unit) {
         view.keepScreenOn = true // the wake lock of the spec: the screen stays on while help is coming
-        onDispose { view.keepScreenOn = false }
+        c.emergency.screenShown = true
+        onDispose {
+            view.keepScreenOn = false
+            // A rotation or font change rebuilds the screen at once; only a real leave counts.
+            if (activity?.isChangingConfigurations != true) c.emergency.screenLeft()
+        }
     }
+    // Back is "I'm OK" during the countdown, and never abandons a coming ambulance (see EmergencyFlow.back).
+    BackHandler { if (c.emergency.back()) onBack() }
+    // The doctor flow takes over after "I'm OK": step back so the Doctor screen beneath is shown again, not stacked.
+    LaunchedEffect(ui.handedOver) { if (ui.handedOver) onBack() }
     when (ui.phase) {
         EmergencyPhase.COUNTDOWN -> Countdown(ui, ::s, c)
         EmergencyPhase.NO_UNITS -> RedPage {
             val context = LocalContext.current
-            Text(s("No ambulance available.\nCall 108 now.", "कोई एम्बुलेंस उपलब्ध नहीं।\nअभी 108 पर फ़ोन कीजिए।",
-                "Koi ambulance available nahi.\nAbhi 108 par call kijiye."),
+            Text(when (ui.failure) {
+                DispatchFailure.NO_UNITS -> s("No ambulance available.\nCall 108 now.", "कोई एम्बुलेंस उपलब्ध नहीं।\nअभी 108 पर फ़ोन कीजिए।",
+                    "Koi ambulance available nahi.\nAbhi 108 par call kijiye.")
+                DispatchFailure.NO_LOCATION -> s("Your location could not be found.\nCall 108 now.", "आपकी लोकेशन नहीं मिली।\nअभी 108 पर फ़ोन कीजिए।",
+                    "Aapki location nahi mili.\nAbhi 108 par call kijiye.")
+                DispatchFailure.UNREACHABLE -> s("Could not request an ambulance.\nCall 108 now.", "एम्बुलेंस नहीं बुला पाए।\nअभी 108 पर फ़ोन कीजिए।",
+                    "Ambulance nahi bula paye.\nAbhi 108 par call kijiye.")
+            },
                 color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
             WhitePill(s("Call 108", "108 पर फ़ोन करें", "108 par call karein")) { c.emergency.call108(context) }
             if (ui.familyAlerted) {
                 Text(s("Your family has been alerted.", "आपके परिवार को बता दिया गया है।", "Aapke family ko bata diya gaya hai."), color = Color.White)
+            }
+            TextButton(onClick = { c.emergency.close(); onBack() }) {
+                Text(s("Close", "बंद करें", "Band karein"), color = Color.White, fontSize = 20.sp, textDecoration = TextDecoration.Underline)
             }
         }
         EmergencyPhase.CANCELLED -> Column(
@@ -105,6 +129,13 @@ fun EmergencyScreen(c: AppContainer, onBack: () -> Unit) {
         }
         else -> Tracking(ui, ::s, c, onBack)
     }
+}
+
+/** The activity behind a Compose context, which may be wrapped (theme, locale). */
+private tailrec fun android.content.Context.activity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.activity()
+    else -> null
 }
 
 @Composable
@@ -194,7 +225,7 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
         "EN_ROUTE_TO_HOSPITAL" -> s("Going to hospital", "अस्पताल जा रहे हैं", "Hospital ja rahe hain")
         "ARRIVED_AT_HOSPITAL" -> s("At the hospital", "अस्पताल पहुँच गए", "Hospital pahunch gaye")
         "COMPLETED" -> s("Completed", "पूरा हुआ", "Poora hua")
-        else -> ui.status.replace('_', ' ').lowercase()
+        else -> s("Ambulance update", "एम्बुलेंस की जानकारी", "Ambulance update") // a status this app doesn't know yet
     }
     // The ETA counts down every second between the backend's updates.
     var eta by remember { mutableIntStateOf(ui.etaSec ?: 0) }
@@ -221,7 +252,8 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
                 Text("●  " + title.uppercase(), color = Danger, fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite })
-                (ui.vehicleId ?: ui.vehicle)?.let {
+                // The fleet id only: the registration number is already in the ambulance box below.
+                ui.vehicleId?.takeIf { it != ui.vehicle }?.let {
                     Text(it, fontSize = 14.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
@@ -230,7 +262,8 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
             }
             if (moving && ui.etaSec != null) {
                 Column {
-                    Text(if (eta >= 60) "${(eta + 30) / 60} min" else "$eta s", fontSize = 54.sp, lineHeight = 56.sp, fontWeight = FontWeight.Black,
+                    val minutes = (eta + 30) / 60
+                    Text(if (eta >= 60) s("$minutes min", "$minutes मिनट", "$minutes min") else s("$eta sec", "$eta सेकंड", "$eta sec"), fontSize = 54.sp, lineHeight = 56.sp, fontWeight = FontWeight.Black,
                         style = Tight)
                     ui.distanceM?.let { Text(s("%.1f km away", "%.1f किमी दूर", "%.1f km door").format(it / 1000.0), fontSize = 19.sp,
                         lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, style = Tight) }
@@ -265,12 +298,25 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
                     fontSize = 16.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ui.area?.let { Text("📍  $it", fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold) }
             }
-            if (ui.status == null || ui.status == "RECEIVED") { // once an ambulance is assigned, a 108 call would only send a second one
+            if (ui.cancelFailed) {
+                Text(s("Could not cancel. The ambulance may still come.", "रद्द नहीं हो पाया। एम्बुलेंस अब भी आ सकती है।",
+                    "Cancel nahi ho paya. Ambulance ab bhi aa sakti hai."), color = Danger, fontSize = 19.sp, lineHeight = 24.sp,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
+            }
+            // Once an ambulance is assigned a 108 call would only send a second one, unless cancelling it just failed.
+            if (ui.status == null || ui.status == "RECEIVED" || ui.cancelFailed) {
                 BigButton(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), { c.emergency.call108(context) }, color = Danger)
             }
-            if (ui.phase == EmergencyPhase.TRACKING || ui.status == "ARRIVED_AT_SCENE") { // no cancelling once on board
+            if (ui.cancelling) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 3.dp, color = Danger)
+                    Text(s("Cancelling the ambulance…", "एम्बुलेंस रद्द कर रहे हैं…", "Ambulance cancel kar rahe hain…"), fontSize = 18.sp)
+                }
+            } else if (ui.phase == EmergencyPhase.TRACKING || ui.status == "ARRIVED_AT_SCENE") { // no cancelling once on board
                 TextButton(onClick = { c.emergency.imOk() }, modifier = Modifier.fillMaxWidth()) {
-                    Text(s("I'm OK, cancel the ambulance", "मैं ठीक हूँ, एम्बुलेंस रद्द करें", "Main theek hoon, ambulance cancel karein"),
+                    Text(if (ui.cancelFailed) s("Try cancelling again", "फिर से रद्द करें", "Phir se cancel karein")
+                        else s("I'm OK, cancel the ambulance", "मैं ठीक हूँ, एम्बुलेंस रद्द करें", "Main theek hoon, ambulance cancel karein"),
                         color = Danger, fontSize = 18.sp, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)
                 }
             }

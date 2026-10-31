@@ -82,9 +82,14 @@ def main() -> int:
             existing = [p for p in (stem.with_suffix(".ogg"), stem.with_suffix(".wav")) if p.exists()]
             if existing and not force:
                 continue
+            spoken = text
+            if style == "hinglish" and tts.get("transliterate_hinglish"):
+                spoken = client.text.transliterate(
+                    input=text, source_language_code="en-IN", target_language_code="hi-IN"
+                ).transliterated_text or text
             for attempt in range(3):
                 resp = client.text_to_speech.convert(
-                    text=text,
+                    text=spoken,
                     language_code=tts.get("languages", {}).get(style, "en-IN"),
                     speaker=tts.get("speakers", {}).get(style),
                     model=tts.get("model", "bulbul:v4-flash"),

@@ -83,6 +83,15 @@ class CareSession:
             self.events.append({"seq": len(self.events) + 1, "type": kind, "at": time.time(), "data": data})
         log.info("care session=%s event=%s", self.id, kind)
 
+    async def emit_text(self, kind: str, **data: Any) -> None:
+        """emit() for events carrying hospital or call text: Hindi script becomes Roman letters for English and
+        Hinglish users, so the app never shows half-Devanagari, half-Roman lines."""
+        from app.speech.romanize import romanize_data
+
+        romanized = await romanize_data(data, self.style)
+        assert isinstance(romanized, dict)
+        self.emit(kind, **romanized)
+
     def events_after(self, seq: int) -> list[dict[str, Any]]:
         with self._lock:
             return [e for e in self.events if e["seq"] > seq]

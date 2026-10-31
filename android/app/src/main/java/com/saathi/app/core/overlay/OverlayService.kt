@@ -13,7 +13,6 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.saathi.app.BuildConfig
-import com.saathi.app.MainActivity
 import com.saathi.app.R
 import com.saathi.app.SaathiApp
 import com.saathi.app.core.Notifier
@@ -41,9 +40,8 @@ class OverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         goForeground(microphone = false)
-        val c = OverlayController(this, SaathiApp.container)
-        controller = c
-        if (!MainActivity.inForeground) c.showBubble()
+        // The controller draws the bubble itself whenever Saathi's own screen is not in front.
+        controller = OverlayController(this, SaathiApp.container)
         ContextCompat.registerReceiver(this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_EXPORTED)
         if (BuildConfig.DEBUG) {
             val filter = IntentFilter(DEBUG_SIMULATE_FOREGROUND).apply { addAction(DEBUG_SAY) }
@@ -55,7 +53,6 @@ class OverlayService : Service() {
         when (intent?.action) {
             ACTION_MIC_ON -> goForeground(microphone = true)
             ACTION_MIC_OFF -> goForeground(microphone = false)
-            else -> if (!MainActivity.inForeground) controller?.showBubble()
         }
         return START_STICKY
     }
@@ -81,7 +78,9 @@ class OverlayService : Service() {
         NotificationCompat.Builder(this, Notifier.CH_ASSISTANT)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText("Saathi is here. Tap the orange button to talk.")
+            .setContentText(com.saathi.app.core.voice.tr(SaathiApp.container.settings.current.replyStyle,
+                "Saathi is here. Tap the green mic button to talk.", "साथी यहाँ है। बात करने के लिए हरा माइक बटन दबाइए।",
+                "Saathi yahan hai. Baat karne ke liye green mic button dabaiye."))
             .setOngoing(true)
             .setContentIntent(SaathiApp.container.notifier.openAppIntent())
             .build()

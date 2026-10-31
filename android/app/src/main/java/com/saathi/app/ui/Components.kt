@@ -1,5 +1,12 @@
 package com.saathi.app.ui
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -77,8 +84,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/** Screen frame with a large title and a labelled back button (64dp touch target). */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Screen frame: a teal header band with rounded bottom corners (title in white, a round back button), then the
+ * screen's content on the warm page. The colour block at the top tells every screen apart from the page below it.
+ */
 @Composable
 fun SaathiScaffold(
     title: String,
@@ -87,31 +96,77 @@ fun SaathiScaffold(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
-        topBar = { Column {
-            TopAppBar(
-                title = { Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.fillMaxWidth().semantics { heading() }) },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack, modifier = Modifier.heightIn(min = 64.dp)) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-        } },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = { HeaderBand { HeaderBar(title, onBack) } },
     ) { pad ->
         val base = Modifier.fillMaxSize().padding(pad).padding(horizontal = 16.dp)
         Column(
-            modifier = if (scroll) base.verticalScroll(rememberScrollState()) else base,
+            modifier = (if (scroll) base.verticalScroll(rememberScrollState()) else base).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            Box(Modifier.padding(top = 4.dp))
             content()
             Row(Modifier.padding(bottom = 24.dp)) {}
         }
     }
 }
+
+/** The teal block behind a screen's title, running up under the status bar (whose icons turn white over it). */
+@Composable
+fun HeaderBand(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    LightStatusBarIcons()
+    Surface(
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = Color.White,
+        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 14.dp), content = content)
+    }
+}
+
+@Composable
+private fun HeaderBar(title: String, onBack: (() -> Unit)?) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        val style = com.saathi.app.SaathiApp.container.settings.flow.collectAsState().value.replyStyle
+        if (onBack != null) RoundIconButton(Icons.AutoMirrored.Filled.ArrowBack, tr(style, "Back", "वापस", "Wapas"), onBack)
+        Text(title, style = MaterialTheme.typography.headlineMedium, color = Color.White,
+            modifier = Modifier.weight(1f).semantics { heading() })
+    }
+}
+
+/** A white-on-teal round button for header bands (back, settings): 56dp, a soft lighter circle behind the icon. */
+@Composable
+fun RoundIconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val (press, pressMotion) = rememberPress()
+    Surface(onClick = onClick, interactionSource = press, shape = CircleShape, color = Color.White.copy(alpha = 0.18f),
+        modifier = Modifier.size(56.dp).then(pressMotion).semantics { contentDescription = label }) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
+/**
+ * White status bar icons while a teal header is on screen. Counted, so during a screen change the incoming header
+ * keeps them white even when the outgoing screen lets go afterwards.
+ */
+@Composable
+fun LightStatusBarIcons() {
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        val window = (view.context as? android.app.Activity)?.window
+        lightIconHolders++
+        window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = false }
+        onDispose {
+            lightIconHolders--
+            if (lightIconHolders == 0) window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = true }
+        }
+    }
+}
+
+private var lightIconHolders = 0
 
 /** A full-width button with at least a 64dp touch target and large label. */
 @Composable

@@ -97,6 +97,13 @@ async def test_expand_url_stops_after_five_hops() -> None:
         ("mera bill kitna hai", None, "hinglish"),
         ("cab book karo", "hi-IN", "hinglish"),
         ("what do I do", None, "en"),
+        # English heard with an Indian accent comes back as hi-IN from Sarvam: still English.
+        ("i want to send this photo to keshav", "hi-IN", "en"),
+        ("I want to send this photo to Keshav.", "hi-IN", "en"),
+        # Sarvam's codemix writes Indian names in Devanagari; one name doesn't make English into Hinglish.
+        ("i want to send this photo to केशव", "hi-IN", "en"),
+        ("call राम कुमार now please", "hi-IN", "en"),
+        ("Keshav ko photo bhejo", "hi-IN", "hinglish"),
     ],
 )
 def test_language_style(text: str, code: str | None, style: str) -> None:

@@ -216,6 +216,7 @@ class LiveVoiceSession(
                     }
                 }
             } finally {
+                _micLevel.value = 0f // a stopped mic must not leave the wave frozen at its last loudness
                 runCatching { rec.stop() }
                 rec.release()
                 aec?.release()

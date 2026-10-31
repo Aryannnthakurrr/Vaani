@@ -1,5 +1,7 @@
 package com.saathi.app.core.overlay
 
+import com.saathi.app.core.AssistantScreen
+import com.saathi.app.core.AssistantScreen.Prompt
 import com.saathi.app.core.agent.AgentUi
 import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.privacy.PrivateSpans
@@ -17,95 +19,70 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.selects.select
 
 /**
- * [AgentUi] on top of the overlays and turn-based voice. Every spoken line is also shown in large text.
- * Yes/no for the confirm gate is decided locally ([YesNo]) from speech or the on-screen buttons.
+ * [AgentUi] on top of [AssistantScreen] and turn-based voice. Every spoken line is also shown in large text.
+ * Yes/no for the confirm gate is decided locally ([YesNo]) from speech, the on-screen buttons or typed text.
+ * Every question is taken off the screen in a `finally`, so Stop or an error never leaves a dead card behind.
  */
 class OverlayAgentUi(
-    private val overlay: () -> OverlayController?,
+    private val screen: AssistantScreen,
     private val speaker: Speaker,
     private val speech: SpeechInput,
     private val style: () -> ReplyStyle,
-    private val onStop: () -> Unit,
 ) : AgentUi {
 
     private fun s(en: String, hi: String, hinglish: String) = tr(style(), en, hi, hinglish)
 
     override suspend fun say(text: String) {
-        overlay()?.showCaption(text)
+        caption(text)
         speaker.say(text, style())
     }
 
     override suspend fun sayPhrase(key: String) {
         speaker.sayPhrase(key, style())
-        overlay()?.showCaption(speaker.caption.value)
+        caption(speaker.caption.value)
     }
 
-    /** Text typed elsewhere (in-app box, debug broadcast) for the question currently on screen. */
-    @Volatile private var pendingText: CompletableDeferred<String?>? = null
-
     /** Delivers typed text to an open question or yes/no; false when nothing is waiting. */
-    fun offerAnswer(text: String): Boolean = pendingText?.complete(text) == true
+    fun offerAnswer(text: String): Boolean = screen.offer(text) { yesNo(it) }
 
     /**
      * Asks by voice and on screen at once: the user may speak or type in the answer box; whichever comes first
      * wins. The question is spoken with a cue, and each listen starts with a beep. Silence re-prompts rather than
      * ending the listening ([SpokenAnswer]); after about a minute the box stays open until answered. Cancel → null.
      */
-    override suspend fun ask(question: String): String? = coroutineScope {
-        val typed = CompletableDeferred<String?>().also { pendingText = it }
-        val box = overlay()?.showAnswerBox(question) ?: CompletableDeferred()
-        val byVoice = async {
-            speaker.say(question, style())
-            speaker.sayPhrase("answer_cue", style())
-            val heard = SpokenAnswer.freeText(
-                listen = {
-                    overlay()?.showCaption(question, s("Listening… or type below", "सुन रही हूँ… या नीचे लिखिए", "Sun rahi hoon… ya neeche likhiye"))
-                    speech.listen(cue = true)?.transcript
-                },
-                reprompt = { speaker.sayPhrase("still_listening", style()) },
-            )
-            heard ?: run {
-                speaker.sayPhrase("waiting_for_tap", style())
-                awaitCancellation() // no voice: wait for the typed answer
+    override suspend fun ask(question: String): String? = withPrompt(Prompt.Ask(question)) { box ->
+        coroutineScope {
+            val byVoice = async {
+                speaker.say(question, style())
+                speaker.sayPhrase("answer_cue", style())
+                SpokenAnswer.freeText(
+                    listen = { speech.listen(cue = true)?.transcript },
+                    reprompt = { speaker.sayPhrase("still_listening", style()) },
+                ) ?: run {
+                    speaker.sayPhrase("waiting_for_tap", style())
+                    awaitCancellation() // no voice: wait for the box
+                }
             }
+            val answer = select {
+                box.answer.onAwait { it }
+                byVoice.onAwait { it }
+            }
+            byVoice.cancel()
+            answer
         }
-        val answer = select {
-            box.onAwait { it }
-            typed.onAwait { it }
-            byVoice.onAwait { it }
-        }
-        byVoice.cancel()
-        pendingText = null
-        box.complete(null)
-        answer?.let { overlay()?.showCaption("“$it”") }
-        answer
     }
 
-    override suspend fun confirm(summary: String): Boolean = coroutineScope {
-        val controller = overlay()
-        val buttons = controller?.showConfirm(summary) ?: CompletableDeferred()
-        val typed = CompletableDeferred<String?>().also { pendingText = it }
-        overlay()?.showCaption(summary)
-        val byVoice = async { voiceYesNo(summary) }
-        val byText = async {
-            // Typed "haan"/"no" counts like speech; anything unclear is ignored and the sheet stays.
-            when (YesNo.parse(typed.await())) {
-                Answer.YES -> true
-                Answer.NO -> false
-                Answer.UNCLEAR -> awaitCancellation()
+    override suspend fun confirm(summary: String): Boolean = withPrompt(Prompt.Confirm(summary)) { sheet ->
+        coroutineScope {
+            val byVoice = async { voiceYesNo(summary) }
+            val answer = select {
+                sheet.answer.onAwait { it }
+                byVoice.onAwait { it }
             }
+            byVoice.cancel()
+            speaker.stop()
+            answer
         }
-        val answer = select {
-            buttons.onAwait { it }
-            byVoice.onAwait { it }
-            byText.onAwait { it }
-        }
-        byVoice.cancel()
-        byText.cancel()
-        pendingText = null
-        speaker.stop()
-        buttons.complete(answer) // dismisses the sheet if voice answered first
-        answer
     }
 
     /**
@@ -125,98 +102,72 @@ class OverlayAgentUi(
         awaitCancellation()
     }
 
-    override suspend fun waitForUserDone(prompt: String): Boolean = coroutineScope {
-        val tapped = CompletableDeferred<Boolean>()
-        overlay()?.showCaption(prompt, s("Waiting for you", "आपका इंतज़ार कर रही हूँ", "Aapka wait kar rahi hoon"),
-            s("Done", "हो गया", "Ho gaya")) { tapped.complete(true) }
-        val byVoice = async {
-            // Listen in short turns until the user says "done"; the Stop chip cancels the whole run.
-            while (!YesNo.isDone(speech.listen()?.transcript)) delay(300)
-            true
+    override suspend fun waitForUserDone(prompt: String): Boolean = withDoneButton(prompt) { tapped ->
+        coroutineScope {
+            val byVoice = async {
+                // Listen in short turns until the user says "done"; the Stop chip cancels the whole run.
+                while (!YesNo.isDone(speech.listen()?.transcript)) delay(300)
+                true
+            }
+            val done = select {
+                tapped.onAwait { it }
+                byVoice.onAwait { it }
+            }
+            byVoice.cancel()
+            done
         }
-        val done = select {
-            tapped.onAwait { it }
-            byVoice.onAwait { it }
-        }
-        byVoice.cancel()
-        overlay()?.showCaption(s("Thank you. Continuing.", "धन्यवाद। आगे बढ़ते हैं।", "Dhanyavaad. Aage badhte hain."))
-        done
     }
 
-    // ------------------------------------------------------------------ screen-only parts, for LiveAgentUi
+    // ------------------------------------------------------------------ shared with LiveAgentUi
 
     fun caption(text: String) {
-        overlay()?.showCaption(PrivateSpans.TOKEN.replace(text, "••••"))
+        screen.caption(PrivateSpans.TOKEN.replace(text, "••••"))
     }
 
-    /** The answer box, plus typed text from elsewhere (debug broadcast); completes with the text or null (Cancel). */
-    fun openAnswerBox(question: String): CompletableDeferred<String?> {
-        val result = CompletableDeferred<String?>()
-        val typed = CompletableDeferred<String?>().also { pendingText = it }
-        val box = overlay()?.showAnswerBox(question)
-        box?.invokeOnCompletion { box.getCompleted().let(result::complete) }
-        typed.invokeOnCompletion { typed.getCompleted().let(result::complete) }
-        overlay()?.showCaption(question, s("Listening… or type below", "सुन रही हूँ… या नीचे लिखिए", "Sun rahi hoon… ya neeche likhiye"))
-        currentBox = box
-        return result
+    /** Shows [p] for as long as [block] runs, and always takes it off the screen afterwards. */
+    suspend fun <P : Prompt, T> withPrompt(p: P, block: suspend (P) -> T): T {
+        screen.prompt(p)
+        try {
+            return block(p)
+        } finally {
+            screen.endPrompt(p)
+        }
     }
 
-    fun closeAnswerBox() {
-        pendingText = null
-        currentBox?.complete(null)
-        currentBox = null
-    }
-
-    /** The confirm sheet; completes with a button tap, or a typed "haan"/"no". Unclear typed text is ignored. */
-    fun openConfirm(summary: String): CompletableDeferred<Boolean> {
-        val result = CompletableDeferred<Boolean>()
-        val buttons = overlay()?.showConfirm(summary)
-        buttons?.invokeOnCompletion { result.complete(buttons.getCompleted()) }
-        pendingText = CompletableDeferred<String?>().also { t ->
-            t.invokeOnCompletion {
-                when (YesNo.parse(t.getCompleted())) {
-                    Answer.YES -> result.complete(true)
-                    Answer.NO -> result.complete(false)
-                    Answer.UNCLEAR -> Unit
-                }
+    /** The caption with a big "Done" button while [block] runs; completes the deferred on tap. */
+    suspend fun <T> withDoneButton(prompt: String, block: suspend (CompletableDeferred<Boolean>) -> T): T {
+        val tapped = CompletableDeferred<Boolean>()
+        val card = AssistantScreen.Caption(prompt, s("Waiting for you", "आपका इंतज़ार कर रही हूँ", "Aapka wait kar rahi hoon"),
+            s("Done", "हो गया", "Ho gaya")) { tapped.complete(true) }
+        screen.caption(card)
+        try {
+            return block(tapped)
+        } finally {
+            if (screen.caption.value === card) {
+                screen.caption(s("Thank you. Continuing.", "धन्यवाद। आगे बढ़ते हैं।", "Dhanyavaad. Aage badhte hain."))
             }
         }
-        overlay()?.showCaption(summary)
-        currentSheet = buttons
-        return result
     }
-
-    /** Dismisses the sheet with the decision, whoever made it. */
-    fun closeConfirm(answer: Boolean) {
-        pendingText = null
-        currentSheet?.complete(answer)
-        currentSheet = null
-    }
-
-    fun openDoneButton(prompt: String): CompletableDeferred<Boolean> {
-        val tapped = CompletableDeferred<Boolean>()
-        overlay()?.showCaption(prompt, s("Waiting for you", "आपका इंतज़ार कर रही हूँ", "Aapka wait kar rahi hoon"),
-            s("Done", "हो गया", "Ho gaya")) { tapped.complete(true) }
-        return tapped
-    }
-
-    private var currentBox: CompletableDeferred<String?>? = null
-    private var currentSheet: CompletableDeferred<Boolean>? = null
 
     override fun showHighlight(bounds: List<Int>?, instruction: String, gesture: String?) {
-        overlay()?.showHighlight(bounds, instruction, gesture)
+        screen.highlight(AssistantScreen.Highlight(bounds, instruction, gesture))
+        screen.caption(instruction, s("Your turn", "अब आप दबाइए", "Ab aap dabaiye"))
     }
 
     override fun clearHighlight() {
-        overlay()?.clearHighlight()
+        screen.highlight(null)
     }
 
+    /** Only the start counts: a run's end is cleaned up by the Assistant, which knows whether a newer run began. */
     override fun setRunning(running: Boolean) {
-        val o = overlay() ?: return
-        o.setCompact(running)
-        if (running) o.showStop(onStop) else {
-            o.hideStop()
-            o.hideCaption()
+        if (running) screen.running(true)
+    }
+
+    companion object {
+        fun yesNo(text: String): Boolean? = when (YesNo.parse(text)) {
+            Answer.YES -> true
+            Answer.NO -> false
+            Answer.UNCLEAR -> null
         }
     }
 }

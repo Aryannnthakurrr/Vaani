@@ -87,7 +87,7 @@ async def run_call(
             execution = await asyncio.to_thread(get_execution, cfg, execution_id)
         except (BolnaError, OSError):
             continue  # keep the last state; poll again
-        _apply(session, state, execution)
+        await _apply(session, state, execution)
         if state.done:
             break
     else:
@@ -104,12 +104,12 @@ async def run_call(
     return CallRun(execution_id, outcome, state.transcript)
 
 
-def _apply(session: CareSession, state: CallState, execution: dict) -> None:
+async def _apply(session: CareSession, state: CallState, execution: dict) -> None:
     status = str(execution.get("status") or state.status)
     lines = [line.model_dump() for line in parse_transcript(str(execution.get("transcript") or ""))]
     for line in lines[len(state.transcript) :]:
         speaker = "hospital" if line["role"] == "clinic" else "agent"
-        session.emit("call_transcript", call_sid=state.execution_id, hospital_id=state.hospital_id,
+        await session.emit_text("call_transcript", call_sid=state.execution_id, hospital_id=state.hospital_id,
                      speaker=speaker, text=line["text"])  # fmt: skip
     state.transcript = lines
     if status != state.status:

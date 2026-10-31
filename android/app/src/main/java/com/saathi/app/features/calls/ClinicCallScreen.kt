@@ -1,5 +1,6 @@
 package com.saathi.app.features.calls
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,13 +18,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,6 +54,7 @@ import com.saathi.app.core.net.CallLine
 import com.saathi.app.core.net.ClinicCallRequest
 import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.voice.tr
+import com.saathi.app.features.appointments.AppointmentState
 import com.saathi.app.ui.BigButton
 import com.saathi.app.ui.InfoCard
 import com.saathi.app.ui.theme.Danger
@@ -57,12 +62,14 @@ import com.saathi.app.ui.theme.Leaf
 import com.saathi.app.ui.theme.Accent
 import com.saathi.app.ui.theme.AccentDark
 import com.saathi.app.util.SaathiJson
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.ZonedDateTime
 
-/** Used when no appointment has been booked yet, so the demo always works. */
-private val DEMO_APPOINTMENT = Appointment(doctor = "Dr. Anil Mehta", clinic = "Mehta Heart Clinic",
+/** Practice calls only, so a practice works before anything is booked. Never offered for a real call. */
+private val PRACTICE_APPOINTMENT = Appointment(doctor = "Dr. Anil Mehta", clinic = "Mehta Heart Clinic",
     startIso = java.time.LocalDate.now().atTime(16, 0).toString())
 
 private enum class CallMode { CHOOSE, PRACTICE, REAL }
@@ -76,36 +83,43 @@ private enum class CallMode { CHOOSE, PRACTICE, REAL }
 fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
     val settings by c.settings.flow.collectAsState()
     val style = settings.replyStyle
-    val appt = remember(settings.lastAppointment) {
+    // Only a booked appointment that is still ahead can be called about; a past one never reaches the clinic's phone.
+    val upcoming = remember(settings.lastAppointment) {
         settings.lastAppointment?.let { runCatching { SaathiJson.decodeFromString(Appointment.serializer(), it) }.getOrNull() }
-            ?: DEMO_APPOINTMENT
+            ?.let { AppointmentState.upcoming(it, ZonedDateTime.now()) }
     }
     val lines = remember { mutableStateListOf<CallLine>() }
     var mode by remember { mutableStateOf(CallMode.CHOOSE) }
+    var callAppt by remember { mutableStateOf<Appointment?>(null) }
     var status by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var summary by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var ending by remember { mutableStateOf(false) }
+    var confirmLeave by remember { mutableStateOf(false) }
     var reply by remember { mutableStateOf("") }
     var seconds by remember { mutableStateOf(0) }
     var realId by remember { mutableStateOf<String?>(null) }
+    var pollJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val realCalls = remember { RealCallClient { c.settings.current } }
     val patient = settings.userName.ifBlank { "the patient" }
+    val shown = callAppt ?: upcoming
 
     suspend fun finish(s: String?, how: String) {
-        summary = s ?: tr(style, "The call ended.", "कॉल खत्म हुई।", "Call khatam hui.")
-        c.db.actionLog().insert(ActionLogEntity(ts = System.currentTimeMillis(), goal = "Call ${appt.clinic ?: "clinic"}",
-            actionJson = "{\"action\":\"clinic_call\",\"mode\":\"$how\"}", reason = null, pkg = "com.saathi.app",
-            plain = "Called ${appt.clinic ?: "the clinic"}: ${summary!!}", outcome = "done"))
-        c.speaker.say(summary!!, style)
+        if (summary != null) return // once, however the call ended (poll, End call, back)
+        val text = s ?: tr(style, "The call ended.", "कॉल खत्म हुई।", "Call khatam hui.")
+        summary = text
+        logCall(c, callAppt, text, how)
+        c.speaker.say(text, style)
     }
 
     fun practiceTurn() {
+        val a = callAppt ?: return
         busy = true
         scope.launch {
-            val req = ClinicCallRequest(patient, appt, style.wire, lines.toList())
+            val req = ClinicCallRequest(patient, a, style.wire, lines.toList())
             val turn = runCatching { c.backend.clinicCallTurn(req) }.getOrElse { LocalClinicCall.turn(req) }
             lines += CallLine("agent", turn.say)
             c.speaker.say(turn.say, ReplyStyle.EN)
@@ -115,34 +129,99 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
     }
 
     fun startReal() {
+        val a = upcoming ?: return
+        callAppt = a
+        error = null
+        lines.clear()
+        seconds = 0
         mode = CallMode.REAL
         status = tr(style, "Dialling the clinic…", "क्लिनिक को फ़ोन लगा रहे हैं…", "Clinic ko phone laga rahe hain…")
-        scope.launch {
-            val started = runCatching { realCalls.start(RealCallStart(patient, appt, style.wire)) }
+        pollJob = scope.launch {
+            val started = runCatching { realCalls.start(RealCallStart(patient, a, style.wire)) }
             started.onFailure { e ->
                 // Setup problems (Bolna not configured, number not allowed) are for the family/developer, not the user.
                 val setup = e.message.orEmpty().let { "BOLNA" in it || "ALLOWED" in it }
-                error = if (setup) {
+                error = (if (setup) {
                     tr(style, "Phone calls are not set up yet. Ask your family to finish setup, or try a practice call.",
                         "फ़ोन कॉल अभी सेट नहीं हुई है। परिवार से सेटअप पूरा करवाइए, या अभ्यास कॉल आज़माइए।",
-                        "Phone call abhi set nahi hui hai. Family se setup poora karwaiye, ya practice call try kijiye.") +
-                        (if (com.saathi.app.BuildConfig.DEBUG) "\n(${e.message})" else "")
-                } else e.message
+                        "Phone call abhi set nahi hui hai. Family se setup poora karwaiye, ya practice call try kijiye.")
+                } else {
+                    tr(style, "Saathi could not place the call. Please check the internet and try again.",
+                        "साथी फ़ोन नहीं लगा पाया। इंटरनेट देखकर फिर से कोशिश कीजिए।",
+                        "Saathi phone nahi laga paaya. Internet check karke phir se try kijiye.")
+                }) + (if (com.saathi.app.BuildConfig.DEBUG) "\n(${e.message})" else "")
                 mode = CallMode.CHOOSE
                 return@launch
             }
-            realId = started.getOrThrow().id
+            val id = started.getOrThrow().id
+            realId = id
             // Poll until the backend says the call is over; the transcript grows as the clinic speaks.
+            var misses = 0
             while (isActive) {
-                val state = runCatching { realCalls.poll(realId!!) }.getOrNull()
+                val state = runCatching { realCalls.poll(id) }.getOrNull()
                 if (state != null) {
+                    misses = 0
                     if (state.transcript.size > lines.size) lines += state.transcript.drop(lines.size)
                     status = statusText(state.status, style)
-                    if (state.done) { finish(state.summary, "real"); break }
+                    if (state.done) { finish(state.summary ?: endedText(state.status, style), "real"); break }
+                } else if (++misses >= 20) {
+                    // ~30 s without the server: hang up rather than leave a call running that the user can't follow.
+                    runCatching { realCalls.hangUp(id) }
+                    finish(tr(style, "Saathi lost touch with the call and hung up. Please try again later.",
+                        "साथी का कॉल से संपर्क टूट गया, इसलिए कॉल काट दी। बाद में फिर से कोशिश कीजिए।",
+                        "Saathi ka call se connection toot gaya, isliye call kaat di. Baad mein phir se try kijiye."), "real")
+                    break
                 }
                 delay(1500)
             }
         }
+    }
+
+    /** Hangs up once: the button shows "Ending…" meanwhile, and the poll loop stops so the summary is said once. */
+    fun endReal() {
+        if (ending || summary != null) return
+        ending = true
+        pollJob?.cancel()
+        scope.launch {
+            val id = realId
+            if (id == null) {
+                finish(tr(style, "The call was stopped before it connected.", "कॉल जुड़ने से पहले ही रोक दी गई।",
+                    "Call judne se pehle hi rok di gayi."), "real")
+                return@launch
+            }
+            val state = runCatching { realCalls.hangUp(id) }.getOrNull()
+            finish(when {
+                state == null -> tr(style, "Saathi could not reach the server to hang up. The call will end by itself soon.",
+                    "साथी कॉल काटने के लिए सर्वर तक नहीं पहुँच पाया। कॉल थोड़ी देर में अपने-आप कट जाएगी।",
+                    "Saathi call kaatne ke liye server tak nahi pahunch paaya. Call thodi der mein apne-aap kat jayegi.")
+                else -> state.summary
+            }, "real")
+        }
+    }
+
+    // Back during a real call asks first; leaving the screen any other way still hangs up the real call.
+    BackHandler(enabled = mode == CallMode.REAL && summary == null) { confirmLeave = true }
+    DisposableEffect(Unit) {
+        onDispose {
+            val id = realId
+            if (mode == CallMode.REAL && summary == null && id != null) {
+                val a = callAppt
+                c.scope.launch {
+                    val state = runCatching { realCalls.hangUp(id) }.getOrNull()
+                    logCall(c, a, state?.summary ?: "Hung up when the call screen was closed.", "real")
+                }
+            }
+        }
+    }
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text(tr(style, "End the call?", "कॉल काटें?", "Call kaatein?")) },
+            text = { Text(tr(style, "Going back will hang up the call to the clinic.", "वापस जाने पर क्लिनिक की कॉल कट जाएगी।",
+                "Wapas jaane par clinic ki call kat jayegi."), style = MaterialTheme.typography.bodyLarge) },
+            confirmButton = { TextButton({ confirmLeave = false; endReal() }) { Text(tr(style, "End call", "कॉल काटें", "Call kaatein")) } },
+            dismissButton = { TextButton({ confirmLeave = false }) { Text(tr(style, "Stay on the call", "कॉल पर रहें", "Call par rahein")) } },
+        )
     }
 
     LaunchedEffect(mode, summary) { while (mode != CallMode.CHOOSE && summary == null) { delay(1000); seconds++ } }
@@ -160,7 +239,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text("📞", fontSize = 44.sp)
-            Text(appt.clinic ?: tr(style, "Clinic", "क्लिनिक", "Clinic"), style = MaterialTheme.typography.headlineMedium,
+            Text(shown?.clinic ?: tr(style, "Clinic", "क्लिनिक", "Clinic"), style = MaterialTheme.typography.headlineMedium,
                 color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             val sub = when {
                 mode == CallMode.CHOOSE -> tr(style, "Saathi can call the clinic for you", "साथी आपके लिए क्लिनिक को फ़ोन कर सकता है",
@@ -178,17 +257,30 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
             item { Box(Modifier.padding(top = 8.dp)) }
             if (mode == CallMode.CHOOSE) {
                 item {
-                    InfoCard(title = listOfNotNull(appt.doctor, appt.clinic).joinToString(" · "),
-                        body = tr(style, "Saathi will confirm your appointment and ask how long the wait is.",
-                            "साथी आपकी मुलाक़ात पक्की करेगा और पूछेगा कि कितना इंतज़ार है।",
-                            "Saathi appointment confirm karega aur poochega ki kitna wait hai."), icon = "🩺", accent = Leaf)
+                    if (upcoming != null) {
+                        InfoCard(title = listOfNotNull(upcoming.doctor, upcoming.clinic).joinToString(" · "),
+                            body = tr(style, "Saathi will confirm your appointment and ask how long the wait is.",
+                                "साथी आपकी मुलाक़ात पक्की करेगा और पूछेगा कि कितना इंतज़ार है।",
+                                "Saathi appointment confirm karega aur poochega ki kitna wait hai."), icon = "🩺", accent = Leaf)
+                    } else {
+                        InfoCard(title = tr(style, "No upcoming appointment", "कोई आने वाली मुलाक़ात नहीं", "Koi aane wali appointment nahi"),
+                            body = tr(style, "When you book a doctor, Saathi can call the clinic to confirm it. You can still try a practice call.",
+                                "डॉक्टर से मुलाक़ात बुक होने पर साथी क्लिनिक को फ़ोन करके उसे पक्का कर सकता है। अभ्यास कॉल अभी भी आज़मा सकते हैं।",
+                                "Doctor ki appointment book hone par Saathi clinic ko phone karke confirm kar sakta hai. Practice call abhi bhi try kar sakte hain."),
+                            icon = "📅")
+                    }
                 }
                 error?.let { e -> item { InfoCard(title = tr(style, "Real call not available", "असली कॉल अभी नहीं हो सकती", "Real call abhi nahi ho sakti"),
                     body = e, icon = "⚠️", accent = Danger) } }
             }
-            items(lines) { line -> Bubble(line) }
+            items(lines) { line -> Bubble(line, style) }
+            // The first practice turn takes a moment to come back: show that Saathi is on it, not a blank screen.
+            if (mode == CallMode.PRACTICE && busy && summary == null && lines.lastOrNull()?.role != "agent") {
+                item { InfoCard(title = tr(style, "Saathi is speaking…", "साथी बोल रहा है…", "Saathi bol raha hai…"), icon = "⏳") }
+            }
             if (mode == CallMode.REAL && lines.isEmpty() && summary == null) {
-                item { InfoCard(title = status, body = tr(style, "The clinic's phone is ringing. Their words will appear here.",
+                item { InfoCard(title = tr(style, "Waiting for the clinic", "क्लिनिक का इंतज़ार", "Clinic ka intezaar"),
+                    body = tr(style, "The clinic's phone is ringing. Their words will appear here.",
                     "क्लिनिक का फ़ोन बज रहा है। उनकी बात यहाँ दिखेगी।", "Clinic ka phone baj raha hai. Unki baat yahan dikhegi."), icon = "📳") }
             }
             summary?.let { s -> item { InfoCard(title = tr(style, "Call summary", "कॉल का सार", "Call summary"), body = s, icon = "📋", accent = Leaf) } }
@@ -199,22 +291,26 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
                 when {
                     summary != null -> BigButton(tr(style, "Done", "हो गया", "Ho gaya"), onBack)
                     mode == CallMode.CHOOSE -> {
-                        BigButton(tr(style, "📞 Call the clinic now", "📞 अभी क्लिनिक को फ़ोन करो", "📞 Abhi clinic ko phone karo"),
-                            { error = null; startReal() }, color = Leaf)
+                        if (upcoming != null) {
+                            BigButton(tr(style, "📞 Call the clinic now", "📞 अभी क्लिनिक को फ़ोन करो", "📞 Abhi clinic ko phone karo"),
+                                { startReal() }, color = Leaf)
+                        }
                         BigButton(tr(style, "🎭 Practice call (type the clinic's side)", "🎭 अभ्यास कॉल (क्लिनिक की बात लिखें)",
-                            "🎭 Practice call (clinic ki baat likhein)"), { mode = CallMode.PRACTICE; practiceTurn() },
+                            "🎭 Practice call (clinic ki baat likhein)"), {
+                                callAppt = upcoming ?: PRACTICE_APPOINTMENT
+                                error = null
+                                seconds = 0
+                                mode = CallMode.PRACTICE
+                                practiceTurn()
+                            },
                             color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                         // Symptom-to-care: describe symptoms, then Saathi finds and calls hospitals (or sends help).
                         BigButton(tr(style, "🩺 Not feeling well? Find care", "🩺 तबीयत ठीक नहीं? इलाज ढूँढें", "🩺 Tabiyat theek nahi? Ilaaj dhoondhein"),
                             { c.care.start(); c.assistant.openScreen("care") }, color = Danger)
                     }
-                    mode == CallMode.REAL -> BigButton(tr(style, "End call", "कॉल काटें", "Call kaatein"), {
-                        scope.launch {
-                            c.speaker.stop()
-                            val id = realId ?: return@launch onBack()
-                            runCatching { realCalls.hangUp(id) }.onSuccess { finish(it.summary, "real") }.onFailure { onBack() }
-                        }
-                    }, color = Danger)
+                    mode == CallMode.REAL -> BigButton(
+                        if (ending) tr(style, "Ending the call…", "कॉल काट रहे हैं…", "Call kaat rahe hain…") else tr(style, "End call", "कॉल काटें", "Call kaatein"),
+                        ::endReal, color = Danger, enabled = !ending)
                     else -> {
                         OutlinedTextField(
                             value = reply, onValueChange = { reply = it }, enabled = !busy, singleLine = true,
@@ -239,6 +335,26 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
     }
 }
 
+/** Writes the call to the activity log; a practice call is logged as practice, never as a real confirmation. */
+private suspend fun logCall(c: AppContainer, appt: Appointment?, text: String, how: String) {
+    val clinic = appt?.clinic ?: "the clinic"
+    val plain = if (how == "practice") "Practice call to $clinic: $text" else "Called $clinic: $text"
+    c.db.actionLog().insert(ActionLogEntity(ts = System.currentTimeMillis(), goal = "Call ${appt?.clinic ?: "clinic"}",
+        actionJson = "{\"action\":\"clinic_call\",\"mode\":\"$how\"}", reason = null, pkg = "com.saathi.app",
+        plain = plain, outcome = "done"))
+}
+
+/** Said when a real call ends without a summary from the clinic agent (busy line, nobody answered, failed). */
+private fun endedText(status: String, style: ReplyStyle): String = when (status) {
+    "busy" -> tr(style, "The clinic's line was busy. Please try again in a little while.", "क्लिनिक की लाइन व्यस्त थी। थोड़ी देर बाद फिर कोशिश कीजिए।",
+        "Clinic ki line busy thi. Thodi der baad phir try kijiye.")
+    "no-answer" -> tr(style, "Nobody answered at the clinic. Please try again later.", "क्लिनिक पर किसी ने फ़ोन नहीं उठाया। बाद में फिर कोशिश कीजिए।",
+        "Clinic par kisi ne phone nahi uthaya. Baad mein phir try kijiye.")
+    "failed", "error", "canceled", "cancelled" -> tr(style, "The call could not be completed. Please try again later.",
+        "कॉल पूरी नहीं हो पाई। बाद में फिर कोशिश कीजिए।", "Call poori nahi ho paayi. Baad mein phir try kijiye.")
+    else -> tr(style, "The call ended.", "कॉल खत्म हुई।", "Call khatam hui.")
+}
+
 /** Call statuses in plain words. */
 private fun statusText(status: String, style: ReplyStyle): String = when (status) {
     "starting", "dialing", "queued", "initiated" -> tr(style, "Dialling…", "फ़ोन लगा रहे हैं…", "Phone laga rahe hain…")
@@ -250,7 +366,7 @@ private fun statusText(status: String, style: ReplyStyle): String = when (status
 }
 
 @Composable
-private fun Bubble(line: CallLine) {
+private fun Bubble(line: CallLine, style: ReplyStyle) {
     val agent = line.role == "agent"
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (agent) Arrangement.Start else Arrangement.End) {
         Column(
@@ -258,8 +374,8 @@ private fun Bubble(line: CallLine) {
                 .background(if (agent) Accent.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant)
                 .padding(14.dp).semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            Text(if (agent) "🤖 Saathi" else "🏥 Clinic", style = MaterialTheme.typography.labelLarge,
-                color = if (agent) AccentDark else MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (agent) tr(style, "🤖 Saathi", "🤖 साथी", "🤖 Saathi") else tr(style, "🏥 Clinic", "🏥 क्लिनिक", "🏥 Clinic"),
+                style = MaterialTheme.typography.labelLarge, color = if (agent) AccentDark else MaterialTheme.colorScheme.onSurfaceVariant)
             Text(line.text, style = MaterialTheme.typography.bodyLarge)
         }
     }

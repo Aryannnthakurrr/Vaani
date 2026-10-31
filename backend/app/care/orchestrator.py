@@ -128,7 +128,7 @@ async def _find_and_call(session: CareSession, llm: LLMClient) -> None:
         results = await asyncio.gather(
             *(_inquire_with_backup(session, llm, h, backup_queue) for h in to_call)
         )
-    _recommend(session, [r for r in results if r is not None])
+    await _recommend(session, [r for r in results if r is not None])
 
 
 async def _inquire_with_backup(
@@ -138,7 +138,7 @@ async def _inquire_with_backup(
     while hospital is not None:
         result = await _inquire(session, llm, hospital)
         session.results[hospital.id] = result
-        session.emit("call_result", **result.model_dump())
+        await session.emit_text("call_result", **result.model_dump())
         if result.call_outcome not in _RETRY_OUTCOMES:
             return result
         hospital = backups.get_nowait() if not backups.empty() else None
@@ -177,7 +177,7 @@ async def _inquire(session: CareSession, llm: LLMClient, hospital: Hospital) -> 
     return await extract.inquiry_result(llm, hospital, note.specialty, run.transcript, run.execution_id)
 
 
-def _recommend(session: CareSession, results: list[CallResult]) -> None:
+async def _recommend(session: CareSession, results: list[CallResult]) -> None:
     if session.live_booked:
         return  # the user said yes while a hospital was on the line; that call booked it
     by_id = {h.id: h for h in session.hospitals}
@@ -196,7 +196,7 @@ def _recommend(session: CareSession, results: list[CallResult]) -> None:
         primary=best, slot=slot, alternatives=ordered[1:], spoken_text=spoken(session, best, slot)
     )
     session.recommendation = rec
-    session.emit("recommendation", **rec.model_dump())
+    await session.emit_text("recommendation", **rec.model_dump())
 
 
 def human_time(iso: str, style: str) -> str:
@@ -248,7 +248,9 @@ async def _book(session: CareSession, llm: LLMClient, hospital_id: str, slot: Sl
         return
     session.chosen = (hospital_id, slot)
     session.booking_attempts += 1
-    session.emit("booking_status", status="calling", hospital_id=hospital_id, slot=slot.model_dump())
+    await session.emit_text(
+        "booking_status", status="calling", hospital_id=hospital_id, slot=slot.model_dump()
+    )
     user_data = {
         "hospital_name": hospital.name,
         "specialty": session.note.specialty if session.note else "",
@@ -274,7 +276,7 @@ async def _book(session: CareSession, llm: LLMClient, hospital_id: str, slot: Sl
         details["calendar"] = _calendar_event(session, hospital, booking, slot)
     elif booking.status == "failed" and session.booking_attempts >= 2:
         details["call_yourself"] = hospital.phone  # §10: two failed booking calls → the user calls
-    session.emit("booking_status", hospital_id=hospital_id, **details)
+    await session.emit_text("booking_status", hospital_id=hospital_id, **details)
 
 
 async def _booked_on_the_call(
@@ -295,7 +297,7 @@ async def _booked_on_the_call(
     session.booking = booking
     details = booking.model_dump()
     details["calendar"] = _calendar_event(session, hospital, booking, slot)
-    session.emit("booking_status", hospital_id=hospital.id, during_inquiry=True, **details)
+    await session.emit_text("booking_status", hospital_id=hospital.id, during_inquiry=True, **details)
     return True
 
 

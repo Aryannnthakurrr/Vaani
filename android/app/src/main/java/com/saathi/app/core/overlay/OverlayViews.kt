@@ -21,6 +21,8 @@ internal object OverlayViews {
     val GREEN = Color.rgb(23, 114, 69)
     val GREEN50 = Color.rgb(230, 244, 236)
     val RED = Color.rgb(196, 33, 33)
+    val AMBER = Color.rgb(163, 90, 6)
+    val AMBER50 = Color.rgb(253, 241, 223)
     val INK = Color.rgb(22, 32, 42)
     val MUTED = Color.rgb(102, 112, 123)
     val PAPER = Color.rgb(250, 248, 244)
@@ -64,22 +66,8 @@ internal object OverlayViews {
         setOnClickListener { onClick() }
     }
 
-    /** 72dp round mic bubble. */
-    fun micBubble(ctx: Context) = android.widget.ImageView(ctx).apply {
-        setImageResource(com.saathi.app.R.drawable.ic_mic)
-        scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-        setPadding(dp(ctx, 18), dp(ctx, 18), dp(ctx, 18), dp(ctx, 18))
-        background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(ACCENT)
-            setStroke(dp(ctx, 3), Color.WHITE)
-        }
-        elevation = dp(ctx, 8).toFloat()
-        contentDescription = "Saathi. Tap to talk. Long press to open Saathi."
-    }
-
-    fun stopChip(ctx: Context, onStop: () -> Unit) = Button(ctx).apply {
-        text = "■  Stop / रोको"
+    fun stopChip(ctx: Context, label: String, onStop: () -> Unit) = Button(ctx).apply {
+        text = "■  $label"
         isAllCaps = false
         setTextColor(RED)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
@@ -89,7 +77,7 @@ internal object OverlayViews {
         elevation = dp(ctx, 8).toFloat()
         setPadding(dp(ctx, 28), dp(ctx, 12), dp(ctx, 28), dp(ctx, 12))
         minHeight = dp(ctx, 64)
-        contentDescription = "Stop Saathi"
+        contentDescription = label
         setOnClickListener { onStop() }
     }
 
@@ -133,16 +121,19 @@ internal object OverlayViews {
         }
     }
 
-    /** The end of a task: a large green tick and one sentence ("Uber Go booked, arriving in 4 min"). */
-    fun successCard(ctx: Context, message: String): View = LinearLayout(ctx).apply {
+    /**
+     * The end of a task: a large green tick and one sentence ("Uber Go booked, arriving in 4 min"), or, when it
+     * could not be done, an amber "!" with the reason.
+     */
+    fun resultCard(ctx: Context, message: String, ok: Boolean): View = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         background = card(ctx)
         setPadding(dp(ctx, 24), dp(ctx, 28), dp(ctx, 24), dp(ctx, 28))
         elevation = dp(ctx, 16).toFloat()
-        addView(text(ctx, "✓", 56f, GREEN, bold = true).apply {
+        addView(text(ctx, if (ok) "✓" else "!", 56f, if (ok) GREEN else AMBER, bold = true).apply {
             gravity = Gravity.CENTER
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(GREEN50) }
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(if (ok) GREEN50 else AMBER50) }
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(dp(ctx, 112), dp(ctx, 112)))
         addView(text(ctx, message, 24f, INK, bold = true).apply {

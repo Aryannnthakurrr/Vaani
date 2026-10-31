@@ -38,7 +38,10 @@ def _part(item: Any) -> dict[str, Any]:
     blob = getattr(item, "inline_data", None)
     if blob is not None and blob.data:
         data = base64.b64encode(blob.data).decode()
-        return {"type": "image_url", "image_url": {"url": f"data:{blob.mime_type or 'image/jpeg'};base64,{data}"}}
+        return {
+            "type": "image_url",
+            "image_url": {"url": f"data:{blob.mime_type or 'image/jpeg'};base64,{data}"},
+        }
     return {"type": "text", "text": str(getattr(item, "text", "") or item)}
 
 
@@ -56,7 +59,10 @@ async def generate(
         )
     body: dict[str, Any] = {
         "model": model,
-        "messages": [{"role": "system", "content": system}, {"role": "user", "content": [_part(c) for c in contents]}],
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": [_part(c) for c in contents]},
+        ],
         "temperature": temperature,
         "max_tokens": 2048,
     }
@@ -70,5 +76,7 @@ async def generate(
     if text.startswith("```"):  # some answers wrap the JSON in a code fence despite json_object
         text = text.strip("`").removeprefix("json").strip()
     u = data.get("usage") or {}
-    usage = SimpleNamespace(prompt_token_count=u.get("prompt_tokens", 0), candidates_token_count=u.get("completion_tokens", 0))
+    usage = SimpleNamespace(
+        prompt_token_count=u.get("prompt_tokens", 0), candidates_token_count=u.get("completion_tokens", 0)
+    )
     return text, usage

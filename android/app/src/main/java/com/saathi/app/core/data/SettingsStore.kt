@@ -76,27 +76,30 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
 
     private val contactsSer = ListSerializer(FamilyContact.serializer())
 
-    val flow: StateFlow<Settings> = context.dataStore.data.map { p ->
-        Settings(
-            language = p[K.language] ?: "auto",
-            userName = p[K.userName] ?: "",
-            contacts = p[K.contacts]?.let { runCatching { SaathiJson.decodeFromString(contactsSer, it) }.getOrNull() }
-                ?: emptyList(),
-            welfareCheckTime = p[K.welfareCheck] ?: "12:00",
-            welfarePromptTime = p[K.welfarePrompt] ?: "11:30",
-            backendUrl = p[K.backendUrl] ?: BuildConfig.DEFAULT_BACKEND_URL,
-            useFakeBackend = p[K.fake] ?: false,
-            replayMode = p[K.replay] ?: false,
-            notifyFamilyOnScam = p[K.notifyFamily] ?: true,
-            deviceId = p[K.deviceId] ?: "",
-            lastUnlockTs = p[K.lastUnlock] ?: 0,
-            lastHeartbeatTs = p[K.lastHeartbeat] ?: 0,
-            lastStyle = p[K.lastStyle] ?: "en",
-            lastAppointment = p[K.lastAppointment],
-            profileId = p[K.profileId] ?: "",
-            setupDone = p[K.setupDone] ?: false,
-        )
-    }.stateIn(scope, SharingStarted.Eagerly, Settings())
+    private fun read(p: Preferences) = Settings(
+        language = p[K.language] ?: "auto",
+        userName = p[K.userName] ?: "",
+        contacts = p[K.contacts]?.let { runCatching { SaathiJson.decodeFromString(contactsSer, it) }.getOrNull() }
+            ?: emptyList(),
+        welfareCheckTime = p[K.welfareCheck] ?: "12:00",
+        welfarePromptTime = p[K.welfarePrompt] ?: "11:30",
+        backendUrl = p[K.backendUrl] ?: BuildConfig.DEFAULT_BACKEND_URL,
+        useFakeBackend = p[K.fake] ?: false,
+        replayMode = p[K.replay] ?: false,
+        notifyFamilyOnScam = p[K.notifyFamily] ?: true,
+        deviceId = p[K.deviceId] ?: "",
+        lastUnlockTs = p[K.lastUnlock] ?: 0,
+        lastHeartbeatTs = p[K.lastHeartbeat] ?: 0,
+        lastStyle = p[K.lastStyle] ?: "en",
+        lastAppointment = p[K.lastAppointment],
+        profileId = p[K.profileId] ?: "",
+        setupDone = p[K.setupDone] ?: false,
+    )
+
+    val flow: StateFlow<Settings> = context.dataStore.data.map(::read).stateIn(scope, SharingStarted.Eagerly, Settings())
+
+    /** Settings straight from DataStore, including an edit made a moment ago ([current] can lag behind one). */
+    suspend fun fresh(): Settings = read(context.dataStore.data.first())
 
     /** Current settings; blocks only on the very first read after process start. */
     val current: Settings

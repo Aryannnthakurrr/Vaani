@@ -34,16 +34,22 @@ def classify_style(text: str, language_code: str | None = None) -> str:
     dev = sum(1 for t in tokens if _DEVANAGARI.search(t))
     latin = [t.lower() for t in tokens if not _DEVANAGARI.search(t)]
     total = len(tokens)
+    strong = sum(1 for t in latin if t in HINGLISH_WORDS and t not in _WEAK)
+    weak = sum(1 for t in latin if t in _WEAK)
+    # An English sentence stays English even when Sarvam's codemix writes a name in Devanagari ("send this photo
+    # to केशव"): no Hindi words, at most two Devanagari words (a name), and at least three English words.
+    if len(latin) >= 3 and strong == 0 and weak == 0 and dev <= 2:
+        return "en"
     if dev and latin and len(latin) / total >= 0.2:
         return "hinglish"
     if dev / total >= 0.5:
         return "hi"
-    strong = sum(1 for t in latin if t in HINGLISH_WORDS and t not in _WEAK)
-    weak = sum(1 for t in latin if t in _WEAK)
     hindiness = (strong + 0.5 * weak) / max(len(latin), 1)
     if strong >= 2 or (strong >= 1 and hindiness >= 0.3):
         return "hinglish"
-    if (language_code or "").lower().startswith("hi") and latin:
+    # Sarvam's codemix mode often tags Indian-accented English as hi-IN, so the code alone never makes a Roman
+    # sentence Hinglish: "i want to send this photo to keshav" stays English. It still tips one Hindi word over.
+    if (language_code or "").lower().startswith("hi") and (strong + weak) >= 1:
         return "hinglish"
     return "en"
 

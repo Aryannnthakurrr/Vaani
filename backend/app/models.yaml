@@ -60,8 +60,9 @@ tts:
   max_timeout_s: 12
   speakers:   { en: aparna_hi_customer, hi: aparna_hi_customer, hinglish: aparna_hi_customer }
   languages:  { en: hi-IN, hi: hi-IN, hinglish: hi-IN }
-  # Set true if the Phase 1 script check finds Bulbul reads Hinglish better from Devanagari.
-  transliterate_hinglish: false
+  # Hinglish is converted to Devanagari before speaking (the caption stays Roman): read from Roman letters, Bulbul said
+  # "niche" (neeche, below) as the English word. Costs ~0.7-0.9 s per new line.
+  transliterate_hinglish: true
 transliterate: { provider: sarvam }
 # Gemini speech: used when Sarvam is unset or fails (app/speech/gemini_speech.py). Sarvam stays first because it is
 # 2-3x faster for turn-based replies (measured 2026-10-31); conversations use voice_live.

@@ -50,14 +50,27 @@ class Speaker(
     /** True while any line is being spoken, so screens can animate a voice wave for Saathi too, not only the mic. */
     val speaking: StateFlow<Boolean> = _speaking
 
-    private suspend fun <T> speakingWhile(block: suspend () -> T): T {
+    /**
+     * The newest line wins: starting one (or [stop]) silences the line before it and releases its caller at once,
+     * instead of leaving it waiting out a timeout with "speaking" stuck on. [generation] tells a multi-sentence line
+     * that it was interrupted, so it doesn't carry on with its next sentence.
+     */
+    private val generation = java.util.concurrent.atomic.AtomicInteger(0)
+    /** Releases whoever is waiting on the clip or utterance playing now. */
+    @Volatile private var waiter: (() -> Unit)? = null
+
+    private suspend fun <T> speakingWhile(block: suspend (gen: Int) -> T): T {
+        val gen = generation.incrementAndGet()
+        halt()
         _speaking.value = talking.incrementAndGet() > 0
         try {
-            return block()
+            return block(gen)
         } finally {
             _speaking.value = talking.decrementAndGet() > 0
         }
     }
+
+    private fun current(gen: Int) = generation.get() == gen
 
     init {
         tts = TextToSpeech(context) { status -> ttsReady.complete(status == TextToSpeech.SUCCESS) }
@@ -70,19 +83,20 @@ class Speaker(
      */
     suspend fun say(text: String, style: ReplyStyle) {
         if (text.isBlank()) return
-        speakingWhile {
-            if (PrivateSpans.TOKEN.containsMatchIn(text)) return@speakingWhile sayWithPrivate(text, style)
+        speakingWhile { gen ->
+            if (PrivateSpans.TOKEN.containsMatchIn(text)) return@speakingWhile sayWithPrivate(text, style, gen)
             _caption.value = text
-            sayPublic(text, style)
+            sayPublic(text, style, gen)
         }
     }
 
-    private suspend fun sayWithPrivate(text: String, style: ReplyStyle) {
+    private suspend fun sayWithPrivate(text: String, style: ReplyStyle, gen: Int) {
         _caption.value = PrivateSpans.TOKEN.replace(text, "••••")
         val hindi = style == ReplyStyle.HI
         for (part in PrivateSpans.parts(text)) {
+            if (!current(gen)) return
             when (part) {
-                is PrivateSpans.Part.Public -> sayPublic(part.text, style)
+                is PrivateSpans.Part.Public -> sayPublic(part.text, style, gen)
                 is PrivateSpans.Part.Private -> {
                     val spoken = privateValue(part.id)?.let { PrivateSpans.spoken(it, hindi) } ?: PrivateSpans.missing(hindi)
                     speakOnDevice(spoken, style, SPEECH_USAGE)
@@ -92,24 +106,29 @@ class Speaker(
     }
 
     /** Speaks one vault value on-device only (the Live conversation's speak_private tool). */
-    suspend fun sayPrivate(id: Long, style: ReplyStyle): Boolean {
+    suspend fun sayPrivate(id: Long, style: ReplyStyle): Boolean = speakingWhile { _ ->
         val span = privateValue(id)
         val hindi = style == ReplyStyle.HI
         speakOnDevice(span?.let { PrivateSpans.spoken(it, hindi) } ?: PrivateSpans.missing(hindi), style, SPEECH_USAGE)
-        return span != null
+        span != null
     }
 
     /**
      * Sarvam returns a whole clip at once, so a long reply used to wait for all of it. Longer text is split into
      * sentences that are all requested together; the first plays as soon as it arrives while the rest finish.
      */
-    private suspend fun sayPublic(text: String, style: ReplyStyle) = coroutineScope {
+    private suspend fun sayPublic(text: String, style: ReplyStyle, gen: Int) = coroutineScope {
         val chunks = sentences(text)
         val clips = chunks.map { async { cloudAudio(it, style) } }
-        chunks.forEachIndexed { i, chunk ->
+        for ((i, chunk) in chunks.withIndex()) {
             val audio = clips[i].await()
-            if (audio == null || !playFile(audio, SPEECH_USAGE)) speakOnDevice(chunk, style, SPEECH_USAGE)
+            if (!current(gen)) break // interrupted while the clip was on its way
+            if (audio == null || !playFile(audio, SPEECH_USAGE)) {
+                if (current(gen)) speakOnDevice(chunk, style, SPEECH_USAGE)
+            }
+            if (!current(gen)) break
         }
+        clips.forEach { it.cancel() }
     }
 
     /**
@@ -118,14 +137,14 @@ class Speaker(
      */
     suspend fun sayQuick(text: String, style: ReplyStyle) {
         if (text.isBlank()) return
-        speakingWhile {
+        speakingWhile { _ ->
             _caption.value = text
             speakOnDevice(text, style, SPEECH_USAGE)
         }
     }
 
     /** Speaks a safety phrase from the bundled table. Never touches the network. */
-    suspend fun sayPhrase(key: String, style: ReplyStyle, inCall: Boolean = false) = speakingWhile { sayPhraseNow(key, style, inCall) }
+    suspend fun sayPhrase(key: String, style: ReplyStyle, inCall: Boolean = false) = speakingWhile { _ -> sayPhraseNow(key, style, inCall) }
 
     private suspend fun sayPhraseNow(key: String, style: ReplyStyle, inCall: Boolean) {
         val text = phrases.text(key, style)
@@ -139,7 +158,16 @@ class Speaker(
     /** In-call warning through the earpiece (USAGE_VOICE_COMMUNICATION). */
     suspend fun speakInCall(key: String, style: ReplyStyle) = sayPhrase(key, style, inCall = true)
 
+    /** Silences whatever is speaking and releases its caller; a multi-sentence line ends there. */
     fun stop() {
+        generation.incrementAndGet()
+        halt()
+    }
+
+    /** Stops the current clip or utterance and wakes its waiter (an interrupted line counts as finished). */
+    private fun halt() {
+        waiter?.invoke()
+        waiter = null
         tts?.stop()
         player?.runCatching { stop(); release() }
         player = null
@@ -147,7 +175,7 @@ class Speaker(
 
     private suspend fun cloudAudio(text: String, style: ReplyStyle): File? {
         // The voice is part of the key: changing it in models.yaml must not replay audio cached in the old voice.
-        val file = File(cacheDir, hash("$text|$style|aparna_hi_customer|1.1") + ".wav")
+        val file = File(cacheDir, hash("$text|$style|aparna_hi_customer|1.1|translit") + ".wav")
         if (file.exists()) return file.also { it.setLastModified(System.currentTimeMillis()) }
         // Bulbul takes ~1 s for a short line and longer for a whole digest, so the wait scales with length.
         val budgetMs = (4_000L + text.length * 15L).coerceAtMost(12_000L)
@@ -177,7 +205,8 @@ class Speaker(
     }
 
     private suspend fun play(usage: Int, source: (MediaPlayer) -> Unit): Boolean = withContext(Dispatchers.Main) {
-        stop()
+        player?.runCatching { stop(); release() }
+        player = null
         val mp = MediaPlayer()
         try {
             mp.setAudioAttributes(AudioAttributes.Builder().setUsage(usage)
@@ -189,6 +218,8 @@ class Speaker(
                 suspendCancellableCoroutine { cont ->
                     mp.setOnCompletionListener { if (cont.isActive) cont.resume(true) }
                     mp.setOnErrorListener { _, _, _ -> if (cont.isActive) cont.resume(false); true }
+                    // Interrupted (stop() or a newer line): done, and no on-device retry of the same words.
+                    waiter = { if (cont.isActive) cont.resume(true) }
                     cont.invokeOnCancellation { runCatching { mp.stop() } }
                     mp.start()
                 }
@@ -223,7 +254,10 @@ class Speaker(
                 override fun onDone(utteranceId: String?) { if (utteranceId == id && cont.isActive) cont.resume(Unit) }
                 @Deprecated("Deprecated in Java")
                 override fun onError(utteranceId: String?) { if (utteranceId == id && cont.isActive) cont.resume(Unit) }
+                // A flushed or stopped utterance reports onStop, not onDone: without this its caller hung until the timeout.
+                override fun onStop(utteranceId: String?, interrupted: Boolean) { if (utteranceId == id && cont.isActive) cont.resume(Unit) }
             })
+            waiter = { if (cont.isActive) cont.resume(Unit) }
             cont.invokeOnCancellation { engine.stop() }
             engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
         }

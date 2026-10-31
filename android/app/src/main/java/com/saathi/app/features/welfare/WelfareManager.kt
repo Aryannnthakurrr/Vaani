@@ -50,8 +50,9 @@ class WelfareManager(private val container: AppContainer) {
         WorkManager.getInstance(context).enqueueUniqueWork("heartbeat", ExistingWorkPolicy.REPLACE, req)
     }
 
-    fun scheduleDailyPrompt() {
-        val at = WelfareRules.nextAt(container.settings.current.welfarePromptTime, ZonedDateTime.now())
+    /** [promptTime] defaults to the stored time; pass the new value when it was saved a moment ago. */
+    fun scheduleDailyPrompt(promptTime: String = container.settings.current.welfarePromptTime) {
+        val at = WelfareRules.nextAt(promptTime, ZonedDateTime.now())
         val pi = PendingIntent.getBroadcast(context, 11_30, Intent(context, CheckInReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         ReminderScheduler.setAlarm(context, context.getSystemService(AlarmManager::class.java), at.toInstant().toEpochMilli(), pi)
@@ -65,16 +66,20 @@ class WelfareManager(private val container: AppContainer) {
         runCatching { container.backend.heartbeat(now) }.onFailure { enqueueHeartbeat(now) }
     }
 
-    suspend fun pushConfig() {
-        val s = container.settings.current
+    /**
+     * Sends name, family and alert time to the backend, read fresh from DataStore so a value saved just before is
+     * included. False when the server can't be reached; the settings stay saved on the phone either way.
+     */
+    suspend fun pushConfig(): Boolean = runCatching {
+        val s = container.settings.fresh()
         container.backend.welfareConfig(WelfareConfig(s.deviceId, s.userName.ifBlank { "Saathi user" }, s.contacts, s.welfareCheckTime))
-    }
+    }.isSuccess
 
     /** Triggers the backend alert path now; returns a sentence for the Settings screen. */
     suspend fun sendTestAlert(): String {
         val style = container.settings.current.replyStyle
         return runCatching {
-            pushConfig()
+            check(pushConfig()) { "backend unreachable" }
             val r = container.backend.welfareTest()
             when {
                 r.sent.isNotEmpty() -> tr(style, "Test alert sent to ${r.sent.size} family member(s) on Telegram.",

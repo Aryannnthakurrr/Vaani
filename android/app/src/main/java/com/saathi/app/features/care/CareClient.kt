@@ -68,9 +68,9 @@ class CareClient(private val settings: () -> Settings) {
         send("/care/$session/emergency/dispatch", JsonObject(body).toString(), JsonObject.serializer())
     }
 
-    suspend fun emergencyCancel(session: String) {
-        send("/care/$session/emergency/cancel", "{}", JsonObject.serializer())
-    }
+    /** True only when the backend confirmed it: a dispatch the ambulance service refused to cancel answers false. */
+    suspend fun emergencyCancel(session: String): Boolean =
+        (send("/care/$session/emergency/cancel", "{}", JsonObject.serializer())["cancelled"] as? JsonPrimitive)?.content == "true"
 
     suspend fun setLocation(session: String, location: CareLocation) {
         send("/care/$session/location", SaathiJson.encodeToString(CareLocation.serializer(), location), JsonObject.serializer())

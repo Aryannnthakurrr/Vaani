@@ -23,6 +23,8 @@ object VoiceLevel {
     fun bars(level: Float, phase: Float, bars: Int = 9): List<Float> = List(bars) { i ->
         val centre = 1f - kotlin.math.abs(i - (bars - 1) / 2f) / bars
         val ripple = 0.5f + 0.5f * kotlin.math.sin(phase + i * 0.9f)
-        (0.12f + level.coerceIn(0f, 1f) * centre * (0.55f + 0.45f * ripple)).coerceIn(0.08f, 1f)
+        val l = level.coerceIn(0f, 1f)
+        // Even in silence a soft wave travels along the bars, so a quiet listener never looks like a frozen loader.
+        (0.10f + 0.08f * ripple * (1f - l) + l * centre * (0.55f + 0.45f * ripple)).coerceIn(0.08f, 1f)
     }
 }

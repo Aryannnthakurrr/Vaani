@@ -43,6 +43,12 @@ object Permissions {
 
     private fun appDetails(ctx: Context) = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
 
+    // A row shows ✓ only when every permission it asks for was given, not just the first few.
+    private val smsCalls = listOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS, Manifest.permission.READ_PHONE_STATE,
+        Manifest.permission.READ_CALL_LOG, Manifest.permission.ANSWER_PHONE_CALLS, Manifest.permission.READ_CONTACTS,
+        Manifest.permission.READ_PHONE_NUMBERS)
+    private val cameraCalendar = listOf(Manifest.permission.CAMERA, Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+
     val steps: List<PermissionStep> = buildList {
         add(PermissionStep("mic", "🎤", { tr(it, "Microphone", "माइक्रोफ़ोन", "Microphone") },
             { tr(it, "So you can talk to me.", "ताकि आप मुझसे बात कर सकें।", "Taaki aap mujhse baat kar sakein.") },
@@ -56,15 +62,11 @@ object Permissions {
         add(PermissionStep("sms_calls", "🛡️", { tr(it, "Messages and calls", "संदेश और कॉल", "Messages aur calls") },
             { tr(it, "So I can spot scam messages and warn you during a suspicious call.", "ताकि मैं धोखे वाले संदेश पहचान सकूँ और संदिग्ध कॉल पर आपको सावधान कर सकूँ।",
                 "Taaki main scam messages pehchaan sakoon aur suspicious call par aapko savdhaan kar sakoon.") },
-            { has(it, Manifest.permission.RECEIVE_SMS) && has(it, Manifest.permission.READ_PHONE_STATE) && has(it, Manifest.permission.READ_CALL_LOG) },
-            runtime = listOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS, Manifest.permission.READ_PHONE_STATE,
-                Manifest.permission.READ_CALL_LOG, Manifest.permission.ANSWER_PHONE_CALLS, Manifest.permission.READ_CONTACTS,
-                Manifest.permission.READ_PHONE_NUMBERS)))
+            { ctx -> smsCalls.all { has(ctx, it) } }, runtime = smsCalls))
         add(PermissionStep("camera_cal", "📷", { tr(it, "Camera and calendar", "कैमरा और कैलेंडर", "Camera aur calendar") },
             { tr(it, "So I can read product labels and save your doctor visits.", "ताकि मैं सामान के लेबल पढ़ सकूँ और डॉक्टर की मुलाक़ात सेव कर सकूँ।",
                 "Taaki main labels padh sakoon aur doctor appointments save kar sakoon.") },
-            { has(it, Manifest.permission.CAMERA) && has(it, Manifest.permission.WRITE_CALENDAR) },
-            runtime = listOf(Manifest.permission.CAMERA, Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)))
+            { ctx -> cameraCalendar.all { has(ctx, it) } }, runtime = cameraCalendar))
         add(PermissionStep("location", "📍", { tr(it, "Your area", "आपका इलाक़ा", "Aapka area") },
             { tr(it, "So I can find places and hospitals near you, and tell an ambulance where you are in an emergency.",
                 "ताकि मैं आपके पास की जगहें और अस्पताल ढूँढ सकूँ, और इमरजेंसी में एम्बुलेंस को बता सकूँ कि आप कहाँ हैं।",
@@ -99,6 +101,18 @@ object Permissions {
 
     /** "App info → ⋮ → Allow restricted settings" on Android 13+ for sideloaded builds. */
     fun restrictedSettingsIntent(ctx: Context) = appDetails(ctx)
+
+    /** App info, where a permission Android no longer asks about can be turned on by hand. */
+    fun appSettingsIntent(ctx: Context) = appDetails(ctx)
+
+    /**
+     * Opens a settings page. Some phones don't have every page (battery, exact alarms), so it falls back to
+     * App info and then to the main Settings screen instead of crashing. False when nothing could be opened.
+     */
+    fun open(ctx: Context, intent: Intent): Boolean = listOf(intent, appDetails(ctx), Intent(Settings.ACTION_SETTINGS)).any { i ->
+        if (ctx !is android.app.Activity) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { ctx.startActivity(i) }.isSuccess
+    }
 
     fun allGranted(ctx: Context) = steps.all { it.granted(ctx) }
 }

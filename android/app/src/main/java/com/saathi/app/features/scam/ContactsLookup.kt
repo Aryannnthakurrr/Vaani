@@ -23,4 +23,16 @@ class ContactsLookup(private val context: Context) {
     }
 
     fun isSavedContact(number: String): Boolean = displayName(number) != null
+
+    /** Display names in the phone book (for fixing misheard names on the phone; never sent anywhere). */
+    fun allNames(limit: Int = 2_000): List<String> {
+        if (!allowed()) return emptyList()
+        return runCatching {
+            context.contentResolver.query(
+                ContactsContract.Contacts.CONTENT_URI, arrayOf(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY), null, null, null,
+            )?.use { c ->
+                buildList { while (c.moveToNext() && size < limit) c.getString(0)?.takeIf { it.isNotBlank() }?.let(::add) }
+            }.orEmpty()
+        }.getOrDefault(emptyList())
+    }
 }

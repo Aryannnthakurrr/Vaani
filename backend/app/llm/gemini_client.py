@@ -10,7 +10,6 @@ import time
 from datetime import date
 from typing import Any
 
-import httpx
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, ValidationError
@@ -91,7 +90,12 @@ class GeminiClient:
         self.client = genai.Client(api_key=settings.gemini_api_key)
 
     async def _generate(
-        self, route: str, system: str, contents: list[Any], schema: type[BaseModel] | None, second_opinion: bool = False
+        self,
+        route: str,
+        system: str,
+        contents: list[Any],
+        schema: type[BaseModel] | None,
+        second_opinion: bool = False,
     ) -> str:
         """`second_opinion`: the first answer was invalid, so ask the route's `second_opinion` model (Qwen) instead."""
         cfg = self.settings.route(route)
@@ -114,9 +118,13 @@ class GeminiClient:
         async def one(model: str) -> str:
             started = time.perf_counter()
             try:
-                if do_inference.is_do_model(model):  # Gemma / Qwen on DigitalOcean (models.yaml reasoning routes)
+                if do_inference.is_do_model(
+                    model
+                ):  # Gemma / Qwen on DigitalOcean (models.yaml reasoning routes)
                     text, usage = await asyncio.wait_for(
-                        do_inference.generate(model, system, contents, schema, float(cfg.get("temperature", 0.2))),
+                        do_inference.generate(
+                            model, system, contents, schema, float(cfg.get("temperature", 0.2))
+                        ),
                         timeout,
                     )
                     METER.llm(model, usage)
@@ -131,7 +139,9 @@ class GeminiClient:
                 log.info("route=%s model=%s failed (%s)", route, model, type(exc).__name__)
                 raise
             finally:
-                log.info("route=%s model=%s latency_ms=%d", route, model, (time.perf_counter() - started) * 1000)
+                log.info(
+                    "route=%s model=%s latency_ms=%d", route, model, (time.perf_counter() - started) * 1000
+                )
 
         pending = {asyncio.create_task(one(models[0]))}
         next_model, errors = 1, []
@@ -162,7 +172,9 @@ class GeminiClient:
                 *contents,
                 f"Your previous reply was invalid: {exc.errors()[:3]}. Reply again with valid JSON.",
             ]
-            return schema.model_validate_json(await self._generate(route, system, retry, schema, second_opinion=True))
+            return schema.model_validate_json(
+                await self._generate(route, system, retry, schema, second_opinion=True)
+            )
 
     # ------------------------------------------------------------------ skill compiler
     async def compile_json(self, route: str, system: str, user: str) -> tuple[str, int]:

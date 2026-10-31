@@ -6,13 +6,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.saathi.app.core.AppContainer
+import com.saathi.app.core.net.AgentAction
 import com.saathi.app.core.voice.tr
 import com.saathi.app.ui.theme.Amber
 import com.saathi.app.ui.theme.Danger
 import com.saathi.app.ui.theme.Leaf
 import com.saathi.app.util.Packages
+import com.saathi.app.util.SaathiJson
 import java.text.DateFormat
 import java.util.Date
+
+private val talkActions = setOf(AgentAction.ASK_USER, AgentAction.HIGHLIGHT, AgentAction.CONFIRM)
+
+/** Questions and "do this" steps get a speech icon. Read from the stored action, so it works in every language. */
+private fun isQuestion(actionJson: String): Boolean =
+    runCatching { SaathiJson.decodeFromString(AgentAction.serializer(), actionJson).action in talkActions }.getOrDefault(false)
 
 /** Everything the agent did, in plain language, so family can review it (SPEC §6.8). */
 @Composable
@@ -31,7 +39,7 @@ fun ActivityLogScreen(c: AppContainer, onBack: () -> Unit) {
                 "cancelled" -> Triple(tr(style, "Stopped", "रोका गया", "Roka gaya"), Amber, "✋")
                 "failed" -> Triple(tr(style, "Didn't work", "नहीं हुआ", "Nahi hua"), Amber, "⚠️")
                 "done" -> Triple(tr(style, "Finished", "पूरा हुआ", "Poora hua"), Leaf, "🎉")
-                else -> Triple(null, null, if (r.plain.startsWith("Asked") || r.plain.startsWith("Showed")) "💬" else "👆")
+                else -> Triple(null, null, if (isQuestion(r.actionJson)) "💬" else "👆")
             }
             InfoCard(title = r.plain, body = "${Packages.displayName(r.pkg)} · ${relativeTime(r.ts, style)}",
                 badge = badge, accent = color, icon = icon)

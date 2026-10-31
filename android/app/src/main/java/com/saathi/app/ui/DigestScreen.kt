@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +23,8 @@ import com.saathi.app.features.inbox.LocalDigestWriter
 import com.saathi.app.ui.theme.Amber
 import com.saathi.app.ui.theme.Danger
 import com.saathi.app.ui.theme.Leaf
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.time.LocalDate
@@ -38,27 +41,36 @@ fun DigestScreen(container: AppContainer, onBack: () -> Unit, onCallClinic: () -
     val weekAgo = System.currentTimeMillis() - 7 * 24 * 3600_000L
     val items = DigestRepository.toItems(rows.filter { it.receivedAt >= weekAgo })
     val scope = rememberCoroutineScope()
-    var spoken by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf(false) }
+    // The reading in progress; tapping the button again stops it.
+    var reading by remember { mutableStateOf<Job?>(null) }
+    // Leaving the screen stops the reading too.
+    DisposableEffect(Unit) { onDispose { reading?.let { it.cancel(); container.speaker.stop() } } }
 
     SaathiScaffold(tr(style, "My updates", "मेरी जानकारी", "Meri updates"), onBack) {
+        // The spoken summary repeats the cards below, so it is only heard, not shown again.
         BigButton(
-            text = if (busy) tr(style, "Reading…", "पढ़ रही हूँ…", "Padh rahi hoon…") else tr(style, "🔊 Read aloud", "🔊 पढ़कर सुनाओ", "🔊 Padhkar sunao"),
-            enabled = !busy,
+            text = if (reading != null) tr(style, "⏹ Stop reading", "⏹ पढ़ना रोको", "⏹ Padhna roko") else tr(style, "🔊 Read aloud", "🔊 पढ़कर सुनाओ", "🔊 Padhkar sunao"),
             onClick = {
-                busy = true
-                scope.launch {
-                    spoken = runCatching { container.digest.speak() }.getOrNull()
-                    busy = false
+                val job = reading
+                if (job != null) {
+                    job.cancel()
+                    container.speaker.stop()
+                    reading = null
+                } else {
+                    // Started after it is stored, so a reading that ends at once still resets the button.
+                    val next = scope.launch(start = CoroutineStart.LAZY) {
+                        try { runCatching { container.digest.speak() } } finally { if (reading === coroutineContext[Job]) reading = null }
+                    }
+                    reading = next
+                    next.start()
                 }
             },
         )
-        spoken?.let { InfoCard(title = tr(style, "Summary", "सारांश", "Summary"), body = it, icon = "🔊") }
         if (items.isNotEmpty()) {
             val scams = items.count { it.category == "scam_suspected" }
             val bills = items.count { it.category == "bill_due" || it.category == "subscription_renewal" }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill("🧾 " + tr(style, "$bills to pay", "$bills भुगतान", "$bills payments"), MaterialTheme.colorScheme.primary)
+                if (bills > 0) Pill("🧾 " + tr(style, "$bills to pay", "$bills भुगतान", "$bills payments"), MaterialTheme.colorScheme.primary)
                 if (scams > 0) Pill("⚠️ " + tr(style, "$scams warnings", "$scams चेतावनी", "$scams warnings"), Danger)
                 Pill("✉️ " + tr(style, "${items.size} in total", "कुल ${items.size}", "Total ${items.size}"), Leaf)
             }
@@ -70,8 +82,11 @@ fun DigestScreen(container: AppContainer, onBack: () -> Unit, onCallClinic: () -
         items.forEach { DigestCard(it, style) }
 
         SectionTitle(tr(style, "Reminders", "रिमाइंडर", "Reminders"))
-        BigButton(tr(style, "📞 Call the clinic for me", "📞 मेरे लिए क्लिनिक को फ़ोन करो", "📞 Mere liye clinic ko phone karo"), onCallClinic,
-            color = Leaf)
+        // The clinic call is about the last booked appointment, so it is offered only when there is one.
+        if (settings.lastAppointment != null) {
+            BigButton(tr(style, "📞 Call the clinic for me", "📞 मेरे लिए क्लिनिक को फ़ोन करो", "📞 Mere liye clinic ko phone karo"), onCallClinic,
+                color = Leaf)
+        }
         if (reminders.isEmpty()) EmptyNote(tr(style, "No reminders yet.", "अभी कोई रिमाइंडर नहीं।", "Abhi koi reminder nahi."))
         val fmt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
         reminders.forEach { r -> InfoCard(title = r.title, body = r.body, badge = fmt.format(Date(r.triggerAt)), icon = "⏰", accent = Amber) }
@@ -87,7 +102,7 @@ private fun DigestCard(item: DigestItem, style: ReplyStyle) {
         "delivery" -> Triple("📦", tr(style, "Delivery", "डिलीवरी", "Delivery"), Leaf)
         "payment_done" -> Triple("✅", tr(style, "Paid", "भुगतान हुआ", "Paid"), Leaf)
         "scam_suspected" -> Triple("⚠️", tr(style, "Possible scam", "धोखा हो सकता है", "Dhokha ho sakta hai"), Danger)
-        else -> Triple("✉️", item.category.replaceFirstChar { it.uppercase() }, MaterialTheme.colorScheme.primary)
+        else -> Triple("✉️", tr(style, "Message", "संदेश", "Message"), MaterialTheme.colorScheme.primary)
     }
     val due = item.dueDate?.let { d ->
         runCatching { LocalDigestWriter.relative(LocalDate.parse(d), LocalDate.now(), style) }.getOrNull()

@@ -7,8 +7,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
-/** Where the symptom-to-care flow is. */
-enum class CarePhase { STARTING, INTAKE, THINKING, EMERGENCY, SEARCHING, CALLING, RECOMMEND, BOOKING, BOOKED, NO_OPTIONS, ERROR }
+/** Where the symptom-to-care flow is. ENDED: the conversation closed (or was stopped) without a booking. */
+enum class CarePhase { STARTING, INTAKE, THINKING, EMERGENCY, SEARCHING, CALLING, RECOMMEND, BOOKING, BOOKED, NO_OPTIONS, ERROR, ENDED }
 
 data class ChatLine(val fromUser: Boolean, val text: String)
 
@@ -29,12 +29,16 @@ data class CareUi(
     val hospitals: List<HospitalRow> = emptyList(),
     val recommendation: Recommendation? = null,
     val booking: BookingStatus? = null,
+    /** True only after the user said yes to the calendar question and the event was written. */
+    val calendarAdded: Boolean = false,
     val fallback: List<Hospital> = emptyList(),
     val message: String? = null,
     /** A slot a hospital is offering on a call that is still going on; the user's yes books it on that call. */
     val liveAsk: LiveAsk? = null,
     /** The last yes on a call could not be confirmed from that call; the usual recommendation follows. */
     val liveUnclear: Boolean = false,
+    /** The user said no to the recommended slot: only the other times stay on the card, each still bookable. */
+    val declined: Boolean = false,
     val lastSeq: Int = 0,
 )
 

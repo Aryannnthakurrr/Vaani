@@ -38,28 +38,41 @@ object LocalClinicCall {
             .getOrDefault(iso)
     } ?: "today"
 
+    private const val ASK_WAIT = "Thank you. How long is the waiting time at the clinic right now?"
+
     fun turn(req: ClinicCallRequest): ClinicCallTurn {
         val agentTurns = req.transcript.count { it.role == "agent" }
-        val clinicSaid = req.transcript.filter { it.role == "clinic" }.joinToString(" ") { it.text }
-        val lastClinic = req.transcript.lastOrNull { it.role == "clinic" }?.text.orEmpty()
+        val clinicLines = req.transcript.filter { it.role == "clinic" }.map { it.text }
+        val clinicSaid = clinicLines.joinToString(" ")
+        val lastClinic = clinicLines.lastOrNull().orEmpty()
         val doctor = req.appointment.doctor ?: "the doctor"
         if (agentTurns == 0) {
             return ClinicCallTurn("Namaste. I am Saathi, an AI assistant calling on behalf of ${req.patientName}. " +
                 "I would like to confirm the appointment with $doctor on ${whenText(req.appointment)}. Is that confirmed?")
         }
-        val confirmed = when {
-            NO.containsMatchIn(clinicSaid) && !YES.containsMatchIn(clinicSaid) -> false
-            YES.containsMatchIn(clinicSaid) -> true
-            else -> null
-        }
+        // The first clear yes or no decides; later lines answer the waiting-time question ("no, 20 minutes").
+        val confirmed = clinicLines.firstNotNullOfOrNull { answer(it) }
         if (confirmed == false) {
             return ClinicCallTurn("I understand. I will ask the patient to call you directly. Thank you, goodbye.",
                 done = true, confirmed = false, summary = summary(req, false, null))
         }
-        if (agentTurns == 1) return ClinicCallTurn("Thank you. How long is the waiting time at the clinic right now?", confirmed = confirmed)
+        if (confirmed == null) {
+            // Never report "confirmed" without a yes: ask once more, then leave it to the patient.
+            if (agentTurns < 2) return ClinicCallTurn("Sorry, I did not catch that. Is the appointment confirmed, yes or no?")
+            return ClinicCallTurn("Thank you. I will ask the patient to call you directly. Goodbye.",
+                done = true, summary = summary(req, false, null))
+        }
         val wait = waitingMinutes(lastClinic) ?: waitingMinutes(clinicSaid)
+        if (wait == null && req.transcript.none { it.role == "agent" && it.text == ASK_WAIT }) return ClinicCallTurn(ASK_WAIT, confirmed = true)
         return ClinicCallTurn("Thank you very much for your help. Goodbye.", done = true, confirmed = true,
             waitingMinutes = wait, summary = summary(req, true, wait))
+    }
+
+    /** Yes, no, or unclear (neither, or both: "nahi ji, kal hai"). */
+    private fun answer(text: String): Boolean? {
+        val yes = YES.containsMatchIn(text)
+        val no = NO.containsMatchIn(text)
+        return if (yes == no) null else yes
     }
 
     private fun summary(req: ClinicCallRequest, confirmed: Boolean, wait: Int?): String {

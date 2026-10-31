@@ -63,11 +63,23 @@ class CareFlow(private val c: AppContainer) {
 
     val running: Boolean get() = job?.isActive == true
 
+    /** [running] as state, so the screen's "Start again" and answer buttons follow the flow ending on its own. */
+    private val _active = MutableStateFlow(false)
+    val active: StateFlow<Boolean> = _active
+
+    private fun launchJob(block: suspend () -> Unit) {
+        val j = c.scope.launch { block() }
+        job = j
+        _active.value = true
+        j.invokeOnCompletion { if (job === j) _active.value = false }
+    }
+
     /** @param firstWords what the user already said to the assistant ("send an ambulance now"), used as the first turn. */
     fun start(firstWords: String? = null) {
         if (running) return
         _ui.value = CareUi()
-        job = c.scope.launch {
+        patient = null // a new session asks again: the last booking may have been for someone else
+        launchJob {
             try {
                 run(firstWords?.trim()?.ifBlank { null })
             } catch (e: CancellationException) {
@@ -89,19 +101,28 @@ class CareFlow(private val c: AppContainer) {
         tapped = null; typed = null; choice = null
         _asking.value = Asking.NOTHING
         sessionId = null
-        _ui.value = CareUi()
+        patient = null
+        _ui.value = CareUi(phase = CarePhase.ENDED)
         if (session != null) c.scope.launch { runCatching { client.cancel(session) } }
     }
 
     /** After "I'm OK" on the emergency screen: "Shall I find you a doctor instead?" then Path B, marked urgent. */
     fun offerDoctor(session: String, note: IntakeNote) {
         job?.cancel()
+        patient = null
         _ui.update { it.copy(phase = CarePhase.INTAKE, note = note, route = "B") }
-        job = c.scope.launch {
+        launchJob {
             c.assistant.openScreen("care")
             say(s("Okay. Shall I find you a doctor instead?", "ठीक है। क्या मैं आपके लिए डॉक्टर ढूँढूँ?", "Theek hai. Kya main aapke liye doctor dhoondhun?"))
             if (yesNo()) pathB(session, note, askFirst = false)
+            else end(s("Okay. If you feel worse, call 108.", "ठीक है। तबीयत बिगड़े तो 108 पर फ़ोन कीजिए।", "Theek hai. Tabiyat bigde to 108 par call kijiye."))
         }
+    }
+
+    /** A closing line where the conversation ends without a booking: no more listening, and "Start again" shows. */
+    private suspend fun end(text: String) {
+        _ui.update { it.copy(phase = CarePhase.ENDED) }
+        say(text)
     }
 
     private suspend fun fail(message: String) {
@@ -223,57 +244,66 @@ class CareFlow(private val c: AppContainer) {
     }
 
     /** A spoken (after a beep) or typed answer; null after about a minute of silence. */
-    private suspend fun listen(): String? = coroutineScope {
+    /** @param expectName the answer is a name: name hints only, and fixed against known names on the phone. */
+    private suspend fun listen(expectName: Boolean = false): String? = coroutineScope {
         val box = CompletableDeferred<String>().also { typed = it }
         _asking.value = Asking.TEXT
-        val voice = async {
-            SpokenAnswer.freeText(
-                listen = { c.assistant.speech.listen(cue = true)?.transcript },
-                reprompt = { c.speaker.sayPhrase("still_listening", style) },
-            ) ?: awaitCancellation()
+        val heard = try {
+            val voice = async {
+                SpokenAnswer.freeText(
+                    listen = { c.assistant.speech.listen(cue = true, expectName = expectName)?.transcript },
+                    reprompt = { c.speaker.sayPhrase("still_listening", style) },
+                ) ?: awaitCancellation()
+            }
+            select { box.onAwait { it }; voice.onAwait { it } }.also { voice.cancel() }
+        } finally {
+            typed = null
+            _asking.value = Asking.NOTHING
         }
-        val heard = select { box.onAwait { it }; voice.onAwait { it } }
-        voice.cancel()
-        typed = null
-        _asking.value = Asking.NOTHING
         _ui.update { it.copy(chat = it.chat + ChatLine(true, heard)) }
         heard
     }
 
-    /** Yes/no by voice (beep, patient re-prompts) or the on-screen buttons. */
+    /**
+     * Yes/no by voice (beep, patient re-prompts) or the on-screen buttons. The buttons go away however it ends, also
+     * when it is cancelled (a slot tapped instead, a timeout), so Yes/No never linger on screen.
+     */
     private suspend fun yesNo(): Boolean = coroutineScope {
         val buttons = CompletableDeferred<Boolean>().also { tapped = it }
         val box = CompletableDeferred<String>().also { typed = it }
         _asking.value = Asking.YES_NO
-        val voice = async {
-            SpokenAnswer.yesNo(
-                listen = { c.assistant.speech.listen(cue = true)?.transcript },
-                reprompt = { c.speaker.sayPhrase("ask_yes_no_again", style) },
-            ) ?: run { c.speaker.sayPhrase("waiting_for_tap", style); awaitCancellation() }
+        try {
+            val voice = async {
+                SpokenAnswer.yesNo(
+                    listen = { c.assistant.speech.listen(cue = true)?.transcript },
+                    reprompt = { c.speaker.sayPhrase("ask_yes_no_again", style) },
+                ) ?: run { c.speaker.sayPhrase("waiting_for_tap", style); awaitCancellation() }
+            }
+            val text = async { when (YesNo.parse(box.await())) { Answer.YES -> true; Answer.NO -> false; Answer.UNCLEAR -> awaitCancellation() } }
+            select { buttons.onAwait { it }; voice.onAwait { it }; text.onAwait { it } }.also { voice.cancel(); text.cancel() }
+        } finally {
+            tapped = null; typed = null
+            _asking.value = Asking.NOTHING
+            c.speaker.stop()
         }
-        val text = async { when (YesNo.parse(box.await())) { Answer.YES -> true; Answer.NO -> false; Answer.UNCLEAR -> awaitCancellation() } }
-        val answer = select { buttons.onAwait { it }; voice.onAwait { it }; text.onAwait { it } }
-        voice.cancel(); text.cancel()
-        tapped = null; typed = null
-        _asking.value = Asking.NOTHING
-        c.speaker.stop()
-        answer
     }
 
     // ------------------------------------------------------------------------------------------- path B
 
     private suspend fun pathB(session: String, note: IntakeNote, askFirst: Boolean = true) {
+        _ui.update { it.copy(phase = CarePhase.INTAKE) } // a conversation again, not "Thinking…"
         if (askFirst) {
             say(s("This does not look like an emergency. Shall I call three hospitals near you to ask about a ${note.specialty} doctor?",
                 "यह इमरजेंसी नहीं लगती। क्या मैं पास के तीन अस्पतालों में ${note.specialty} डॉक्टर के बारे में फ़ोन करके पूछूँ?",
                 "Yeh emergency nahi lagti. Kya main paas ke teen hospitals mein ${note.specialty} doctor ke baare mein call karke poochun?"))
-            if (!yesNo()) return say(s("Okay. If it gets worse, call 108.", "ठीक है। अगर तबीयत बिगड़े तो 108 पर फ़ोन कीजिए।", "Theek hai. Agar tabiyat bigde to 108 par call kijiye."))
+            if (!yesNo()) return end(s("Okay. If it gets worse, call 108.", "ठीक है। अगर तबीयत बिगड़े तो 108 पर फ़ोन कीजिए।", "Theek hai. Agar tabiyat bigde to 108 par call kijiye."))
         }
         // Details first, so that if a hospital offers a slot while we are on the line, a yes books it on that call.
         say(s("So I can book while I'm on the phone with them, a few quick details.", "ताकि फ़ोन पर ही बुक कर सकूँ, बस कुछ जानकारी।",
             "Taaki phone par hi book kar sakun, bas kuch details."))
-        client.search(session, patientDetails())
+        val details = patientDetails()
         _ui.update { it.copy(phase = CarePhase.SEARCHING) }
+        client.search(session, details)
         var announcedCalls = false
         var askedLive: String? = null
         while (true) {
@@ -320,9 +350,6 @@ class CareFlow(private val c: AppContainer) {
         c.speaker.sayQuick(question, style)
         val yes = withTimeoutOrNull(LIVE_ANSWER_MS) { yesNo() }
         if (yes == null) {
-            tapped = null; typed = null  // yesNo() was cancelled before its own clean-up
-            _asking.value = Asking.NOTHING
-            c.speaker.stop()
             return say(s("I'll tell them we'll call back.", "मैं उन्हें बोल देती हूँ कि हम वापस फ़ोन करेंगे।", "Main unhe bol deti hoon ki hum wapas call karenge."))
         }
         val accepted = runCatching { client.liveConfirm(session, ask.askId, yes) }.getOrDefault(false)
@@ -346,10 +373,17 @@ class CareFlow(private val c: AppContainer) {
             val tap = CompletableDeferred<Pair<String, Slot>>().also { choice = it }
             val spoken = async { if (yesNo()) rec.primary.hospitalId to rec.slot else null }
             val result = select<Pair<String, Slot>?> { tap.onAwait { it }; spoken.onAwait { it } }
-            spoken.cancel(); choice = null; tapped = null
+            spoken.cancel(); choice = null
             result
-        } ?: return say(s("Okay, I won't book. The other options are on the screen.", "ठीक है, मैं बुक नहीं करूँगी। बाकी विकल्प स्क्रीन पर हैं।",
-            "Theek hai, main book nahi karungi. Baaki options screen par hain."))
+        } ?: run {
+            // "No" to the best option: Book and No thanks go away; any other time on the screen still books with a tap.
+            _ui.update { it.copy(declined = true) }
+            say(s("Okay, I won't book that. If another time suits you, tap it on the screen.",
+                "ठीक है, वह बुक नहीं करूँगी। कोई दूसरा समय ठीक लगे तो स्क्रीन पर दबाइए।",
+                "Theek hai, woh book nahi karungi. Koi doosra time theek lage to screen par dabaiye."))
+            CompletableDeferred<Pair<String, Slot>>().also { choice = it }.await().also { choice = null }
+        }
+        _ui.update { it.copy(declined = false) }
         book(session, picked.first, picked.second)
     }
 
@@ -369,7 +403,7 @@ class CareFlow(private val c: AppContainer) {
                     say(s("That time is taken. They offered ${CareText.time(alt.start, style)}. Shall I book that?",
                         "वह समय भर गया है। उन्होंने ${CareText.time(alt.start, style)} बताया है। क्या वह बुक करूँ?",
                         "Woh time bhar gaya hai. Unhone ${CareText.time(alt.start, style)} bataya hai. Kya woh book karun?"))
-                    return if (yesNo()) book(session, hospitalId, alt) else say(s("Okay, I have not booked anything.", "ठीक है, मैंने कुछ बुक नहीं किया।", "Theek hai, maine kuch book nahi kiya."))
+                    return if (yesNo()) book(session, hospitalId, alt) else end(s("Okay, I have not booked anything.", "ठीक है, मैंने कुछ बुक नहीं किया।", "Theek hai, maine kuch book nahi kiya."))
                 }
                 else -> {
                     val phone = b.callYourself ?: _ui.value.hospitals.firstOrNull { it.hospital.id == hospitalId }?.hospital?.phone
@@ -404,11 +438,11 @@ class CareFlow(private val c: AppContainer) {
             PatientReply.parse(listen()).copy(name = own)
         } else {
             say(s("What is the patient's name and age?", "मरीज़ का नाम और उम्र क्या है?", "Patient ka naam aur umar kya hai?"))
-            PatientReply.parse(listen())
+            PatientReply.parse(listen(expectName = true))
         }
         val name = reply.name ?: run {
             say(s("And the patient's name?", "और मरीज़ का नाम?", "Aur patient ka naam?"))
-            PatientReply.parse(listen()).name
+            PatientReply.parse(listen(expectName = true)).name
         }
         val age = reply.age ?: run {
             say(s("And the age?", "और उम्र?", "Aur umar?"))
@@ -442,6 +476,7 @@ class CareFlow(private val c: AppContainer) {
         if (!yesNo()) return say(s("Okay, I haven't added it. It's saved here if you need it.", "ठीक है, मैंने नहीं जोड़ा। यह यहाँ सेव है।",
             "Theek hai, maine nahi joda. Yeh yahan save hai."))
         val added = cal?.let { c.calendar.insertEvent(it.title, it.location, it.description, it.startIso, it.endIso) } != null
+        _ui.update { it.copy(calendarAdded = added) }
         val reminders = com.saathi.app.features.inbox.ReminderPlanner.forAppointment(appt, java.time.ZonedDateTime.now())
         reminders.forEach { c.reminders.add(c.db.reminders(), it) }
         say(when {
@@ -464,16 +499,28 @@ class CareFlow(private val c: AppContainer) {
     }
 }
 
-/** Times read aloud: "tomorrow 11:00 AM". */
+/** Times read aloud and shown: "tomorrow 11:00 AM", "कल सुबह 11:00 बजे", "kal subah 11:00 baje". */
 object CareText {
+    private val HINDI = java.util.Locale("hi", "IN")
+
     fun time(iso: String, style: ReplyStyle): String = runCatching {
         val t = java.time.OffsetDateTime.parse(iso)
         val days = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(t.offset), t.toLocalDate())
         val day = when (days) {
             0L -> tr(style, "today", "आज", "aaj")
             1L -> tr(style, "tomorrow", "कल", "kal")
-            else -> t.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM"))
+            // Weekday and month in Hindi script for Hindi; Hinglish is written in Roman letters, so English names.
+            else -> t.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM",
+                if (style == ReplyStyle.HI) HINDI else java.util.Locale.ENGLISH))
         }
-        "$day ${t.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))}"
+        if (style == ReplyStyle.EN) return@runCatching "$day ${t.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.ENGLISH))}"
+        // Hindi says the part of the day instead of AM/PM: "सुबह 11:00 बजे".
+        val part = when (t.hour) {
+            in 4..11 -> tr(style, "", "सुबह", "subah")
+            in 12..15 -> tr(style, "", "दोपहर", "dopahar")
+            in 16..19 -> tr(style, "", "शाम", "shaam")
+            else -> tr(style, "", "रात", "raat")
+        }
+        "$day $part ${t.format(java.time.format.DateTimeFormatter.ofPattern("h:mm", java.util.Locale.ENGLISH))} ${tr(style, "", "बजे", "baje")}"
     }.getOrDefault(iso)
 }

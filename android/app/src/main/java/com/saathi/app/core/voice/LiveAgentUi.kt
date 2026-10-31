@@ -1,9 +1,9 @@
 package com.saathi.app.core.voice
 
+import com.saathi.app.core.AssistantScreen
 import com.saathi.app.core.agent.AgentUi
 import com.saathi.app.core.overlay.OverlayAgentUi
 import com.saathi.app.core.privacy.PrivateSpans
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
@@ -31,44 +31,45 @@ class LiveAgentUi(
 
     override suspend fun sayPhrase(key: String) = live.handOffPrivately { screen.sayPhrase(key) }
 
-    override suspend fun ask(question: String): String? = coroutineScope {
-        val typed = screen.openAnswerBox(question)
-        voice("[ask the user exactly this, then stop and let them answer: $question]")
-        val heard = async {
-            SpokenAnswer.freeText(listen = { nextTurn() }, reprompt = { voice("[they are quiet: gently ask again: $question]") })
-                ?: awaitCancellation()
+    override suspend fun ask(question: String): String? = screen.withPrompt(AssistantScreen.Prompt.Ask(question)) { box ->
+        coroutineScope {
+            voice("[ask the user exactly this, then stop and let them answer: $question]")
+            val heard = async {
+                SpokenAnswer.freeText(listen = { nextTurn() }, reprompt = { voice("[they are quiet: gently ask again: $question]") })
+                    ?: awaitCancellation()
+            }
+            val answer = select { box.answer.onAwait { it }; heard.onAwait { it } }
+            heard.cancel()
+            answer
         }
-        val answer = select { typed.onAwait { it }; heard.onAwait { it } }
-        heard.cancel()
-        screen.closeAnswerBox()
-        answer
     }
 
-    override suspend fun confirm(summary: String): Boolean = coroutineScope {
-        val buttons = screen.openConfirm(summary)
-        voice("[read this to the user and ask for a yes or no, then stop. Do not say it is done: $summary]")
-        val spoken = async {
-            SpokenAnswer.yesNo(
-                listen = { nextTurn() },
-                reprompt = { voice("[ask them to please say yes or no]") },
-            ) ?: awaitCancellation()
+    override suspend fun confirm(summary: String): Boolean = screen.withPrompt(AssistantScreen.Prompt.Confirm(summary)) { sheet ->
+        coroutineScope {
+            voice("[read this to the user and ask for a yes or no, then stop. Do not say it is done: $summary]")
+            val spoken = async {
+                SpokenAnswer.yesNo(
+                    listen = { nextTurn() },
+                    reprompt = { voice("[ask them to please say yes or no]") },
+                ) ?: awaitCancellation()
+            }
+            val answer = select { sheet.answer.onAwait { it }; spoken.onAwait { it } }
+            spoken.cancel()
+            answer
         }
-        val answer = select { buttons.onAwait { it }; spoken.onAwait { it } }
-        spoken.cancel()
-        screen.closeConfirm(answer)
-        answer
     }
 
-    override suspend fun waitForUserDone(prompt: String): Boolean = coroutineScope {
-        voice("[tell the user, then stop: $prompt]")
-        val tapped = screen.openDoneButton(prompt)
-        val said = async {
-            while (true) if (YesNo.isDone(nextTurn() ?: continue)) break
-            true
+    override suspend fun waitForUserDone(prompt: String): Boolean = screen.withDoneButton(prompt) { tapped ->
+        coroutineScope {
+            voice("[tell the user, then stop: $prompt]")
+            val said = async {
+                while (true) if (YesNo.isDone(nextTurn() ?: continue)) break
+                true
+            }
+            val done = select { tapped.onAwait { it }; said.onAwait { it } }
+            said.cancel()
+            done
         }
-        val done = select { tapped.onAwait { it }; said.onAwait { it } }
-        said.cancel()
-        done
     }
 
     override fun showHighlight(bounds: List<Int>?, instruction: String, gesture: String?) = screen.showHighlight(bounds, instruction, gesture)

@@ -1,5 +1,7 @@
 package com.saathi.app.features.care
 
+import android.app.Activity
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
@@ -30,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +45,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.saathi.app.core.AppContainer
+import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.voice.tr
 import com.saathi.app.ui.BigButton
 import com.saathi.app.ui.Pill
@@ -64,19 +68,34 @@ import com.saathi.app.ui.theme.Muted
 fun CareScreen(c: AppContainer, onBack: () -> Unit) {
     val ui by c.care.ui.collectAsState()
     val asking by c.care.asking.collectAsState()
-    val style = c.settings.current.replyStyle
+    val settings by c.settings.flow.collectAsState()
+    // Collected so the screen follows the flow ending; the flow's own answer covers the frame right after a start.
+    val active by c.care.active.collectAsState()
+    val running = active || c.care.running
+    val style = settings.replyStyle
     fun s(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
     val context = LocalContext.current
-    LaunchedEffect(Unit) { if (ui.phase == CarePhase.STARTING && c.care.sessionId == null) c.care.start() }
+    // This screen is the one place a doctor conversation starts when the user opens it. Saved with this screen's
+    // back-stack entry, so coming back to it (from the emergency screen, after a rotation) never starts a new intake
+    // over one the user ended or handed over; "Start again" is there for that.
+    var opened by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (opened) return@LaunchedEffect
+        c.care.start() // does nothing when the assistant or the emergency screen already started it
+        opened = true
+    }
     // Leaving by any route (back gesture, Home, another tile) ends the flow and its calls, except the hand-over to
-    // the emergency screen (route A), which must keep running.
-    DisposableEffect(Unit) { onDispose { if (c.care.ui.value.route != "A") c.care.stop() } }
+    // the emergency screen (route A), which must keep running, and a rotation, which rebuilds this screen at once.
+    val activity = context.activity()
+    DisposableEffect(Unit) {
+        onDispose { if (activity?.isChangingConfigurations != true && c.care.ui.value.route != "A") c.care.stop() }
+    }
     val booked = ui.booking?.takeIf { it.status == "confirmed" }
     val speaking by c.speaker.speaking.collectAsState()
 
     SaathiScaffold(s("Doctor", "डॉक्टर", "Doctor"), { c.care.stop(); onBack() }) {
         if (booked != null) {
-            Booked(booked, c, ::s)
+            Booked(booked, ui.calendarAdded, style, ::s)
             return@SaathiScaffold
         }
         Text(s("I am an AI assistant, not a doctor. In an emergency, call 108.", "मैं AI सहायक हूँ, डॉक्टर नहीं। इमरजेंसी में 108 पर फ़ोन करें।",
@@ -85,8 +104,16 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
 
         // Keyed by position in the whole conversation, so only a new message animates in, not the ones already shown.
         ui.chat.withIndex().toList().takeLast(6).forEach { (i, line) -> key(i) { Bubble(line) } }
+        // Getting ready, thinking or searching: say so, instead of a screen with nothing happening on it.
+        if (asking == CareFlow.Asking.NOTHING && running) when (ui.phase) {
+            CarePhase.STARTING -> Working(s("Getting ready…", "तैयारी हो रही है…", "Taiyaari ho rahi hai…"))
+            CarePhase.THINKING -> Working(s("Thinking…", "सोच रही हूँ…", "Soch rahi hoon…"))
+            CarePhase.SEARCHING -> Working(s("Finding hospitals near you…", "आपके पास के अस्पताल ढूँढ रही हूँ…", "Aapke paas ke hospital dhoondh rahi hoon…"))
+            else -> Unit
+        }
         // The voice is always visible while Saathi talks or listens here (the booking card has its own wave).
-        if (ui.phase != CarePhase.RECOMMEND && (asking != CareFlow.Asking.NOTHING || ui.phase == CarePhase.INTAKE || speaking)) {
+        if (ui.phase != CarePhase.RECOMMEND && ui.phase != CarePhase.ENDED &&
+            (asking != CareFlow.Asking.NOTHING || (ui.phase == CarePhase.INTAKE && running) || speaking)) {
             com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
                 if (asking == CareFlow.Asking.YES_NO) s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye")
                 else s("Speak freely, I'm listening", "बेझिझक बोलिए, मैं सुन रही हूँ", "Aaram se boliye, main sun rahi hoon"),
@@ -97,9 +124,9 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
         ui.note?.let { note -> NoteCard(note, ::s) }
 
         val board = ui.hospitals.filter { it.calling || it.result != null }
-        if (board.isNotEmpty() && ui.recommendation == null) board.forEach { HospitalCard(it, ::s) }
+        if (board.isNotEmpty() && ui.recommendation == null) board.forEach { HospitalCard(it, style, ::s) }
 
-        ui.recommendation?.takeIf { ui.phase == CarePhase.RECOMMEND }?.let { rec -> RecommendationCard(rec, ui, c, ::s) }
+        ui.recommendation?.takeIf { ui.phase == CarePhase.RECOMMEND }?.let { rec -> RecommendationCard(rec, ui, running, c, style, ::s) }
 
         ui.booking?.let { b ->
             when (b.status) {
@@ -115,11 +142,11 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
         if (ui.phase == CarePhase.NO_OPTIONS || ui.phase == CarePhase.ERROR) {
             ui.message?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
             ui.fallback.ifEmpty { ui.hospitals.map { it.hospital } }.filter { it.phone != null }.take(5).forEach { h ->
-                SecondaryButton("${h.name}${h.etaMinutes?.let { " · ${it.toInt()} min" }.orEmpty()}",
+                SecondaryButton("${h.name}${h.etaMinutes?.let { " · " + minutes(it, ::s) }.orEmpty()}",
                     { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${h.phone}"))) })
             }
         }
-        if (!c.care.running && ui.phase != CarePhase.STARTING) {
+        if (opened && !running) {
             SecondaryButton(s("Start again", "फिर से शुरू करें", "Phir se shuru karein"), { c.care.start() })
         }
         TextButton({ context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:108"))) }, Modifier.fillMaxWidth()) {
@@ -158,7 +185,8 @@ private fun Answering(asking: CareFlow.Asking, c: AppContainer, s: (String, Stri
             var text by remember { mutableStateOf("") }
             OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodyLarge,
                 shape = RoundedCornerShape(18.dp),
-                placeholder = { Text(s("Speak, or type here", "बोलिए, या यहाँ लिखिए", "Boliye, ya yahan likhiye")) })
+                // The wave above already says "speak"; the box only offers typing.
+                placeholder = { Text(s("Or type here", "या यहाँ लिखिए", "Ya yahan likhiye")) })
             if (text.isNotBlank()) BigButton(s("Send", "भेजें", "Bhejein"), { c.care.offerText(text); text = "" })
         }
         CareFlow.Asking.NOTHING -> Unit
@@ -183,7 +211,7 @@ private fun NoteCard(note: IntakeNote, s: (String, String, String) -> String) {
 
 /** One hospital being called: name, distance, and a small status pill instead of the call transcript. */
 @Composable
-private fun HospitalCard(row: HospitalRow, s: (String, String, String) -> String) {
+private fun HospitalCard(row: HospitalRow, style: ReplyStyle, s: (String, String, String) -> String) {
     val r = row.result
     val (status, color) = when {
         r == null -> s("Calling…", "फ़ोन जारी…", "Call ho raha hai…") to Amber
@@ -191,8 +219,8 @@ private fun HospitalCard(row: HospitalRow, s: (String, String, String) -> String
         r.specialtyAvailable == false -> s("No doctor", "डॉक्टर नहीं", "Doctor nahi") to Muted
         else -> s("Available", "उपलब्ध", "Available") to Leaf
     }
-    val details = listOfNotNull(row.hospital.etaMinutes?.let { "${it.toInt()} min" }, r?.feeInr?.let { "₹$it" },
-        r?.slots?.firstOrNull()?.let { CareText.time(it.start, com.saathi.app.core.net.ReplyStyle.EN) }).joinToString(" · ")
+    val details = listOfNotNull(row.hospital.etaMinutes?.let { minutes(it, s) }, r?.feeInr?.let { "₹$it" },
+        r?.slots?.firstOrNull()?.let { CareText.time(it.start, style) }).joinToString(" · ")
     Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -211,9 +239,10 @@ private fun HospitalCard(row: HospitalRow, s: (String, String, String) -> String
 
 /** The recommendation as one booking card: who, when, how far, fee, and one big "Book". */
 @Composable
-private fun RecommendationCard(rec: Recommendation, ui: CareUi, c: AppContainer, s: (String, String, String) -> String) {
+private fun RecommendationCard(rec: Recommendation, ui: CareUi, running: Boolean, c: AppContainer, style: ReplyStyle, s: (String, String, String) -> String) {
     var more by remember { mutableStateOf(false) }
-    val style = c.settings.current.replyStyle
+    // Book and No thanks only while the flow can still take them: never buttons that do nothing.
+    val answering = running && !ui.declined
     val p = rec.primary
     Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()) {
@@ -223,24 +252,39 @@ private fun RecommendationCard(rec: Recommendation, ui: CareUi, c: AppContainer,
             p.doctorName?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
             Text(CareText.time(rec.slot.start, style), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             val facts = listOfNotNull((p.etaMinutes ?: ui.hospitals.firstOrNull { it.hospital.id == p.hospitalId }?.hospital?.etaMinutes)
-                ?.let { "${it.toInt()} min" }, p.feeInr?.let { "₹$it" }).joinToString(" · ")
+                ?.let { minutes(it, s) }, p.feeInr?.let { "₹$it" }).joinToString(" · ")
             if (facts.isNotBlank()) Text(facts, fontSize = 18.sp, color = Muted)
         }
     }
-    com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
-        s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye"), MaterialTheme.colorScheme.primary)
-    BigButton(s("Book", "बुक करें", "Book karein"), { c.care.tap(true) }, color = Leaf)
-    SecondaryButton(s("Other times", "दूसरा समय", "Doosra time"), { more = !more })
-    if (more) {
+    if (answering) {
+        com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
+            s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye"), MaterialTheme.colorScheme.primary)
+        BigButton(s("Book", "बुक करें", "Book karein"), { c.care.tap(true) }, color = Leaf)
+    }
+    // After a no, the other times are simply listed: each one books with a tap.
+    if (running && !ui.declined) SecondaryButton(s("Other times", "दूसरा समय", "Doosra time"), { more = !more })
+    if (running && (more || ui.declined)) {
         (listOf(rec.primary) + rec.alternatives).forEach { r ->
             r.slots.forEach { slot ->
                 SecondaryButton("${r.hospitalName} · ${CareText.time(slot.start, style)}", { c.care.choose(r.hospitalId, slot) })
             }
         }
     }
-    TextButton({ c.care.tap(false) }, Modifier.fillMaxWidth()) {
-        Text(s("No thanks", "नहीं, धन्यवाद", "Nahi, shukriya"), style = MaterialTheme.typography.titleMedium, color = Muted)
+    if (answering) {
+        TextButton({ c.care.tap(false) }, Modifier.fillMaxWidth()) {
+            Text(s("No thanks", "नहीं, धन्यवाद", "Nahi, shukriya"), style = MaterialTheme.typography.titleMedium, color = Muted)
+        }
     }
+}
+
+/** "12 min" / "12 मिनट": a travel time in the user's language. */
+private fun minutes(m: Double, s: (String, String, String) -> String): String = m.toInt().let { s("$it min", "$it मिनट", "$it min") }
+
+/** The activity behind a Compose context, which may be wrapped (theme, locale). */
+private tailrec fun android.content.Context.activity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.activity()
+    else -> null
 }
 
 @Composable
@@ -254,15 +298,15 @@ private fun Working(text: String) {
 
 /** The end of the doctor flow: a big tick, when and where, and two quiet follow-ups. */
 @Composable
-private fun Booked(b: BookingStatus, c: AppContainer, s: (String, String, String) -> String) {
+private fun Booked(b: BookingStatus, calendarAdded: Boolean, style: ReplyStyle, s: (String, String, String) -> String) {
     val context = LocalContext.current
-    val style = c.settings.current.replyStyle
     val whenText = (b.startIso ?: b.calendar?.startIso)?.let { CareText.time(it, style) }.orEmpty()
     SuccessView(
         title = s("Booked", "बुक हो गया", "Book ho gaya"),
         line = listOfNotNull(b.doctorName ?: b.calendar?.title, whenText.ifBlank { null }).joinToString(", "),
         note = listOfNotNull(
-            b.calendar?.let { s("Added to your calendar", "कैलेंडर में जोड़ दिया", "Calendar mein jod diya") },
+            // Only once the user said yes and it was written; the question itself is asked by voice.
+            if (calendarAdded) s("Added to your calendar", "कैलेंडर में जोड़ दिया", "Calendar mein jod diya") else null,
             b.bookingRef?.let { "Ref $it" },
         ).joinToString(" · ").ifBlank { null },
     )

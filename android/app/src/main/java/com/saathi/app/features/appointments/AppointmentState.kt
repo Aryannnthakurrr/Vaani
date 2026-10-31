@@ -1,7 +1,9 @@
 package com.saathi.app.features.appointments
 
 import com.saathi.app.core.net.Appointment
+import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -16,8 +18,11 @@ object AppointmentState {
             "|डॉक्टर|अपॉइंटमेंट|क्लिनिक",
     )
 
-    fun start(appt: Appointment?): OffsetDateTime? =
-        appt?.startIso?.let { runCatching { OffsetDateTime.parse(it) }.getOrNull() }
+    /** Start time; a time without an offset ("2026-11-01T11:00:00") is read in the phone's time zone. */
+    fun start(appt: Appointment?): OffsetDateTime? = appt?.startIso?.let { iso ->
+        runCatching { OffsetDateTime.parse(iso) }.getOrNull()
+            ?: runCatching { LocalDateTime.parse(iso).atZone(ZoneId.systemDefault()).toOffsetDateTime() }.getOrNull()
+    }
 
     /** The appointment if it hasn't happened yet (or started under two hours ago). */
     fun upcoming(appt: Appointment?, now: ZonedDateTime): Appointment? {

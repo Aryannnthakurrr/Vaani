@@ -129,11 +129,13 @@ async def take_turn(session: CareSession, text: str, llm: LLMClient) -> dict[str
 
 _AMBULANCE = re.compile(r"ambulance|ambulence|एम्बुलेंस|ऐम्बुलेंस|एंबुलेंस", _I)
 _ASKING = re.compile(
-    r"\b(send|book|call|need|want|get|bhej|bula|chahiye|mangwa|abhi|now|jaldi|turant|please)|भेज|बुला|चाहिए|अभी|जल्दी|तुरंत", _I
+    r"\b(send|book|call|need|want|get|bhej|bula|chahiye|mangwa|abhi|now|jaldi|turant|please)|भेज|बुला|चाहिए|अभी|जल्दी|तुरंत",
+    _I,
 )
 _REFUSING = re.compile(r"\b(mat|nahi|nahin|don'?t|do not|no need|not)\b|मत|नहीं", _I)
 _BOOKING = re.compile(
-    r"\b(appointment|book|booking|number|consult|milna|dikhana|dikhaana|check ?up)\b|अपॉइंटमेंट|बुक|दिखाना|मिलना", _I
+    r"\b(appointment|book|booking|number|consult|milna|dikhana|dikhaana|check ?up)\b|अपॉइंटमेंट|बुक|दिखाना|मिलना",
+    _I,
 )
 _DOCTOR = re.compile(
     r"ortho|cardio|neuro|derma|gyn|p(a)?ediatric|dentist|\bent\b|\beye|skin|specialist|physician|doctor|daktar|"
@@ -143,7 +145,7 @@ _DOCTOR = re.compile(
 
 
 def explicit_request(text: str) -> str | None:
-    """"ambulance" for an outright ask for one, "appointment" for a named doctor or specialist booking, else None."""
+    """ "ambulance" for an outright ask for one, "appointment" for a named doctor or specialist booking, else None."""
     if _AMBULANCE.search(text) and _ASKING.search(text) and not _REFUSING.search(text):
         return "ambulance"
     if _BOOKING.search(text) and _DOCTOR.search(text):
@@ -159,9 +161,13 @@ def _explicit_note(session: CareSession, kind: str, text: str) -> IntakeNote:
                                    triggering_red_flags=note.emergency.triggering_red_flags, acuity=2)  # fmt: skip
         plan = "emergency dispatch (requested by the user)"
         if not session.safety_flags:
-            note.patient_brief = ""  # "send an ambulance now" is a request, not a symptom: the crew checks on arrival
+            note.patient_brief = (
+                ""  # "send an ambulance now" is a request, not a symptom: the crew checks on arrival
+            )
     else:
-        note.emergency = Emergency(answer="NO", reasoning="The user asked to book an appointment; no red flag.", acuity=4)
+        note.emergency = Emergency(
+            answer="NO", reasoning="The user asked to book an appointment; no red flag.", acuity=4
+        )
         plan = f"book a {note.specialty} appointment (requested by the user)"
         note.appointment_timeframe = "next available"
     note.note_text = "\n".join([
@@ -311,13 +317,20 @@ _SPECIALTIES = [
 
 # A specialty the user names ("orthopedic", "cardiologist") wins over a symptom word in the same sentence.
 _NAMED = [
-    ("orthopedics", r"ortho"), ("cardiology", r"cardio"), ("neurology", r"neuro"), ("dermatology", r"derma"),
-    ("gynecology", r"gyn"), ("ent", r"\bent\b"), ("ophthalmology", r"ophthal|eye (doctor|specialist)"),
+    ("orthopedics", r"ortho"),
+    ("cardiology", r"cardio"),
+    ("neurology", r"neuro"),
+    ("dermatology", r"derma"),
+    ("gynecology", r"gyn"),
+    ("ent", r"\bent\b"),
+    ("ophthalmology", r"ophthal|eye (doctor|specialist)"),
 ]
 
 
 def _specialty(text: str) -> str:
-    return next((name for name, pattern in _NAMED + _SPECIALTIES if re.search(pattern, text, _I)), "general medicine")
+    return next(
+        (name for name, pattern in _NAMED + _SPECIALTIES if re.search(pattern, text, _I)), "general medicine"
+    )
 
 
 def _queries(specialty: str) -> list[str]:
