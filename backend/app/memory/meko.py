@@ -23,6 +23,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from app.memory.local import norm_key
+
 log = logging.getLogger("saathi.memory.meko")
 TIMEOUT_S = 30.0
 
@@ -106,12 +108,40 @@ class MekoMemory:
             lambda: self._new_conversation(VOICE, "profile", {"kind": "profile"}, datapack),
         )
 
-    async def remember(self, device: str, text: str, kind: str = "fact", **meta: Any) -> None:
-        await self._call("memory_add", {
+    @staticmethod
+    def _bucket(device: str, kind: str, key: str = "") -> str:
+        """Local id-map prefix for the Meko memories behind one fact (or, without a key, a whole topic)."""
+        return f"meko:mem:{device}:{kind}:" + (f"{key}:" if key else "")
+
+    async def _delete(self, device: str, prefix: str) -> None:
+        if not self.ids:
+            return
+        for memory_id in self.ids.take_ids(prefix):
+            await self._call("memory_delete_by_id", {
+                "memory_id": memory_id, "datapack_id": await self.datapack(device),
+                "conversation_id": await self.profile(device), "agent_id": VOICE,
+            })  # fmt: skip
+
+    async def remember(self, device: str, text: str, kind: str = "other", key: str = "", **meta: Any) -> None:
+        """Mirror a fact. A keyed fact replaces the earlier copy, as it does locally."""
+        key = norm_key(key)
+        if key:
+            await self._delete(device, self._bucket(device, kind, key))
+        added = await self._call("memory_add", {
             "datapack_id": await self.datapack(device), "conversation_id": await self.profile(device),
             "agent_id": VOICE, "text": text,
-            "metadata": json.dumps({"kind": kind, **{k: str(v) for k, v in meta.items()}}),
+            "metadata": json.dumps({"kind": kind, "key": key, **{k: str(v) for k, v in meta.items()}}),
         })  # fmt: skip
+        if (
+            self.ids
+        ):  # Meko may split one fact into several memories; keep every id so forget removes them all
+            for hit in _items(added, "results", "memories"):
+                if hit.get("id"):
+                    self.ids.set_id(self._bucket(device, kind, key or "_") + str(hit["id"]), str(hit["id"]))
+
+    async def forget(self, device: str, kind: str, key: str = "") -> None:
+        key = norm_key(key)
+        await self._delete(device, self._bucket(device, kind, key))
 
     async def recall(self, device: str, query: str, limit: int = 5) -> list[str]:
         found = await self._call("memory_search", {
