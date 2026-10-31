@@ -200,6 +200,15 @@ class AgentStepRequest(BaseModel):
     screenshot_b64: str | None = None
     history: list[HistoryItem] = Field(default_factory=list)
     task_hint: str | None = None
+    run_id: str | None = Field(default=None, max_length=64)
+
+
+class AgentOutcomeRequest(BaseModel):
+    run_id: str = Field(max_length=64)
+    outcome: Literal["done", "failed", "cancelled"]
+    task_hint: str | None = None
+    goal: str | None = None
+    message: str | None = None
 
 
 # --------------------------------------------------------------------------- intent
