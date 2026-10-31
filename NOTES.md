@@ -443,7 +443,9 @@ project, with the elder served by voice and the family by Telegram plus the fami
 ### Gaps
 - Meko: no key yet; `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Memories
   reach only the Live prompt, not `/intent` or `/agent/step`.
-- Code skills: no SMS `parser` kind; each sandboxed call is a fresh `docker run` (latency not yet measured on the
-  server; serving gives up after 3 s and asks the LLM).
+- Code skills: no SMS `parser` kind. Each sandboxed call is a fresh `docker run`: 0.52–0.61 s on the droplet
+  (measured after deploy; a memory bomb was killed in 0.7 s). Serving gives up after 3 s and asks the LLM.
+- Deployed check: `wss://165-245-196-218.sslip.io/live/voice` through Caddy → `start_task book_doctor` with the
+  right date and first audio in 2.2 s including the tool round trip.
 - Live voice: no camera frames on `/live/voice` (the camera keeps `/live/camera`); not yet tried on the emulator
   with real microphone audio, only text turns through the relay.
