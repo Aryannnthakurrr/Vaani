@@ -12,6 +12,8 @@ import com.saathi.app.core.voice.tr
 import com.saathi.app.util.Packages
 import com.saathi.app.util.SaathiJson
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -50,6 +52,17 @@ class AgentLoop(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val history = mutableListOf<HistoryItem>()
+
+    /**
+     * A progress line still being spoken ("Searching for AIIMS…"). It plays while the loop reads the screen and asks
+     * the model; anything that speaks or asks next waits for it first, so two voices never overlap.
+     */
+    private var talking: Job? = null
+
+    private suspend fun quiet() {
+        talking?.join()
+        talking = null
+    }
 
     /** One id for the whole run: every step and the final outcome carry it (docs/LEARNING.md §1). */
     val runId: String = UUID.randomUUID().toString()
@@ -133,7 +146,11 @@ class AgentLoop(
             }
             invalidInARow = 0
 
-            if (mode == AgentMode.ACT && step % 3 == 0) ui.say(progressLine(action))
+            if (mode == AgentMode.ACT && step % 3 == 0) {
+                quiet()
+                val line = progressLine(action)
+                talking = CoroutineScope(coroutineContext).launch { ui.say(line) }
+            }
 
             when (val result = handle(goal, mode, task, snap, action)) {
                 null -> Unit
@@ -147,6 +164,7 @@ class AgentLoop(
 
     /** Executes one action. Returns an outcome when the run ends, null to keep looping. */
     private suspend fun handle(goal: String, mode: AgentMode, task: TaskContext, snap: ScreenSnapshot, action: AgentAction): AgentOutcome? {
+        if (action.action in SPEAKING_ACTIONS) quiet()
         when (action.action) {
             AgentAction.DONE -> {
                 val msg = action.message.orEmpty()
@@ -212,6 +230,7 @@ class AgentLoop(
         goal: String, mode: AgentMode, task: TaskContext, snap: ScreenSnapshot,
         summary: String, inner: AgentAction, original: AgentAction,
     ): AgentOutcome? {
+        quiet()
         val yes = ui.confirm(summary)
         logLine(goal, original, snap.pkg, "Asked you: $summary — you said ${if (yes) "yes" else "no"}", if (yes) "ok" else "cancelled")
         if (!yes) {
@@ -304,6 +323,7 @@ class AgentLoop(
 
     private suspend fun fail(goal: String, snap: ScreenSnapshot?, message: String): AgentOutcome {
         logLine(goal, AgentAction.fail(message), snap?.pkg ?: "-", "Stopped: $message", "failed")
+        quiet()
         ui.say(message)
         return AgentOutcome.Failed(message)
     }
@@ -345,6 +365,8 @@ class AgentLoop(
     private fun s(en: String, hi: String, hinglish: String) = tr(style(), en, hi, hinglish)
 
     companion object {
+        /** Actions that speak or ask, so they wait for a progress line that is still playing. */
+        private val SPEAKING_ACTIONS = setOf(AgentAction.DONE, AgentAction.FAIL, AgentAction.ASK_USER, AgentAction.HIGHLIGHT, AgentAction.CONFIRM)
         const val MAX_STEPS = 25
         const val MAX_SAME_SCREEN = 3
         const val HISTORY = 6

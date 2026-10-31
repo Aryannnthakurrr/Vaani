@@ -14,6 +14,7 @@ import com.saathi.app.core.net.AgentAction
 import com.saathi.app.util.Packages
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -120,16 +121,7 @@ class AccessibilityActionExecutor(
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }.isSuccess
 
-    override suspend fun awaitSettle() {
-        withTimeoutOrNull(SETTLE_MAX_MS) {
-            while (true) {
-                val quiet = withTimeoutOrNull(SETTLE_QUIET_MS) {
-                    AgentService.events.filter { it.kind != UiEventKind.CLICKED }.first() // scrolling = not settled yet
-                }
-                if (quiet == null) break
-            }
-        }
-    }
+    override suspend fun awaitSettle() = awaitQuiet(AgentService.events)
 
     override suspend fun awaitUserInteraction(timeoutMs: Long): Boolean =
         withTimeoutOrNull(timeoutMs) {
@@ -142,7 +134,21 @@ class AccessibilityActionExecutor(
         } ?: false
 
     companion object {
-        const val SETTLE_QUIET_MS = 600L
-        const val SETTLE_MAX_MS = 5_000L
+        /**
+         * Returns once [events] have been quiet for [quietMs], or after [maxMs] at most. Clicks don't count; scrolling
+         * and content changes mean "not settled yet".
+         */
+        suspend fun awaitQuiet(events: Flow<UiEvent>, quietMs: Long = SETTLE_QUIET_MS, maxMs: Long = SETTLE_MAX_MS) {
+            withTimeoutOrNull(maxMs) {
+                while (true) {
+                    withTimeoutOrNull(quietMs) { events.filter { it.kind != UiEventKind.CLICKED }.first() } ?: break
+                }
+            }
+        }
+
+        const val SETTLE_QUIET_MS = 400L
+        // Apps with live maps or animations (Uber) never go quiet, so this cap is paid on every step there: 5 s
+        // made a 10-step booking wait ~50 s on top of the model. A screen read mid-load costs at most one `wait` step.
+        const val SETTLE_MAX_MS = 2_000L
     }
 }

@@ -72,6 +72,10 @@ def _with_when(item: dict[str, Any], today: date) -> dict[str, Any]:
     return item
 
 
+# Seconds to wait on the primary model before also asking the fallback (per route: `hedge_s` in models.yaml).
+HEDGE_S = 2.5
+
+
 class GeminiClient:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -92,31 +96,67 @@ class GeminiClient:
         )
         models = [cfg["model"], *([cfg["fallback"]] if cfg.get("fallback") else [])]
         timeout = float(cfg.get("timeout_s", 8))
-        for i, model in enumerate(models):
+        return await self._hedged(route, models, contents, config, timeout, float(cfg.get("hedge_s", HEDGE_S)))
+
+    async def _hedged(
+        self, route: str, models: list[str], contents: list[Any], config: types.GenerateContentConfig,
+        timeout: float, hedge_s: float,
+    ) -> str:
+        """Ask the primary model; if it hasn't answered after `hedge_s` (or failed retryably), ask the fallback too and
+        return whichever answers first. The same model swings between ~1 s and ~20 s with Google-side load
+        (measured 2026-10-31), so waiting on one model until `timeout` is what made Saathi feel slow."""
+
+        async def call(model: str) -> str:
             started = time.perf_counter()
             try:
-                resp = await asyncio.wait_for(
-                    self.client.aio.models.generate_content(model=model, contents=contents, config=config),
-                    timeout,
-                )
+                resp = await self.client.aio.models.generate_content(model=model, contents=contents, config=config)
                 METER.llm(model, getattr(resp, "usage_metadata", None))
                 return resp.text or ""
-            except Exception as exc:
-                # Overloaded (503/429) or slow: try the fallback model once; anything else is a real error.
-                retryable = isinstance(exc, TimeoutError) or any(
-                    c in str(exc)[:12] for c in ("503", "429", "500")
-                )
-                if i + 1 < len(models) and retryable:
-                    log.info(
-                        "route=%s model=%s failed (%s); trying fallback", route, model, type(exc).__name__
-                    )
-                    continue
-                raise
             finally:
-                log.info(
-                    "route=%s model=%s latency_ms=%d", route, model, (time.perf_counter() - started) * 1000
-                )
-        raise RuntimeError("unreachable")
+                log.info("route=%s model=%s latency_ms=%d", route, model, (time.perf_counter() - started) * 1000)
+
+        def retryable(exc: BaseException) -> bool:
+            return isinstance(exc, TimeoutError) or any(c in str(exc)[:12] for c in ("503", "429", "500"))
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        waiting = list(models)
+        running: dict[asyncio.Task[str], str] = {}
+        last_error: BaseException | None = None
+
+        def start_next() -> None:
+            if waiting:
+                model = waiting.pop(0)
+                running[asyncio.create_task(call(model))] = model
+
+        start_next()
+        try:
+            while running:
+                left = deadline - loop.time()
+                if left <= 0:
+                    raise TimeoutError(f"{route}: no answer from {list(running.values())} in {timeout:.0f}s")
+                # Before the hedge point, only wait that long for the primary; after it, wait for anyone.
+                wait_for = min(left, hedge_s) if waiting else left
+                done, _ = await asyncio.wait(running, timeout=wait_for, return_when=asyncio.FIRST_COMPLETED)
+                if not done:
+                    if waiting:
+                        log.info("route=%s model=%s slow after %.1fs; also asking %s", route, running[next(iter(running))], hedge_s, waiting[0])
+                        start_next()
+                    continue
+                for task in done:
+                    model = running.pop(task)
+                    exc = task.exception()
+                    if exc is None:
+                        return task.result()
+                    if not retryable(exc):
+                        raise exc
+                    log.info("route=%s model=%s failed (%s)", route, model, type(exc).__name__)
+                    last_error = exc
+                    start_next()
+            raise last_error or RuntimeError(f"{route}: no model answered")
+        finally:
+            for task in running:  # the slower model's answer is no longer needed
+                task.cancel()
 
     async def _json(self, route: str, system: str, contents: list[Any], schema: type[BaseModel]) -> BaseModel:
         """Validate with Pydantic; on failure retry once with the error appended. Raises on second failure."""

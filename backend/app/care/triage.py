@@ -7,6 +7,8 @@ over, and with no red flag the user is asked directly whether it is an emergency
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -17,6 +19,7 @@ from app.care.session import MAX_FOLLOWUPS, CareSession
 from app.llm.base import LLMClient
 from app.llm.prompts import render
 
+log = logging.getLogger("saathi.care.triage")
 EMERGENCY_CHECK = "emergency_check"
 _I = re.IGNORECASE
 
@@ -119,7 +122,13 @@ async def take_turn(session: CareSession, text: str, llm: LLMClient) -> dict[str
 
 async def next_step(session: CareSession, llm: LLMClient) -> str | IntakeNote:
     """The next follow-up question to ask, or the finished note (stored on the session with its route)."""
-    if session.safety_flags or len(session.followups) >= MAX_FOLLOWUPS:
+    if session.safety_flags:
+        # A red flag starts the emergency at once with the template note; the model's fuller note replaces it in the
+        # background during the countdown (it can take up to ~10 s, which must not delay the ambulance).
+        note = _finalize(session, template_note(session))
+        _background(_refine_emergency_note(session, llm))
+        return note
+    if len(session.followups) >= MAX_FOLLOWUPS:
         return await _finish(session, llm)
     out = await llm.structured("care_triage", _system(session), _transcript(session), TriageOut)
     if isinstance(out, TriageOut):
@@ -128,6 +137,26 @@ async def next_step(session: CareSession, llm: LLMClient) -> str | IntakeNote:
         if out.note:
             return _finalize(session, out.note)
     return _scripted_question(session) or await _finish(session, llm)
+
+
+_tasks: set[asyncio.Task[None]] = set()
+
+
+def _background(coro) -> None:  # type: ignore[no-untyped-def]
+    task = asyncio.get_running_loop().create_task(coro)
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
+
+
+async def _refine_emergency_note(session: CareSession, llm: LLMClient) -> None:
+    """Swaps in the model's note if it arrives before the ambulance is requested; the route stays A either way."""
+    try:
+        out = await llm.structured("care_triage", _system(session, questions_left=0), _transcript(session), TriageOut)
+    except Exception:  # noqa: BLE001 - the template note is already good enough to dispatch
+        log.info("emergency note refinement failed; keeping the template note")
+        return
+    if isinstance(out, TriageOut) and out.note and not session.emergency.get("dispatch_id"):
+        _finalize(session, out.note)
 
 
 async def _finish(session: CareSession, llm: LLMClient) -> str | IntakeNote:

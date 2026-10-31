@@ -78,7 +78,7 @@ class TaskRunner(private val c: AppContainer) {
             val first = screen.read()
             if (SafetyPolicy.validate(launch, first, AgentMode.ACT, trustedDeeplinks = task.trustedDeeplinks) is Verdict.Allow) {
                 performer.perform(launch, first)
-                delay(1500)
+                delay(800) // let the app's first window appear; awaitSettle then waits for it to calm down
                 performer.awaitSettle()
                 awaitLoaded(screen, pkg)
             }
