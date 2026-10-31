@@ -58,7 +58,8 @@ object Permissions {
                 "Taaki main scam messages pehchaan sakoon aur suspicious call par aapko savdhaan kar sakoon.") },
             { has(it, Manifest.permission.RECEIVE_SMS) && has(it, Manifest.permission.READ_PHONE_STATE) && has(it, Manifest.permission.READ_CALL_LOG) },
             runtime = listOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS, Manifest.permission.READ_PHONE_STATE,
-                Manifest.permission.READ_CALL_LOG, Manifest.permission.ANSWER_PHONE_CALLS, Manifest.permission.READ_CONTACTS)))
+                Manifest.permission.READ_CALL_LOG, Manifest.permission.ANSWER_PHONE_CALLS, Manifest.permission.READ_CONTACTS,
+                Manifest.permission.READ_PHONE_NUMBERS)))
         add(PermissionStep("camera_cal", "📷", { tr(it, "Camera and calendar", "कैमरा और कैलेंडर", "Camera aur calendar") },
             { tr(it, "So I can read product labels and save your doctor visits.", "ताकि मैं सामान के लेबल पढ़ सकूँ और डॉक्टर की मुलाक़ात सेव कर सकूँ।",
                 "Taaki main labels padh sakoon aur doctor appointments save kar sakoon.") },

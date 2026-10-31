@@ -1,4 +1,9 @@
-# Every model ID the backend uses lives in this file only. Verified 2026-10-31 against
+# Every model ID the backend uses lives in this file only.
+# 2026-11-01: every reasoning route (no voice, Sarvam or realtime) runs Gemma 4 31B on DigitalOcean serverless
+# inference (app/llm/do_inference.py, DIGITALOCEAN_INFERENCE_KEY); its old Gemini model is the fallback. Measured
+# 2.7-6 s per call, JSON mode and images both work. Qwen 3.8 Max (same endpoint, 1-2 s, images too) takes hard
+# screens and the skill compiler, and gives the `second_opinion` when Gemma's answer is invalid. DigitalOcean has no
+# Gemini model, so the `fallback` (outage or timeout) is Gemini 3.5 Flash Lite through Google directly. Verified 2026-10-31 against
 # https://ai.google.dev/gemini-api/docs/models and https://docs.sarvam.ai (see BACKEND_NOTES.md).
 
 # Measured with the live key on 2026-10-31: gemini-3.8-flash was overloaded (503s, one 166 s answer) and does not
@@ -7,22 +12,21 @@
 # Later the same day the same key took 10 s (flash-lite) and 17 s (flash) for "Say OK", with ~50 ms of network, so
 # agent steps allow 20-25 s per model. The phone waits 55 s per step (BackendClient.agentHttp) to cover the fallback.
 # intent_router stays short: the phone gives up after 4 s and answers with its own keyword rules.
-# Hedging (GeminiClient._hedged): if the primary hasn't answered after `hedge_s` (default 2.5 s), the
-# fallback is asked too and the first answer wins; `timeout_s` is now the total for both. Measured 2026-10-31: either
-# model can take 1 s or 20 s within minutes of each other, so neither is reliably first.
-intent_router:       { model: gemini-3.5-flash,       thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.1, json: true, timeout_s: 5, hedge_s: 1.5 }
+intent_router:       { model: gemma-4-31B-it,       thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.1, json: true, timeout_s: 5, hedge_s: 2 }
 # On a real Uber run flash took 16 s + 12 s (invalid JSON, retried) and then timed out at 20 s, while flash-lite answered
 # in 1.4 s; agent steps tried flash-lite first. At 23:00 on 2026-10-31 flash-lite timed out on most calls while
 # flash answered in 2-5 s, so intent_router and agent_step try flash first again. agent_step_hard keeps the stronger model for repeated failures.
-agent_step:          { model: gemini-3.5-flash,       thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.2, json: true, vision: true, timeout_s: 12 }
-# pro-preview took 4-65 s as a fallback (2026-10-31), so the hard route falls back to flash-lite instead.
-agent_step_hard:     { model: gemini-3.5-flash,       thinking: low,     fallback: gemini-3.5-flash-lite, temperature: 0.2, json: true, vision: true, timeout_s: 20 }
-classify_messages:   { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.0, json: true, timeout_s: 8 }
-extract_appointment: { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.0, json: true, timeout_s: 8 }
-link_verdict:        { model: gemini-3.5-flash,       thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.0, json: true, vision: true, timeout_s: 15 }
-digest_writer:       { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.4, timeout_s: 8 }
+# hedge_s measured 2026-11-01 (home WiFi): Gemma 1.8-3.1 s on a real 7.8k-token agent screen, 0.9-1.0 s on short prompts,
+# so the fallback joins only a call that has clearly stalled. Gemini flash-lite did the same screen in 0.7-0.8 s then,
+# but took 8-20 s earlier the same night.
+agent_step:          { model: gemma-4-31B-it,       thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.2, json: true, vision: true, timeout_s: 12, hedge_s: 3.5 }
+agent_step_hard:     { model: qwen3.8-max,           thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.2, json: true, vision: true, timeout_s: 15 }
+classify_messages:   { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.0, json: true, timeout_s: 8 }
+extract_appointment: { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.0, json: true, timeout_s: 8 }
+link_verdict:        { model: gemma-4-31B-it,       thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.0, json: true, vision: true, timeout_s: 15 }
+digest_writer:       { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.4, timeout_s: 8 }
 # Skill compiler: runs rarely (only when a task has enough new runs), so it uses the strongest model.
-skill_compiler:      { model: gemini-4-argon,         thinking: high, fallback: gemini-3.1-pro-preview, temperature: 0.1, timeout_s: 180, hedge_s: 90 }
+skill_compiler:      { model: qwen3.8-max,             thinking: high, fallback: gemini-3.5-flash-lite, temperature: 0.1, timeout_s: 180 }
 camera_live:         { model: gemini-3.8-live }       # Live API: 16 kHz PCM + JPEG in, 24 kHz PCM out
 # The elder's spoken conversation (docs/LEARNING.md §2). Both IDs listed with bidiGenerateContent on the key, 2026-10-31.
 # Gemini Live runs the conversation and speaks in its own voice (no extra delay). Aoede, an English voice, sounded
@@ -30,13 +34,13 @@ camera_live:         { model: gemini-3.8-live }       # Live API: 16 kHz PCM + J
 # whatever the user just spoke (English, Hindi or Hinglish). speak_with: sarvam re-speaks replies in the tts voice
 # below instead (the hospital-call voice), at about 1-2 s extra per reply.
 voice_live:          { model: gemini-3.8-live, fallback: gemini-3.1-flash-live-preview, voice: Sulafat, speak_with: gemini }
-clinic_call:         { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.3, json: true, timeout_s: 8 }   # stretch: simulated call turns
+clinic_call:         { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.3, json: true, timeout_s: 8 }   # stretch: simulated call turns
 clinic_call_live:    { model: gemini-3.8-live }       # stretch: real telephony bridge (not built)
 # Symptom-to-care (docs/CARE.md). Every route has a rule-based fallback, so a slow model never blocks the user.
 # On the phone flash timed out at 20 s on the first intake turn; flash-lite then answered in 4.4 s.
-care_triage:         { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.2, json: true, timeout_s: 10 }
-care_capability:     { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.0, json: true, timeout_s: 12 }
-care_extract:        { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.0, json: true, timeout_s: 15 }
+care_triage:         { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.2, json: true, timeout_s: 10 }
+care_capability:     { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.0, json: true, timeout_s: 12 }
+care_extract:        { model: gemma-4-31B-it,  thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.0, json: true, timeout_s: 15 }
 
 # Speech: Sarvam, turn-based only
 stt:

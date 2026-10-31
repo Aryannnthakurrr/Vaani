@@ -168,7 +168,7 @@ class Assistant(private val c: AppContainer) {
         // Only a clean place name qualifies: "मुझे Saket" would not geocode, so the Uber deep link would be lost.
         val local = LocalIntentRules.route(text)
         val intent = local.takeIf { it.intent == "book_cab" && LocalIntentRules.cleanPlace(it.slots.destination) }
-            ?: withTimeoutOrNull(4_000) { runCatching { c.backend.intent(text, heardStyle) }.getOrNull() }
+            ?: withTimeoutOrNull(6_000) { runCatching { c.backend.intent(text, heardStyle) }.getOrNull() } // Gemma takes ~3.5 s
             ?: local
         dispatch(intent, text, c.settings.current.autoStyle(ReplyStyle.from(intent.replyStyle ?: heardStyle.wire)))
     }
@@ -177,10 +177,11 @@ class Assistant(private val c: AppContainer) {
         val reply = intent.replyText ?: LocalIntentRules.reply(intent.intent, intent.slots, replyStyle)
         val task = Tasks.forIntent(intent.intent)?.takeUnless { it == Tasks.PRACTO && !wantsPracto(intent.slots, utterance) }
         when {
-            intent.intent == "book_doctor" && task == null -> { c.speaker.say(reply, replyStyle); startCare() }
+            // The care flow takes the sentence as its first turn, so "send an ambulance now" acts at once.
+            intent.intent == "book_doctor" && task == null -> startCare(utterance)
             task != null -> { ui.say(reply); runTask(task, intent.slots, preferredApp(utterance)) }
             intent.intent == "guide" -> { ui.say(reply); runGuide(utterance) }
-            intent.intent == "care" -> { c.speaker.say(reply, replyStyle); startCare() }
+            intent.intent == "care" -> startCare(utterance)
             intent.intent == "camera" -> { c.speaker.say(reply, replyStyle); openScreen("camera") }
             intent.intent == "digest" -> { openScreen("digest"); c.digest.speak() }
             intent.intent == "settings" -> { c.speaker.say(reply, replyStyle); openScreen("settings") }
@@ -190,8 +191,8 @@ class Assistant(private val c: AppContainer) {
     }
 
     /** The symptom-to-care flow (docs/CARE.md): what "I need a doctor" means unless Practo or a named doctor was asked for. */
-    fun startCare() {
-        c.care.start()
+    fun startCare(firstWords: String? = null) {
+        c.care.start(firstWords)
         openScreen("care")
     }
 

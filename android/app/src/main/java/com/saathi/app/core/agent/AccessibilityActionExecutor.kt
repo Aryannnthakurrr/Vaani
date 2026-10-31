@@ -146,9 +146,11 @@ class AccessibilityActionExecutor(
             }
         }
 
-        const val SETTLE_QUIET_MS = 400L
-        // Apps with live maps or animations (Uber) never go quiet, so this cap is paid on every step there: 5 s
-        // made a 10-step booking wait ~50 s on top of the model. A screen read mid-load costs at most one `wait` step.
+        const val SETTLE_QUIET_MS = 350L
+        /**
+         * Apps that never stop animating (Uber's live map, Pronto's banners) keep sending events, so they used to hit
+         * this cap after every tap; 2 s is enough for a screen change to land.
+         */
         const val SETTLE_MAX_MS = 2_000L
     }
 }

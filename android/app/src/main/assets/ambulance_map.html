@@ -6,33 +6,55 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  html, body, #map { margin: 0; height: 100%; background: #e8e8e8; }
-  .amb { font-size: 30px; line-height: 30px; text-align: center; transition: transform .2s linear; }
-  .pin { font-size: 30px; line-height: 30px; }
+  /* Inside the app's scrolling screen the page reports a height of 0, so "100%" alone draws nothing: the box gets a
+     minimum height of its own (EmergencyScreen.kt sets the real one with setHeight()). */
+  html, body, #map { margin: 0; height: 100%; min-height: 320px; background: #eef0eb; }
+  .leaflet-control-attribution { font-size: 9px; }
   .fail { display: flex; height: 100%; align-items: center; justify-content: center; font: 18px sans-serif; color: #555; }
+  .you { width: 22px; height: 22px; border-radius: 50%; background: #1a73e8; border: 4px solid #fff;
+         box-shadow: 0 0 0 8px rgba(26,115,232,.18), 0 2px 6px rgba(0,0,0,.35); box-sizing: border-box; }
+  .amb { width: 54px; height: 54px; border-radius: 16px; background: #c62828; border: 3px solid #fff;
+         box-shadow: 0 3px 10px rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+  .label { font: 600 14px/1.1 Roboto, sans-serif; color: #222; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+           white-space: nowrap; text-align: center; }
 </style>
 </head>
 <body>
 <div id="map"></div>
 <script>
-// Called from EmergencyScreen.kt: init(), setRoute(), move(). Positions animate over each 1 s update.
-if (!window.L) { // no internet for the map library: say so instead of a blank box; the calls below become no-ops
+// Called from EmergencyScreen.kt: setHeight(), init(), setRoute(), move(). Movement is eased over each 1 s update.
+window.onerror = (msg, src, line) => console.error("map script error: " + msg + " @" + line);
+if (!window.L) {
   document.getElementById("map").outerHTML = '<div class="fail">Map unavailable. The ambulance is still on its way.</div>';
   window.L = null;
 }
 const map = L && L.map("map", {zoomControl: false, attributionControl: true}).setView([20.6, 78.9], 5);
-// OSM's own tile server refuses requests without a website Referer (a WebView page has none); CARTO serves OSM data without that.
 if (map) {
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    {maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO"}).addTo(map);
-  window.addEventListener("resize", () => map.invalidateSize());
+  // Esri's street map needs no API key (CARTO now does).
+  const tiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    {maxZoom: 19, attribution: "Tiles © Esri"}).addTo(map);
+  let tileErrors = 0;
+  tiles.on("tileerror", (e) => { if (tileErrors++ < 3) console.error("tile failed: " + (e.tile && e.tile.src)); });
+  if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById("map"));
 }
-let patient = null, route = [], ahead = null, done = null, amb = null, current = null, anim = null, fitted = false;
+const BAG = '<svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 4h6V5H9v2zm2 4v3H8v2h3v3h2v-3h3v-2h-3v-3h-2z"/></svg>';
+let you = null, route = [], ahead = null, done = null, amb = null, current = null, anim = null, fitted = false;
 
-function init(lat, lng) {
+function setHeight(px) {
   if (!map) return;
-  if (patient) return;
-  patient = L.marker([lat, lng], {icon: L.divIcon({className: "pin", html: "📍", iconSize: [30, 30], iconAnchor: [15, 30]})}).addTo(map);
+  document.documentElement.style.height = document.body.style.height = document.getElementById("map").style.height = px + "px";
+  map.invalidateSize();
+}
+
+function labelled(html, label, size, anchorY) {
+  return L.divIcon({className: "", iconSize: [120, size + 22], iconAnchor: [60, anchorY],
+    html: '<div style="display:flex;flex-direction:column;align-items:center">' + html + '<div class="label">' + label + '</div></div>'});
+}
+
+function init(lat, lng, youLabel) {
+  if (!map || you) return;
+  map.invalidateSize();
+  you = L.marker([lat, lng], {icon: labelled('<div class="you"></div>', youLabel || "You", 22, 11), zIndexOffset: 500}).addTo(map);
   map.setView([lat, lng], 15);
 }
 
@@ -41,9 +63,9 @@ function setRoute(points) {
   route = points;
   if (ahead) ahead.remove();
   if (done) done.remove();
-  done = L.polyline([], {color: "#9e9e9e", weight: 6}).addTo(map);
-  ahead = L.polyline(route, {color: "#d32f2f", weight: 6}).addTo(map);
-  if (!fitted && route.length) { map.fitBounds(ahead.getBounds(), {padding: [30, 30]}); fitted = true; }
+  done = L.polyline([], {color: "#9e9e9e", weight: 6, opacity: .8}).addTo(map);
+  ahead = L.polyline(route, {color: "#c62828", weight: 6}).addTo(map);
+  if (!fitted && route.length) { map.fitBounds(ahead.getBounds(), {padding: [50, 50]}); fitted = true; }
 }
 
 function nearestIndex(lat, lng) {
@@ -52,14 +74,9 @@ function nearestIndex(lat, lng) {
   return best;
 }
 
-function place(lat, lng, heading) {
-  if (!amb) {
-    amb = L.marker([lat, lng], {icon: L.divIcon({className: "", html: '<div class="amb" id="ambIcon">🚑</div>', iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(map);
-  }
+function place(lat, lng, label) {
+  if (!amb) amb = L.marker([lat, lng], {icon: labelled('<div class="amb">' + BAG + '</div>', label || "Ambulance", 54, 27), zIndexOffset: 1000}).addTo(map);
   amb.setLatLng([lat, lng]);
-  const el = document.getElementById("ambIcon");
-  // The emoji faces left; turn it so it points along the heading (0° = north).
-  if (el) el.style.transform = `rotate(${heading - 270}deg)`;
   if (route.length) {
     const i = nearestIndex(lat, lng);
     done.setLatLngs(route.slice(0, i + 1).concat([[lat, lng]]));
@@ -67,19 +84,28 @@ function place(lat, lng, heading) {
   }
 }
 
-function move(lat, lng, heading) {
+const ease = (k) => k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+
+function move(lat, lng, heading, label) {
   if (!map) return;
-  if (!current) { current = [lat, lng]; place(lat, lng, heading); return; }
+  if (!current) { current = [lat, lng]; place(lat, lng, label); keepInView(); return; }
   const from = current.slice(), start = performance.now();
   if (anim) cancelAnimationFrame(anim);
   const step = (t) => {
-    const k = Math.min(1, (t - start) / 1000);
-    const p = [from[0] + (lat - from[0]) * k, from[1] + (lng - from[1]) * k];
-    current = p;
-    place(p[0], p[1], heading);
-    if (k < 1) anim = requestAnimationFrame(step);
+    const k = ease(Math.min(1, (t - start) / 950));
+    current = [from[0] + (lat - from[0]) * k, from[1] + (lng - from[1]) * k];
+    place(current[0], current[1], label);
+    if (k < 1) anim = requestAnimationFrame(step); else keepInView();
   };
   anim = requestAnimationFrame(step);
+}
+
+/** Keeps the ambulance and the patient on screen without jumping: only re-fits when one would leave the view. */
+function keepInView() {
+  if (!amb) return;
+  const pts = [amb.getLatLng()].concat(you ? [you.getLatLng()] : []);
+  const inner = map.getBounds().pad(-0.12);
+  if (!pts.every((p) => inner.contains(p))) map.flyToBounds(L.latLngBounds(pts), {padding: [60, 60], duration: .8, maxZoom: 16});
 }
 </script>
 </body>

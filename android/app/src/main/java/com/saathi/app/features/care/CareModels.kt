@@ -63,6 +63,8 @@ data class IntakeReply(
     val route: String? = null,
     val note: IntakeNote? = null,
     @SerialName("safety_flags") val safetyFlags: List<String> = emptyList(),
+    /** "ambulance" or "appointment" when the user asked outright: dispatch at once, or call hospitals without asking. */
+    val explicit: String? = null,
 )
 
 @Serializable
