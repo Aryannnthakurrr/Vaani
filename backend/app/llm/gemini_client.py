@@ -49,6 +49,15 @@ class _IntentOut(BaseModel):
     reply_text: str
 
 
+def _history_line(action: dict[str, Any], note: str) -> str:
+    """One past step for the prompt. The phone's note carries what the action alone doesn't: the user's answer to an
+    ask_user ("user answered: 60 minutes") or a safety block. Without it the model asked the same question again."""
+    line = json.dumps(action, ensure_ascii=False)
+    if note and note != action.get("reason"):
+        line += f"  -> {note}"
+    return line
+
+
 def _fail(message: str, reason: str) -> dict[str, Any]:
     return {"action": "fail", "message": message, "reason": reason}
 
@@ -178,7 +187,7 @@ class GeminiClient:
         fails = sum(1 for h in req.history[-2:] if h.action.get("action") in {"fail", "back"})
         route = "agent_step_hard" if len(req.history) >= 2 and fails == 2 else "agent_step"
         system = render("agent_step", reply_style=req.language)
-        history = "\n".join(json.dumps(h.action, ensure_ascii=False) for h in req.history[-6:]) or "(none)"
+        history = "\n".join(_history_line(h.action, h.reason) for h in req.history[-6:]) or "(none)"
         prompt = (
             f"Mode: {req.mode}\nGoal: {req.goal}\nTask: {req.task_hint or '-'}\nReply style: {req.language}\n"
             f"Recent actions:\n{history}\n\nCurrent screen:\n{req.screen_text}"

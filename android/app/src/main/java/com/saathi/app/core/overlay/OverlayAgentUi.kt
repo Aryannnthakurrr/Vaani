@@ -213,6 +213,7 @@ class OverlayAgentUi(
 
     override fun setRunning(running: Boolean) {
         val o = overlay() ?: return
+        o.setCompact(running)
         if (running) o.showStop(onStop) else {
             o.hideStop()
             o.hideCaption()

@@ -58,6 +58,7 @@ class TaskRunner(private val c: AppContainer) {
         val pkg = targetPackage(spec, preferredPkg)
         val scenario = if (pkg == Packages.FLIPKART) FLIPKART_SCENARIO else spec.scenario
         val (screen, performer) = io(scenario) ?: return notReady(ui)
+        (screen as? com.saathi.app.core.agent.LiveScreenReader)?.preferredPackage = pkg
         val replay = c.settings.current.replayMode
         if (!replay && !installed(pkg)) {
             val msg = tr(style, "${Packages.displayName(pkg)} is not installed on this phone.",

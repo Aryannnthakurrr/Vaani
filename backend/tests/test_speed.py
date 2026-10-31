@@ -77,3 +77,11 @@ async def test_cancel_session_stops_its_call_tasks_only() -> None:
     await asyncio.sleep(0.1)
     assert other.is_set() and not calls_task.is_set()
     assert any(e["type"] == "care_cancelled" for e in s.events)
+
+
+def test_step_history_includes_the_users_answer() -> None:
+    line = gemini_client._history_line({"action": "ask_user", "question": "30, 60 or 90 mins?", "reason": "no duration"},
+                                       "user answered: 60 minutes")  # fmt: skip
+    assert line.endswith("-> user answered: 60 minutes")
+    # An ordinary step's note is just its own reason: not repeated.
+    assert "->" not in gemini_client._history_line({"action": "tap", "id": 3, "reason": "open it"}, "open it")

@@ -133,6 +133,7 @@ class OverlayController(private val ctx: Context, private val container: AppCont
             c.root.setPadding(margin * 2, margin + 4, margin * 2, margin + 4)
             caption = c
         }
+        applyCompact(c)
         c.label.text = text
         c.label.contentDescription = text
         c.status.text = status
@@ -147,6 +148,38 @@ class OverlayController(private val ctx: Context, private val container: AppCont
     }
 
     fun hideCaption() = ui { caption?.let { remove(it.root) }; caption = null }
+
+    private var compact = false
+
+    /**
+     * While Saathi works inside another app the caption shrinks to a slim bar at the top (smaller type, three lines
+     * at most), so it no longer covers the app's buttons and time slots. Questions still show in full on their cards.
+     */
+    fun setCompact(on: Boolean) = ui {
+        compact = on
+        caption?.let(::applyCompact)
+    }
+
+    private fun applyCompact(c: OverlayViews.Caption) {
+        c.label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, if (compact) 16f else 24f)
+        c.label.maxLines = if (compact) 3 else Int.MAX_VALUE
+        c.label.ellipsize = if (compact) android.text.TextUtils.TruncateAt.END else null
+        c.status.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, if (compact) 13f else 18f)
+        val pad = OverlayViews.dp(ctx, if (compact) 8 else 16)
+        c.root.setPadding(OverlayViews.dp(ctx, if (compact) 14 else 20), pad, OverlayViews.dp(ctx, if (compact) 14 else 20), pad)
+        (c.root.layoutParams as? WindowManager.LayoutParams)?.let { lp ->
+            lp.y = OverlayViews.dp(ctx, if (compact) 4 else 40)
+            added[c.root]?.let { wm -> runCatching { wm.updateViewLayout(c.root, lp) } }
+        }
+    }
+
+    /**
+     * Hides every Saathi overlay for a moment so a full-screen screenshot shows only the app (phones before
+     * Android 14, which can't capture a single window). Views stay in place; only their visibility changes.
+     */
+    fun setHiddenForCapture(hidden: Boolean) = ui {
+        added.keys.forEach { it.visibility = if (hidden) View.INVISIBLE else View.VISIBLE }
+    }
 
     fun showStop(onStop: () -> Unit) = ui {
         if (stopChip != null) return@ui

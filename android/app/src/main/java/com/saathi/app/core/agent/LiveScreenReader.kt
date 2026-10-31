@@ -9,6 +9,7 @@ import android.view.Display
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import com.saathi.app.util.Packages
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.ByteArrayOutputStream
@@ -30,7 +31,7 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
 
     override suspend fun read(): ScreenSnapshot {
         val svc = service() ?: return ScreenSnapshot("unknown", null, secure = false, nodes = emptyList())
-        val roots = roots(svc)
+        val (main, roots) = roots(svc)
         val pkg = roots.firstOrNull()?.packageName?.toString() ?: AgentService.foreground.value
         val collected = ArrayList<NodeRef>()
         roots.forEach { walk(it, 0, collected) }
@@ -49,23 +50,46 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
         lastFingerprint = fingerprint
         val wantShot = sparse || unchanged || pkg in VISUAL_APPS
         var note: String? = null
-        if (wantShot && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) screenshot(svc)?.let { (b64, n) -> shot = b64; note = n }
+        if (wantShot && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) screenshot(svc, main)?.let { (b64, n) -> shot = b64; note = n }
         val secure = nodes.isEmpty() && shot == null
         return ScreenSnapshot(pkg, title, secure, nodes, screenshotB64 = shot, needsScreenshot = sparse && !secure, screenshotNote = note)
     }
 
     private var lastFingerprint: String? = null
 
-    private fun roots(svc: AgentService): List<AccessibilityNodeInfo> {
-        val active = svc.rootInActiveWindow
-        val others = runCatching {
-            svc.windows.filter {
-                it.type == AccessibilityWindowInfo.TYPE_APPLICATION || it.type == AccessibilityWindowInfo.TYPE_SYSTEM
-            }.mapNotNull { it.root }
-        }.getOrDefault(emptyList())
-        return (listOfNotNull(active) + others)
-            .filter { it.packageName?.toString() != Packages.SELF }
-            .distinctBy { it.windowId }
+    /**
+     * The app the task runs in (set by TaskRunner); kept as the screen being read while its window is visible, even
+     * when one of Saathi's own windows (question card, caption) holds the focus.
+     */
+    @Volatile var preferredPackage: String? = null
+
+    /**
+     * The main app window first, then dialogs from other apps. The main window is the task's app when visible, else
+     * the active window, else the focused application window. Saathi's windows are skipped, and so are launcher and
+     * edge-panel windows behind or beside the app: taking "the first window" used to pick the Samsung launcher whenever
+     * Saathi's question card had the focus, and the task stopped with "can't work in the launcher".
+     */
+    private fun roots(svc: AgentService): Pair<AccessibilityWindowInfo?, List<AccessibilityNodeInfo>> {
+        val windows = runCatching { svc.windows }.getOrDefault(emptyList())
+        fun pkgOf(n: AccessibilityNodeInfo?) = n?.packageName?.toString()
+        val apps = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .mapNotNull { w -> w.root?.takeIf { pkgOf(it) != Packages.SELF }?.let { w to it } }
+        val activeRoot = svc.rootInActiveWindow?.takeIf { pkgOf(it) != Packages.SELF && pkgOf(it) !in BACKGROUND_PACKAGES }
+        // A React Native pop-up sheet (Pronto's slot picker) is its own window of the same app: take the top one.
+        val main: Pair<AccessibilityWindowInfo?, AccessibilityNodeInfo>? = apps.filter { pkgOf(it.second) == preferredPackage }
+            .maxByOrNull { it.first.layer }
+            ?: activeRoot?.let { r -> apps.firstOrNull { it.second.windowId == r.windowId } ?: (null to r) }
+            ?: apps.firstOrNull { it.first.isFocused && pkgOf(it.second) !in BACKGROUND_PACKAGES }
+            ?: apps.firstOrNull { pkgOf(it.second) !in BACKGROUND_PACKAGES }
+            ?: apps.firstOrNull()
+        val dialogs = windows
+            .filter { it.type == AccessibilityWindowInfo.TYPE_SYSTEM || it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .mapNotNull { it.root }
+            .filter { pkgOf(it) != Packages.SELF && pkgOf(it) !in BACKGROUND_PACKAGES && it.windowId != main?.second?.windowId }
+        // Capture a single window only when the app has just that one; with a pop-up on top, the full screen is
+        // captured (with Saathi's overlays hidden) so the sheet and the page behind it are both in the picture.
+        val samePkg = apps.count { pkgOf(it.second) == pkgOf(main?.second) }
+        return main?.first?.takeIf { samePkg == 1 } to (listOfNotNull(main?.second) + dialogs).distinctBy { it.windowId }
     }
 
     private fun walk(n: AccessibilityNodeInfo, depth: Int, out: MutableList<NodeRef>) {
@@ -89,38 +113,68 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
         for (i in 0 until n.childCount) n.getChild(i)?.let { walk(it, if (keep) depth + 1 else depth, out) }
     }
 
-    /** Downscaled JPEG (max 1080 px tall, q70) for sparse trees. Null for FLAG_SECURE windows. */
-    /** A JPEG of the screen (at most 1080 px tall) and a note telling the model how image pixels map to taps. */
-    private suspend fun screenshot(svc: AgentService): Pair<String, String>? {
+    /**
+     * A JPEG (at most 1080 px tall) of what the app shows, and a note telling the model how image pixels map to taps.
+     * On Android 14+ only the app's own window is captured, so Saathi's caption, mic bubble and question card never
+     * cover Pronto's slots; older phones hide those overlays for the moment of the capture instead.
+     */
+    private suspend fun screenshot(svc: AgentService, window: AccessibilityWindowInfo?): Pair<String, String>? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        val bitmap = withTimeoutOrNull(2_000) {
-            suspendCancellableCoroutine<Bitmap?> { cont ->
-                svc.takeScreenshot(Display.DEFAULT_DISPLAY, executor, object : AccessibilityService.TakeScreenshotCallback {
-                    override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
-                        val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
-                        val soft = hw?.copy(Bitmap.Config.ARGB_8888, false)
-                        result.hardwareBuffer.close()
-                        if (cont.isActive) cont.resume(soft)
-                    }
-
-                    override fun onFailure(errorCode: Int) {
-                        if (cont.isActive) cont.resume(null)
-                    }
-                })
+        var offsetX = 0
+        var offsetY = 0
+        var bitmap: Bitmap? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && window != null) {
+            val r = Rect().also { window.getBoundsInScreen(it) }
+            bitmap = capture { cb -> svc.takeScreenshotOfWindow(window.id, executor, cb) }
+            if (bitmap != null) { offsetX = r.left; offsetY = r.top }
+        }
+        if (bitmap == null) {
+            val overlays = com.saathi.app.core.overlay.OverlayService.controller
+            overlays?.setHiddenForCapture(true)
+            try {
+                if (overlays != null) delay(120) // one frame for the overlays to disappear
+                bitmap = capture { cb -> svc.takeScreenshot(Display.DEFAULT_DISPLAY, executor, cb) }
+            } finally {
+                overlays?.setHiddenForCapture(false)
             }
-        } ?: return null
-        val scale = minOf(1f, 1080f / bitmap.height)
-        val scaled = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+        }
+        val shot = bitmap ?: return null
+        val scale = minOf(1f, 1080f / shot.height)
+        val scaled = Bitmap.createScaledBitmap(shot, (shot.width * scale).toInt(), (shot.height * scale).toInt(), true)
         val out = ByteArrayOutputStream()
         scaled.compress(Bitmap.CompressFormat.JPEG, 70, out)
-        val note = "Screenshot attached: ${scaled.width}x${scaled.height} image of the ${bitmap.width}x${bitmap.height} screen. " +
-            "Use it for anything the element list misses; tap_xy takes SCREEN pixels (image x and y times ${"%.2f".format(1 / scale)})."
+        val offset = if (offsetX != 0 || offsetY != 0) ", then add $offsetX to x and $offsetY to y" else ""
+        val note = "Screenshot attached: ${scaled.width}x${scaled.height} image of the app's screen. Use it for anything the " +
+            "element list misses; tap_xy takes SCREEN pixels (image x and y times ${"%.2f".format(1 / scale)}$offset)."
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP) to note
     }
+
+    private suspend fun capture(start: (AccessibilityService.TakeScreenshotCallback) -> Unit): Bitmap? =
+        withTimeoutOrNull(2_000) {
+            suspendCancellableCoroutine { cont ->
+                runCatching {
+                    start(object : AccessibilityService.TakeScreenshotCallback {
+                        override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
+                            val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
+                            val soft = hw?.copy(Bitmap.Config.ARGB_8888, false)
+                            result.hardwareBuffer.close()
+                            if (cont.isActive) cont.resume(soft)
+                        }
+
+                        override fun onFailure(errorCode: Int) {
+                            if (cont.isActive) cont.resume(null)
+                        }
+                    })
+                }.onFailure { if (cont.isActive) cont.resume(null) }
+            }
+        }
 
     companion object {
         private val executor = Executors.newSingleThreadExecutor()
         /** React Native apps whose accessibility tree misses overlays and state changes (seen on Pronto, 2026-11-01). */
         val VISUAL_APPS = setOf(com.saathi.app.util.Packages.HOUSE_HELP)
+        /** Windows that sit behind or beside the app and are never the screen a task is on. */
+        val BACKGROUND_PACKAGES = setOf("com.sec.android.app.launcher", "com.google.android.apps.nexuslauncher",
+            "com.android.launcher3", "com.samsung.android.app.cocktailbarservice")
     }
 }
