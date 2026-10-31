@@ -16,6 +16,7 @@ dependencies = [
   "sarvamai>=0.1.40",
   "playwright>=1.45",
   "python-whois>=0.9",
+  "mcp>=2.0",  # Meko agent memory (MCP over streamable HTTP)
 ]
 
 [project.optional-dependencies]

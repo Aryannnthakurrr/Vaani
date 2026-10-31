@@ -48,5 +48,9 @@ class FakeBackendClient(
 
     override suspend fun clinicCallTurn(request: ClinicCallRequest): ClinicCallTurn = LocalClinicCall.turn(request)
 
+    override suspend fun agentOutcome(report: AgentOutcomeReport) = Unit
+
     override fun liveCameraUrl(): String? = null
+
+    override fun liveVoiceUrl(): String? = null
 }

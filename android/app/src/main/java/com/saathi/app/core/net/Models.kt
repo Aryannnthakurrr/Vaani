@@ -70,6 +70,19 @@ data class AgentStepRequest(
     @SerialName("screenshot_b64") val screenshotB64: String? = null,
     val history: List<HistoryItem> = emptyList(),
     @SerialName("task_hint") val taskHint: String? = null,
+    /** Same for every step of one agent run, so the backend can learn routines from whole runs. */
+    @SerialName("run_id") val runId: String? = null,
+)
+
+/** End of an agent run (docs/LEARNING.md §1): successful runs are what skills are compiled from. */
+@Serializable
+data class AgentOutcomeReport(
+    @SerialName("run_id") val runId: String,
+    @SerialName("task_hint") val taskHint: String? = null,
+    val goal: String,
+    /** done | failed | cancelled */
+    val outcome: String,
+    val message: String? = null,
 )
 
 @Serializable

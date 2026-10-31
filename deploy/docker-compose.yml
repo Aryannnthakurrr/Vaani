@@ -1,0 +1,43 @@
+# Saathi production stack on the Droplet (/opt/saathi). Run by deploy/deploy.sh.
+name: saathi
+
+services:
+  backend:
+    build:
+      context: ..                # /opt/saathi/src: the uploaded working tree (this file is in src/deploy)
+      dockerfile: backend/Dockerfile
+    image: saathi-backend
+    restart: unless-stopped
+    env_file: /opt/saathi/.env   # chmod 600, written by deploy.sh, never in git
+    environment:
+      SKILL_SANDBOX: docker
+      SKILL_SANDBOX_IMAGE: saathi-skill-sandbox
+      DATABASE_URL: sqlite:////data/saathi.db
+    volumes:
+      - saathi-data:/data
+      # Lets the backend start skill-sandbox containers. Anything that controls this socket controls the host:
+      # see README "Trust tradeoff".
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-999}"
+    expose:
+      - "8000"
+    mem_limit: 2g
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  saathi-data:
+  caddy-data:
+  caddy-config:

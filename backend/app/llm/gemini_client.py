@@ -128,6 +128,15 @@ class GeminiClient:
             ]
             return schema.model_validate_json(await self._generate(route, system, retry, schema))
 
+    # ------------------------------------------------------------------ skill compiler
+    async def compile_json(self, route: str, system: str, user: str) -> tuple[str, int]:
+        """Raw JSON text from the strong model for the skill compiler; returns (text, approx tokens)."""
+        text = await self._generate(route, system, [user], None)
+        text = text.strip()
+        if text.startswith("```"):
+            text = text.strip("`").removeprefix("json").strip()
+        return text, (len(system) + len(user) + len(text)) // 4
+
     # ------------------------------------------------------------------ agent
     async def agent_step(self, req: AgentStepRequest) -> dict[str, Any]:
         fails = sum(1 for h in req.history[-2:] if h.action.get("action") in {"fail", "back"})

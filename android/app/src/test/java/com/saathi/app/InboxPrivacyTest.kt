@@ -51,7 +51,9 @@ class InboxPrivacyTest {
         override suspend fun welfareTest() = SendResult()
         override suspend fun notifyFamily(summary: String) = SendResult()
         override suspend fun clinicCallTurn(request: com.saathi.app.core.net.ClinicCallRequest) = error("not used")
+        override suspend fun agentOutcome(report: com.saathi.app.core.net.AgentOutcomeReport) = Unit
         override fun liveCameraUrl(): String? = null
+        override fun liveVoiceUrl(): String? = null
     }
 
     private val otpSms = "Your OTP for transaction is 482913. Do not share."

@@ -50,6 +50,8 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator:
         "SANDBOX_ENABLED",
         "BOLNA_API_KEY",
         "BOLNA_AGENT_ID",
+        "MEKO_API_KEY",
+        "SKILL_SANDBOX",
     ):
         monkeypatch.setenv(key, "")
     monkeypatch.setenv("MOCK", "1")
@@ -59,9 +61,14 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator:
     from app import deps
     from app.config import get_settings
     from app.llm.base import reset_llm
+    from app.memory import get_memory
+    from app.skills import get_code_skills, get_engine
 
     get_settings.cache_clear()
     deps.get_db.cache_clear()
+    get_memory.cache_clear()
+    get_engine.cache_clear()
+    get_code_skills.cache_clear()
     reset_llm()
 
     from fastapi.testclient import TestClient
@@ -72,5 +79,8 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator:
         yield c
     get_settings.cache_clear()
     deps.get_db.cache_clear()
+    get_memory.cache_clear()
+    get_engine.cache_clear()
+    get_code_skills.cache_clear()
     reset_llm()
     os.environ.pop("DATABASE_URL", None)
