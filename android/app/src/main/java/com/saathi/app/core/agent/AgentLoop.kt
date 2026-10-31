@@ -3,6 +3,7 @@ package com.saathi.app.core.agent
 import com.saathi.app.core.data.ActionLogEntity
 import com.saathi.app.core.net.AgentAction
 import com.saathi.app.core.net.AgentMode
+import com.saathi.app.core.net.AgentOutcomeReport
 import com.saathi.app.core.net.AgentStepRequest
 import com.saathi.app.core.net.BackendApi
 import com.saathi.app.core.net.HistoryItem
@@ -11,8 +12,12 @@ import com.saathi.app.core.voice.tr
 import com.saathi.app.util.Packages
 import com.saathi.app.util.SaathiJson
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.UUID
 import kotlin.coroutines.coroutineContext
 
 /** What a task adds to the loop: which scripted scenario/app it is and which deep links it built itself. */
@@ -43,16 +48,36 @@ class AgentLoop(
 ) {
     private val history = mutableListOf<HistoryItem>()
 
+    /** One id for the whole run: every step and the final outcome carry it (docs/LEARNING.md §1). */
+    val runId: String = UUID.randomUUID().toString()
+
     suspend fun run(goal: String, mode: AgentMode, task: TaskContext = TaskContext()): AgentOutcome {
         ui.setRunning(true)
         try {
-            return loop(goal, mode, task)
+            val outcome = loop(goal, mode, task)
+            reportOutcome(goal, task, outcome)
+            return outcome
         } catch (e: CancellationException) {
             logLine(goal, AgentAction("stop", reason = "user pressed stop"), "-", "Stopped by you", "cancelled")
+            withContext(NonCancellable) { reportOutcome(goal, task, AgentOutcome.Cancelled) }
             throw e
         } finally {
             ui.clearHighlight()
             ui.setRunning(false)
+        }
+    }
+
+    /** Best effort: a lost report only means the backend learns one run fewer. Never blocks the user. */
+    private suspend fun reportOutcome(goal: String, task: TaskContext, outcome: AgentOutcome) {
+        val (kind, message) = when (outcome) {
+            is AgentOutcome.Done -> "done" to outcome.message
+            is AgentOutcome.Failed -> "failed" to outcome.message
+            AgentOutcome.Cancelled -> "cancelled" to null
+        }
+        runCatching {
+            withTimeoutOrNull(OUTCOME_TIMEOUT_MS) {
+                backend().agentOutcome(AgentOutcomeReport(runId, task.taskHint, goal, kind, message))
+            }
         }
     }
 
@@ -207,6 +232,7 @@ class AgentLoop(
             goal = goal, mode = mode.name, language = style().wire,
             screenText = TreeSerializer.serialize(snap), pkg = snap.pkg,
             screenshotB64 = snap.screenshotB64, history = history.takeLast(HISTORY), taskHint = task.taskHint,
+            runId = runId,
         )
         // One quiet retry: a single slow or dropped model call should not end the user's task.
         return try {
@@ -293,5 +319,6 @@ class AgentLoop(
         const val MAX_SAME_SCREEN = 3
         const val HISTORY = 6
         const val GUIDE_WAIT_MS = 30_000L
+        const val OUTCOME_TIMEOUT_MS = 5_000L
     }
 }

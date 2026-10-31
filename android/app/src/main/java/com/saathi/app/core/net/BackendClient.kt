@@ -110,9 +110,17 @@ class BackendClient(
     override suspend fun clinicCallTurn(request: ClinicCallRequest): ClinicCallTurn =
         post("/calls/clinic/turn", request, ClinicCallRequest.serializer(), ClinicCallTurn.serializer(), agentHttp)
 
-    override fun liveCameraUrl(): String {
+    override suspend fun agentOutcome(report: AgentOutcomeReport) {
+        post("/agent/outcome", report, AgentOutcomeReport.serializer(), serializer<JsonObject>())
+    }
+
+    override fun liveCameraUrl(): String = wsUrl("/live/camera")
+
+    override fun liveVoiceUrl(): String = wsUrl("/live/voice")
+
+    private fun wsUrl(path: String): String {
         val ws = baseUrl().trimEnd('/').replaceFirst("http", "ws")
-        return "$ws/live/camera?device=${deviceId()}"
+        return "$ws$path?device=${deviceId()}"
     }
 
     companion object {

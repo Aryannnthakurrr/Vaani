@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.AssistantState
 import com.saathi.app.core.net.ReplyStyle
+import com.saathi.app.core.voice.LiveState
 import com.saathi.app.core.voice.tr
 import com.saathi.app.features.tasks.Tasks
 import com.saathi.app.ui.theme.Danger
@@ -86,7 +87,9 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
         Tile("❓", tr(style, "Show me how", "मुझे सिखाओ", "Mujhe sikhao"), Saffron) { c.assistant.startGuide(null) },
     )
 
-    Scaffold(bottomBar = { MicBar(state, style) { c.assistant.onMicTapped() } }) { pad ->
+    val live by c.assistant.live.collectAsState()
+    val liveState = live?.state?.collectAsState()?.value
+    Scaffold(bottomBar = { MicBar(state, liveState, style) { c.assistant.onMicTapped() } }) { pad ->
         Column(
             Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -101,8 +104,11 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
             }
 
             if (heard.isNotBlank()) InfoCard(title = "“$heard”", badge = tr(style, "You said", "आपने कहा", "Aapne kaha"), icon = "🗣️")
-            if (caption.isNotBlank()) {
-                InfoCard(title = caption, badge = "Saathi", icon = "💬", accent = Saffron,
+            // In a live conversation Saathi's words come from the transcript, not the turn-based speaker.
+            val liveLines = live?.transcripts?.collectAsState()?.value.orEmpty()
+            val saathiLine = liveLines.lastOrNull { it.role == "saathi" }?.text ?: caption
+            if (saathiLine.isNotBlank()) {
+                InfoCard(title = saathiLine, badge = "Saathi", icon = "💬", accent = Saffron,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             }
 
@@ -191,14 +197,21 @@ private fun BigTile(t: Tile, modifier: Modifier) {
 }
 
 @Composable
-private fun MicBar(state: AssistantState, style: ReplyStyle, onClick: () -> Unit) {
+private fun MicBar(state: AssistantState, live: LiveState?, style: ReplyStyle, onClick: () -> Unit) {
     val idle = state == AssistantState.IDLE
-    val status = when (state) {
+    val status = when {
+        live == LiveState.CONNECTING -> tr(style, "Connecting…", "जुड़ रहा हूँ…", "Connect ho raha hoon…")
+        live == LiveState.SPEAKING -> tr(style, "Saathi is speaking. You can interrupt.", "साथी बोल रहा है। आप बीच में बोल सकते हैं।",
+            "Saathi bol raha hai. Aap beech mein bol sakte hain.")
+        live == LiveState.LISTENING -> tr(style, "Talk freely. I'm listening.", "बेझिझक बोलिए। मैं सुन रहा हूँ।", "Aaram se boliye. Main sun raha hoon.")
+        else -> when (state) {
         AssistantState.LISTENING -> tr(style, "Listening… speak now", "सुन रहा हूँ… बोलिए", "Sun raha hoon… boliye")
         AssistantState.THINKING -> tr(style, "Thinking…", "सोच रहा हूँ…", "Soch raha hoon…")
         AssistantState.RUNNING -> tr(style, "Working on it. Press Stop anytime.", "काम कर रहा हूँ। कभी भी रोकें।", "Kaam kar raha hoon. Kabhi bhi Stop dabaiye.")
         AssistantState.IDLE -> null
+        }
     }
+    val endLabel = if (live != null) tr(style, "  End conversation", "  बातचीत बंद करें", "  Baat band karein") else tr(style, "  Stop", "  रोको", "  Stop")
     Surface(shadowElevation = 12.dp, color = MaterialTheme.colorScheme.background) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             status?.let {
@@ -213,7 +226,7 @@ private fun MicBar(state: AssistantState, style: ReplyStyle, onClick: () -> Unit
             ) {
                 Text(if (idle) "🎤" else "■", fontSize = 30.sp)
                 Text(
-                    if (idle) tr(style, "  Talk to Saathi", "  साथी से बात करें", "  Saathi se baat karein") else tr(style, "  Stop", "  रोको", "  Stop"),
+                    if (idle) tr(style, "  Talk to Saathi", "  साथी से बात करें", "  Saathi se baat karein") else endLabel,
                     style = MaterialTheme.typography.headlineMedium,
                 )
             }

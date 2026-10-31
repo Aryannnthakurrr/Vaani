@@ -10,6 +10,7 @@ import com.saathi.app.core.agent.TaskContext
 import com.saathi.app.core.data.ActionLogEntity
 import com.saathi.app.core.net.AgentAction
 import com.saathi.app.core.net.AgentMode
+import com.saathi.app.core.net.AgentOutcomeReport
 import com.saathi.app.core.net.AgentStepRequest
 import com.saathi.app.core.net.BackendApi
 import com.saathi.app.core.net.FakeBackendClient
@@ -141,9 +142,58 @@ class AgentLoopReplayTest {
         assertTrue(performer.performed.none { it.action == AgentAction.OPEN_APP })
     }
 
-    /** A BackendApi whose agentStep is [step]; every other call fails the test. */
-    private fun stubBackend(step: (AgentStepRequest) -> AgentAction): BackendApi =
+    @Test
+    fun everyStepCarriesOneRunIdAndTheOutcomeIsReported() = runTest {
+        val requests = mutableListOf<AgentStepRequest>()
+        val reports = mutableListOf<AgentOutcomeReport>()
+        val api = stubBackend(reports) { req -> requests += req; scripts.step(req) }
+        val loop = loop(ReplayScreenReader(Fixtures.screens("uber_book")), ReplayPerformer(0), FakeUi(), api)
+        val outcome = loop.run("book a cab to Apollo", AgentMode.ACT, TaskContext(taskHint = "uber_book"))
+
+        assertTrue(outcome is AgentOutcome.Done)
+        assertTrue(requests.size >= 4)
+        assertEquals(setOf(loop.runId), requests.map { it.runId }.toSet())
+        assertEquals(1, reports.size)
+        assertEquals(loop.runId, reports[0].runId)
+        assertEquals("done", reports[0].outcome)
+        assertEquals("uber_book", reports[0].taskHint)
+        assertTrue(reports[0].message!!.contains("booked"))
+    }
+
+    @Test
+    fun saidNoIsReportedAsCancelledAndEachRunGetsItsOwnId() = runTest {
+        val reports = mutableListOf<AgentOutcomeReport>()
+        val api = stubBackend(reports) { scripts.step(it) }
+        val first = loop(ReplayScreenReader(Fixtures.screens("uber_book")), ReplayPerformer(0), FakeUi(confirmAnswer = false), api)
+        first.run("book a cab", AgentMode.ACT, TaskContext(taskHint = "uber_book"))
+        val second = loop(ReplayScreenReader(Fixtures.screens("uber_book")), ReplayPerformer(0), FakeUi(), api)
+        assertFalse(first.runId == second.runId)
+        assertEquals("cancelled", reports.single().outcome)
+    }
+
+    @Test
+    fun aBrokenOutcomeEndpointNeverBreaksTheRun() = runTest {
+        val api = Proxy.newProxyInstance(BackendApi::class.java.classLoader, arrayOf(BackendApi::class.java)) { _, method, args ->
+            when (method.name) {
+                "agentStep" -> scripts.step(args[0] as AgentStepRequest)
+                else -> throw IllegalStateException("backend down")
+            }
+        } as BackendApi
+        val outcome = loop(ReplayScreenReader(Fixtures.screens("settings_dark_mode")), ReplayPerformer(0), FakeUi(), api)
+            .run("dark mode", AgentMode.ACT, TaskContext(taskHint = "settings_dark_mode"))
+        assertTrue(outcome is AgentOutcome.Done)
+    }
+
+    /** A BackendApi whose agentStep is [step]; outcome reports go to [reports]; anything else fails the test. */
+    private fun stubBackend(
+        reports: MutableList<AgentOutcomeReport> = mutableListOf(),
+        step: (AgentStepRequest) -> AgentAction,
+    ): BackendApi =
         Proxy.newProxyInstance(BackendApi::class.java.classLoader, arrayOf(BackendApi::class.java)) { _, method, args ->
-            if (method.name == "agentStep") step(args[0] as AgentStepRequest) else error("unexpected ${method.name}")
+            when (method.name) {
+                "agentStep" -> step(args[0] as AgentStepRequest)
+                "agentOutcome" -> { reports += args[0] as AgentOutcomeReport; Unit }
+                else -> error("unexpected ${method.name}")
+            }
         } as BackendApi
 }

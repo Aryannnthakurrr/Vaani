@@ -27,6 +27,12 @@ interface BackendApi {
     /** One turn of the simulated clinic call (stretch): returns Saathi's next line. */
     suspend fun clinicCallTurn(request: ClinicCallRequest): ClinicCallTurn
 
+    /** Reports how an agent run ended; the backend learns skills from successful runs. */
+    suspend fun agentOutcome(report: AgentOutcomeReport)
+
     /** WebSocket URL for the camera Live relay, or null when the fake backend is in use. */
     fun liveCameraUrl(): String?
+
+    /** WebSocket URL for the realtime voice conversation (Gemini Live relay), or null when unavailable. */
+    fun liveVoiceUrl(): String?
 }
