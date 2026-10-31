@@ -48,6 +48,8 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator:
         "TELEGRAM_BOT_TOKEN",
         "SAFE_BROWSING_API_KEY",
         "SANDBOX_ENABLED",
+        "BOLNA_API_KEY",
+        "BOLNA_AGENT_ID",
     ):
         monkeypatch.setenv(key, "")
     monkeypatch.setenv("MOCK", "1")

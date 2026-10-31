@@ -259,6 +259,7 @@ Keys go in the repo-root `.env` (git-ignored). Status with the keys provided:
 | **Safe Browsing** | ✅ Google's test malware URL comes back `dangerous`. |
 | **Telegram** | ✅ The bot `@sorted_admin_bot` answers `getMe`, and the backend long-polls for `/start`. Real alerts need a family member to send `/start` and add the chat ID in Settings. |
 | **Twilio** | Keys are stored but not used; real clinic calls are not built (the simulated call screen is). |
+| **Bolna** | ✅ A real call to a verified phone completed (see "Real AI calls to the clinic over Bolna" below). |
 
 **Fixes made while bringing this up**
 - **Sarvam TTS timed out (503)** with a flat 3 s limit. The backend created a new SDK client per sentence and imported the SDK inside the first request's deadline. Now there is one cached client, warmed at startup (also used by STT), and the timeout is `4 s + 15 ms/char`, capped at 12 s (`models.yaml`). The app's wait scales the same way.
@@ -301,6 +302,37 @@ Keys go in the repo-root `.env` (git-ignored). Status with the keys provided:
   Claim a number (set it as `TWILIO_FROM_NUMBER`), verify the destination phone, enable India in Voice
   geographic permissions, and make sure there is credit. Webhooks need the public HTTPS backend (`PUBLIC_BASE_URL`
   on the Droplet). Trial calls start with a Twilio notice and a "press any key" prompt.
+- **Checked later:** the Twilio trial owns no number (the console's "From" number is a shared demo number) and its
+  API rejects outbound calls ("trial accounts have limited parameter access"). Twilio stays as the fallback; Bolna
+  below is what works.
+
+## Real AI calls to the clinic over Bolna (2026-10-31)
+
+- **Why Bolna:** a hosted voice agent with Indian-language speech, $5 free credit, an Indian `+91` default caller
+  ID, and no webhook or public URL needed. Compared against Twilio, Plivo, Exotel, Sarvam Samvaad and Vapi.
+- **Deviation from the spec:** in this mode Bolna's agent runs the conversation (its LLM, with Sarvam Saaras v4 STT
+  and Bulbul v4-flash TTS), not our `clinic_call_turn` brain. The prompt carries the same goals and privacy rules.
+- **Backend:** `app/telephony/bolna.py`. When `BOLNA_API_KEY` and `BOLNA_AGENT_ID` are set,
+  `POST /calls/clinic/real/start` places the call through Bolna; otherwise the Twilio flow runs. The app's API is
+  unchanged.
+  - `GET /calls/clinic/real/{id}` polls Bolna's execution and maps its `assistant:`/`user:` transcript to the
+    agent/clinic lines.
+  - When the call ends, `confirmed` and `waiting_minutes` are parsed from the clinic's words with the same rules as
+    the offline script (`confirmed_from`, `waiting_minutes`). The summary uses `summary_for_user`, in the patient's style.
+  - `POST …/hangup` can only cancel a call that is still queued (a Bolna limit). A live call ends when the agent says
+    goodbye, or after 10 s of silence (180 s cap).
+  - `CALL_ALLOWED_NUMBERS` still applies.
+- **Agent:** created once with `scripts/bolna_agent.py`, which prints the id. `user_data` fills `{patient_name}`,
+  `{doctor}`, `{clinic}` and `{appointment_time}`. Bolna requires `temperature: 1` for its reasoning LLMs.
+- **Tests:** `tests/test_bolna.py` covers queued → in progress → completed with a Hinglish summary, no-answer and
+  the allow-list.
+- **Live check:** a call to a verified phone completed in about 40 s. The receptionist said, in Hindi, that 11
+  o'clock was not available. The agent did not reschedule; it said it would tell the patient and said goodbye. The
+  result was `confirmed: false` with the Hinglish "please call them yourself" summary.
+- **Gaps:**
+  - Trial accounts can only call numbers verified in Bolna (User Profile → Verified Numbers).
+  - Bolna keeps call transcripts and recordings on its side, while Twilio mode keeps them only in our memory.
+  - The yes/no parsing reads the whole call, so "no" plus a later "yes" counts as confirmed.
 
 ### Gemini live (after credits were activated)
 

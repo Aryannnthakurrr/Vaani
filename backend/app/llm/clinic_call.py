@@ -44,7 +44,7 @@ _MINUTES = re.compile(r"(\d{1,3})\s*(min|mins|minute|minutes|मिनट)", re.
 _HOURS = re.compile(r"(\d{1,2}|an?|one|ek)\s*(hour|hours|hr|ghanta|ghante|घंटा|घंटे)", re.I)
 
 
-def _when(appt: Appointment) -> str:
+def when(appt: Appointment) -> str:
     if not appt.start_iso:
         return "today"
     try:
@@ -76,9 +76,16 @@ def waiting_minutes(text: str) -> int | None:
     return None
 
 
+def confirmed_from(clinic_said: str) -> bool | None:
+    """True/False when the clinic clearly said yes/no; None when it said neither."""
+    if _NO.search(clinic_said) and not _YES.search(clinic_said):
+        return False
+    return True if _YES.search(clinic_said) else None
+
+
 def summary_for_user(req: ClinicCallRequest, confirmed: bool | None, wait: int | None) -> str:
     doctor = req.appointment.doctor or "the doctor"
-    when = _when(req.appointment)
+    on = when(req.appointment)
     style = req.reply_style
     if confirmed is False:
         return {
@@ -90,7 +97,7 @@ def summary_for_user(req: ClinicCallRequest, confirmed: bool | None, wait: int |
     wait_hi = f" अभी लगभग {wait} मिनट इंतज़ार है।" if wait is not None else ""
     wait_hn = f" Abhi lagbhag {wait} minute ka wait hai." if wait is not None else ""
     return {
-        "en": f"I called the clinic. Your appointment with {doctor} on {when} is confirmed.{wait_en}",
+        "en": f"I called the clinic. Your appointment with {doctor} on {on} is confirmed.{wait_en}",
         "hi": f"मैंने क्लिनिक को फ़ोन किया। {doctor} के साथ आपकी मुलाक़ात पक्की है।{wait_hi}",
         "hinglish": f"Maine clinic ko phone kiya. {doctor} ke saath appointment confirm hai.{wait_hn}",
     }[style]
@@ -106,14 +113,10 @@ def mock_turn(req: ClinicCallRequest) -> ClinicCallTurn:
         return ClinicCallTurn(
             say=(
                 f"Namaste. I am Saathi, an AI assistant calling on behalf of {req.patient_name}. "
-                f"I would like to confirm the appointment with {doctor} on {_when(req.appointment)}. Is that confirmed?"
+                f"I would like to confirm the appointment with {doctor} on {when(req.appointment)}. Is that confirmed?"
             )
         )
-    confirmed = None
-    if _NO.search(clinic_said) and not _YES.search(clinic_said):
-        confirmed = False
-    elif _YES.search(clinic_said):
-        confirmed = True
+    confirmed = confirmed_from(clinic_said)
     if confirmed is False:
         return ClinicCallTurn(
             say="I understand. I will ask the patient to call you directly. Thank you, goodbye.",

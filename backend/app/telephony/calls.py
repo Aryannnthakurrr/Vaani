@@ -64,7 +64,8 @@ class CallSession:
     request: ClinicCallRequest
     to: str
     status: str = "starting"
-    call_sid: str | None = None
+    provider: str = "twilio"
+    call_sid: str | None = None  # Twilio Call SID, or Bolna execution id
     transcript: list[CallLine] = field(default_factory=list)
     empty_replies: int = 0
     done: bool = False

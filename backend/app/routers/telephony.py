@@ -1,4 +1,7 @@
-"""Real AI phone call to the clinic over Twilio (SPEC §7.7 stretch, telephony option).
+"""Real AI phone call to the clinic over Bolna or Twilio (SPEC §7.7 stretch, telephony option).
+
+When BOLNA_API_KEY and BOLNA_AGENT_ID are set, Bolna's hosted agent makes the call and the status endpoint polls it
+(see app/telephony/bolna.py). Otherwise the Twilio flow below runs.
 
 Flow: the app calls POST /calls/clinic/real/start → Twilio dials the clinic → Twilio fetches TwiML from
 /calls/twilio/voice and posts each spoken reply to /calls/twilio/gather. Every turn reuses the same
@@ -17,10 +20,13 @@ from pydantic import BaseModel, Field
 
 from app.config import Settings
 from app.deps import llm_dep, require_device, settings_dep
+from app.llm import clinic_call
 from app.llm.base import LLMClient
 from app.llm.clinic_call import CallLine, ClinicCallRequest, ClinicCallTurn, summary_for_user
 from app.schemas import Appointment
 from app.telephony import twiml
+from app.telephony.bolna import BolnaConfig, BolnaError, apply_execution, get_execution, stop_call
+from app.telephony.bolna import place_call as bolna_place_call
 from app.telephony.calls import (
     MAX_AGENT_TURNS,
     SESSIONS,
@@ -51,12 +57,18 @@ def _public_url(settings: Settings, path: str) -> str:
 @router.post("/calls/clinic/real/start", dependencies=[Depends(require_device)])
 def start_real_call(body: RealCallStart, settings: Settings = Depends(settings_dep)) -> dict[str, object]:
     cfg = TwilioConfig.from_env()
-    if not cfg.ready:
-        raise HTTPException(
-            503, "Real calls need TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER."
-        )
-    if not settings.public_base_url.startswith("https://"):
-        raise HTTPException(503, "Real calls need PUBLIC_BASE_URL (https) so Twilio can reach this server.")
+    bolna = BolnaConfig.from_env()
+    if not bolna.ready:
+        if not cfg.ready:
+            raise HTTPException(
+                503,
+                "Real calls need BOLNA_API_KEY and BOLNA_AGENT_ID, "
+                "or TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER.",
+            )
+        if not settings.public_base_url.startswith("https://"):
+            raise HTTPException(
+                503, "Real calls need PUBLIC_BASE_URL (https) so Twilio can reach this server."
+            )
     to = normalize_number(body.to or "") or (sorted(cfg.allowed_numbers)[0] if cfg.allowed_numbers else "")
     if not to or to not in cfg.allowed_numbers:
         raise HTTPException(403, "That number is not in CALL_ALLOWED_NUMBERS.")
@@ -67,6 +79,8 @@ def start_real_call(body: RealCallStart, settings: Settings = Depends(settings_d
         transcript=[],
     )
     session = SESSIONS.create(request, to)
+    if bolna.ready:
+        return _start_bolna(session, bolna)
     try:
         session.call_sid = place_call(
             cfg,
@@ -83,11 +97,36 @@ def start_real_call(body: RealCallStart, settings: Settings = Depends(settings_d
     return session.snapshot()
 
 
+def _start_bolna(session: CallSession, cfg: BolnaConfig) -> dict[str, object]:
+    appt = session.request.appointment
+    user_data = {
+        "patient_name": session.request.patient_name,
+        "doctor": appt.doctor or "the doctor",
+        "clinic": appt.clinic or "the clinic",
+        "appointment_time": clinic_call.when(appt),
+    }
+    session.provider = "bolna"
+    try:
+        session.call_sid = bolna_place_call(cfg, session.to, user_data)
+    except (BolnaError, OSError) as exc:
+        session.status, session.error, session.done = "failed", str(exc), True
+        log.warning("bolna call failed: %s", exc)
+        raise HTTPException(502, str(exc)) from exc
+    session.status = "queued"
+    log.info("clinic call placed via bolna session=%s", session.id)
+    return session.snapshot()
+
+
 @router.get("/calls/clinic/real/{session_id}", dependencies=[Depends(require_device)])
 def real_call_status(session_id: str) -> dict[str, object]:
     session = SESSIONS.get(session_id)
     if session is None:
         raise HTTPException(404, "No such call.")
+    if session.provider == "bolna" and session.call_sid and not session.done:
+        try:
+            apply_execution(session, get_execution(BolnaConfig.from_env(), session.call_sid))
+        except (BolnaError, OSError) as exc:
+            log.warning("bolna status failed: %s", exc)  # keep the last state; the app polls again
     return session.snapshot()
 
 
@@ -98,8 +137,11 @@ def real_call_hangup(session_id: str) -> dict[str, object]:
         raise HTTPException(404, "No such call.")
     if session.call_sid and not session.done:
         try:
-            hang_up(TwilioConfig.from_env(), session.call_sid)
-        except (TwilioError, OSError) as exc:
+            if session.provider == "bolna":
+                stop_call(BolnaConfig.from_env(), session.call_sid)
+            else:
+                hang_up(TwilioConfig.from_env(), session.call_sid)
+        except (TwilioError, BolnaError, OSError) as exc:
             log.warning("hang up failed: %s", exc)
     session.done = True
     session.status = "completed"
