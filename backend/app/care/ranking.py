@@ -10,7 +10,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.care.models import CallResult, Hospital, Slot
+from app.care.models import CallResult, Hospital, IntakeNote, Preferences, Slot
 from app.llm.base import LLMClient
 from app.llm.prompts import render
 from app.telephony.calls import allowed_numbers, normalize_number
@@ -33,12 +33,29 @@ def _wrong_type(h: Hospital, specialty: str) -> bool:
     return False
 
 
-def filter_candidates(hospitals: list[Hospital], specialty: str) -> list[Hospital]:
-    """Drops places without a phone, places closed now (unless open 24 h) and clearly wrong types."""
+def _named(h: Hospital, names: list[str]) -> bool:
+    """True when one of the user's hospital names ("Max", "Saroj hospital") matches this place's name."""
+    place = h.name.lower()
+    for name in names:
+        words = [w for w in re.findall(r"[a-z0-9]+", name.lower()) if w not in {"hospital", "clinic", "the"}]
+        if words and all(w in place for w in words):
+            return True
+    return False
+
+
+def filter_candidates(
+    hospitals: list[Hospital], specialty: str, prefs: Preferences | None = None
+) -> list[Hospital]:
+    """Drops places without a phone, places closed now (unless open 24 h), clearly wrong types and any hospital the
+    user said they don't want."""
+    avoid = prefs.avoid if prefs else []
     return [
         h
         for h in hospitals
-        if h.phone and not (h.open_now is False and not h.open_24h) and not _wrong_type(h, specialty)
+        if h.phone
+        and not (h.open_now is False and not h.open_24h)
+        and not _wrong_type(h, specialty)
+        and not _named(h, avoid)
     ]
 
 
@@ -64,15 +81,32 @@ class _Scores(BaseModel):
     scores: list[_Score]
 
 
-async def score_capability(llm: LLMClient, hospitals: list[Hospital], specialty: str) -> None:
-    """One batched model call (0–1 per place); the name-based guess fills anything it doesn't answer."""
+def need_summary(note: IntakeNote) -> dict[str, object]:
+    """What the capability scorer may know about the patient: the need, never the person."""
+    return {
+        "specialty": note.specialty,
+        "required_facilities": note.required_facilities[:6],
+        "possible_conditions": [c.name for c in note.possible_conditions[:3]],
+        "acuity": note.emergency.acuity,
+        "timeframe": note.appointment_timeframe or "next available",
+        "doctor_gender": note.preferences.doctor_gender,
+    }
+
+
+async def score_capability(llm: LLMClient, hospitals: list[Hospital], note: IntakeNote) -> None:
+    """One batched model call (0–1 per place) judged against the whole need, not just the specialty word; the
+    name-based guess fills anything it doesn't answer."""
     for h in hospitals:
-        h.capability = capability_guess(h, specialty)
+        h.capability = capability_guess(h, note.specialty)
     if not hospitals:
         return
     places = [{"id": h.id, "name": h.name, "types": h.types[:6]} for h in hospitals]
+    need = json.dumps(need_summary(note), ensure_ascii=False)
     out = await llm.structured(
-        "care_capability", render("care_capability", specialty=specialty), json.dumps(places), _Scores
+        "care_capability",
+        render("care_capability", specialty=note.specialty, need=need),
+        json.dumps(places),
+        _Scores,
     )
     if isinstance(out, _Scores):
         by_id = {s.id: min(max(s.capability, 0.0), 1.0) for s in out.scores}
@@ -80,17 +114,38 @@ async def score_capability(llm: LLMClient, hospitals: list[Hospital], specialty:
             h.capability = by_id.get(h.id, h.capability)
 
 
-def rank(hospitals: list[Hospital]) -> list[Hospital]:
-    """score = 0.45·capability + 0.35·(1 − eta/max_eta) + 0.20·(log reviews / log max reviews)·(rating/5)."""
+_URGENT = re.compile(
+    r"today|aaj|आज|now|abhi|turant|urgent|jaldi|\b(?:[1-9]|1[0-9]|2[0-4]) ?(?:h|hours?|ghante)\b", _I
+)
+PREFERRED_BONUS = 0.15
+
+
+def weights(note: IntakeNote | None) -> tuple[float, float, float]:
+    """(capability, distance, reputation). Urgent needs favour the nearest capable place; routine ones the best."""
+    if note is None:
+        return 0.45, 0.35, 0.20
+    if note.emergency.acuity <= 2 or _URGENT.search(note.appointment_timeframe or ""):
+        return 0.40, 0.45, 0.15
+    if note.emergency.acuity >= 4:
+        return 0.50, 0.25, 0.25
+    return 0.45, 0.35, 0.20
+
+
+def rank(hospitals: list[Hospital], note: IntakeNote | None = None) -> list[Hospital]:
+    """score = wc·capability + wd·(1 − eta/max_eta) + wr·(log reviews / log max reviews)·(rating/5), weights from
+    the urgency (weights()), plus PREFERRED_BONUS for a hospital the user asked for by name."""
     if not hospitals:
         return []
+    wc, wd, wr = weights(note)
+    prefer = note.preferences.prefer if note else []
     max_eta = max((h.eta_minutes or 0.0) for h in hospitals) or 1.0
     max_reviews = math.log1p(max(h.rating_count for h in hospitals)) or 1.0
     for h in hospitals:
         eta = h.eta_minutes if h.eta_minutes is not None else max_eta
         reviews = math.log1p(h.rating_count) / max_reviews
+        bonus = PREFERRED_BONUS if _named(h, prefer) else 0.0
         h.score = round(
-            0.45 * h.capability + 0.35 * (1 - eta / max_eta) + 0.20 * reviews * ((h.rating or 0) / 5), 4
+            wc * h.capability + wd * (1 - eta / max_eta) + wr * reviews * ((h.rating or 0) / 5) + bonus, 4
         )
     return sorted(hospitals, key=lambda h: h.score, reverse=True)
 
@@ -154,17 +209,29 @@ def best_slot(result: CallResult) -> Slot | None:
     return min(result.slots, key=_when) if result.slots else None
 
 
-def rerank(results: list[CallResult], hospitals: dict[str, Hospital]) -> list[CallResult]:
-    """Confirmed specialty first, then the earliest slot, then ETA, then fee, then rating."""
+def rerank(
+    results: list[CallResult], hospitals: dict[str, Hospital], prefs: Preferences | None = None
+) -> list[CallResult]:
+    """Confirmed specialty first; then anything that fails the user's needs (a needed facility missing, over their
+    fee limit, their insurance refused) drops behind; then the earliest slot, ETA, fee and rating."""
     usable = [
         r for r in results if r.call_outcome == "COMPLETED" and r.specialty_available is not False and r.slots
     ]
+    max_fee = prefs.max_fee_inr if prefs else None
+
+    def misses(r: CallResult) -> int:
+        return (
+            (r.facilities_available is False)
+            + (max_fee is not None and r.fee_inr is not None and r.fee_inr > max_fee)
+            + (r.insurance_accepted is False)
+        )
 
     def key(r: CallResult) -> tuple:
         slot = best_slot(r)
         h = hospitals.get(r.hospital_id)
         return (
             0 if r.specialty_available else 1,
+            misses(r),
             _when(slot) if slot else datetime.max,
             r.eta_minutes if r.eta_minutes is not None else 1e9,
             r.fee_inr if r.fee_inr is not None else 1e9,

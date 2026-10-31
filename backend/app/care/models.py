@@ -68,6 +68,16 @@ class Emergency(BaseModel):
     acuity: int = Field(default=3, ge=1, le=5)
 
 
+class Preferences(BaseModel):
+    """What the user said they want from the provider, beyond the medical need (used to filter and rank)."""
+
+    max_fee_inr: int | None = None  # "not more than 500"
+    insurance: str | None = None  # "Ayushman card", "CGHS", "Star Health"
+    prefer: list[str] = Field(default_factory=list)  # hospitals the user asked for by name
+    avoid: list[str] = Field(default_factory=list)  # hospitals the user does not want
+    doctor_gender: Literal["female", "male"] | None = None
+
+
 class IntakeNote(BaseModel):
     """The clinical intake note (§3.5): human-readable text plus the same facts as fields."""
 
@@ -87,6 +97,7 @@ class IntakeNote(BaseModel):
     search_queries: list[str] = Field(default_factory=list)
     appointment_timeframe: str | None = None
     patient_brief: str = ""
+    preferences: Preferences = Field(default_factory=Preferences)
 
 
 class TriageOut(BaseModel):
@@ -131,7 +142,13 @@ class CallResult(BaseModel):
     slots: list[Slot] = Field(default_factory=list)
     fee_inr: int | None = None
     walk_in_ok: bool | None = None
+    facilities_available: bool | None = (
+        None  # every facility in the note's required_facilities, per the hospital
+    )
     insurance: str | None = None
+    insurance_accepted: bool | None = (
+        None  # the user's own insurance (Preferences.insurance), when they had one
+    )
     instructions: str | None = None
     eta_minutes: float | None = None
     address: str = ""

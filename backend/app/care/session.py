@@ -77,11 +77,18 @@ class CareSession:
     # events
     events: list[dict[str, Any]] = field(default_factory=list)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _tasks: set[asyncio.Task[Any]] = field(default_factory=set, repr=False)  # spawn() keeps them alive
 
     def emit(self, kind: str, **data: Any) -> None:
         with self._lock:
             self.events.append({"seq": len(self.events) + 1, "type": kind, "at": time.time(), "data": data})
         log.info("care session=%s event=%s", self.id, kind)
+
+    def spawn(self, work: Any) -> None:
+        """Runs a coroutine (e.g. an emit_text) without waiting for it."""
+        task = asyncio.get_running_loop().create_task(work)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     async def emit_text(self, kind: str, **data: Any) -> None:
         """emit() for events carrying hospital or call text: Hindi script becomes Roman letters for English and

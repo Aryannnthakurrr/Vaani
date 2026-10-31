@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from app.care.models import CallOutcome
 from app.care.session import CallState, CareSession
+from app.speech.romanize import romanize
 from app.telephony.bolna import TERMINAL, BolnaConfig, BolnaError, get_execution, parse_transcript, place_call
 from app.telephony.calls import allowed_numbers
 
@@ -107,10 +108,13 @@ async def run_call(
 async def _apply(session: CareSession, state: CallState, execution: dict) -> None:
     status = str(execution.get("status") or state.status)
     lines = [line.model_dump() for line in parse_transcript(str(execution.get("transcript") or ""))]
-    for line in lines[len(state.transcript) :]:
+    new = lines[len(state.transcript) :]
+    # Romanized together, then sent in order: one at a time, each line could hold the poll up for seconds.
+    texts = await asyncio.gather(*(romanize(line["text"], session.style) for line in new))
+    for line, text in zip(new, texts, strict=True):
         speaker = "hospital" if line["role"] == "clinic" else "agent"
-        await session.emit_text("call_transcript", call_sid=state.execution_id, hospital_id=state.hospital_id,
-                     speaker=speaker, text=line["text"])  # fmt: skip
+        session.emit("call_transcript", call_sid=state.execution_id, hospital_id=state.hospital_id,
+                     speaker=speaker, text=text)  # fmt: skip
     state.transcript = lines
     if status != state.status:
         state.status = status

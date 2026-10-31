@@ -752,3 +752,18 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   narrowing (9), processors page (12), debug-hook release check (13), short-lived family link tokens (15b), Bolna
   recording settings (11b, not verified).
 
+
+## Hospital calls listen properly; provider matching uses the whole need (2026-11-01)
+
+- Real Bolna transcripts showed the inquiry agent answering half-sentences and being cut off by one word: endpointing
+  250 → 700 ms, `number_of_words_for_interruption` 1 → 3, plus prompt rules to re-ask unclear answers and repeat slots
+  and fees back. `scripts/bolna_agent.py --update` rewrites an existing agent in place (same id); both agents updated.
+- The mid-call `check_with_patient` request awaited romanizing (up to 3 s) before returning; Bolna dropped it and the
+  agent said "I'll call back". The `live_confirm` event is now spawned, HOLD_S 6 → 5. Call transcript lines are
+  romanized in parallel.
+- Ranking: the capability scorer gets facilities, conditions, acuity, timeframe and doctor gender; urgency sets the
+  weights (`ranking.weights`); new `IntakeNote.preferences` (fee limit, insurance, prefer/avoid, doctor gender) from
+  the triage prompt filters, adds a bonus, goes into the call's `needs`, and re-ranking pushes down hospitals missing
+  a facility, over the fee limit or refusing the insurance (`CallResult.facilities_available`, `insurance_accepted`).
+- Gap: preferences come only from the AI intake; the rule fallback doesn't capture them.
+- Write-up for presenting: docs/HEALTHCARE_KT.md.
