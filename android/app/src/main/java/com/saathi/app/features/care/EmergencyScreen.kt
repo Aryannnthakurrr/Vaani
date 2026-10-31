@@ -75,7 +75,9 @@ fun EmergencyScreen(c: AppContainer, onBack: () -> Unit) {
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
                 BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) },
                     Modifier.heightIn(min = 140.dp), color = Color.White, contentColor = Danger)
-                Text(s("Your family has been alerted.", "आपके परिवार को बता दिया गया है।", "Aapke family ko bata diya gaya hai."), color = Color.White)
+                if (ui.familyAlerted) {
+                    Text(s("Your family has been alerted.", "आपके परिवार को बता दिया गया है।", "Aapke family ko bata diya gaya hai."), color = Color.White)
+                }
             }
             EmergencyPhase.CANCELLED -> {
                 InfoCard(s("Cancelled", "रद्द किया गया", "Cancel kiya gaya"),
@@ -84,7 +86,7 @@ fun EmergencyScreen(c: AppContainer, onBack: () -> Unit) {
                 BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) }, color = Danger)
                 BigButton(s("Close", "बंद करें", "Band karein"), { c.emergency.close(); onBack() })
             }
-            else -> Tracking(ui, ::s, c)
+            else -> Tracking(ui, ::s, c, onBack)
         }
         Text(s("AI-generated. Not a diagnosis.", "AI द्वारा बनाया गया। यह निदान नहीं है।", "AI se bana. Yeh diagnosis nahi hai."),
             color = if (red) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
@@ -118,7 +120,7 @@ private fun Countdown(ui: EmergencyUi, s: (String, String, String) -> String, c:
 }
 
 @Composable
-private fun Tracking(ui: EmergencyUi, s: (String, String, String) -> String, c: AppContainer) {
+private fun Tracking(ui: EmergencyUi, s: (String, String, String) -> String, c: AppContainer, onBack: () -> Unit) {
     val context = LocalContext.current
     val title = when (ui.status) {
         null, "RECEIVED" -> s("Requesting an ambulance…", "एम्बुलेंस बुलाई जा रही है…", "Ambulance bulayi ja rahi hai…")
@@ -142,10 +144,15 @@ private fun Tracking(ui: EmergencyUi, s: (String, String, String) -> String, c: 
     InfoCard(title, listOfNotNull(etaText, km, ui.vehicle, ui.crew).joinToString(" · ").ifBlank { null }, accent = Danger, icon = "🚑")
     Text(STEPS.joinToString("   ") { (if (it in ui.timeline) "✔ " else "○ ") + it.replace('_', ' ').lowercase() }, fontSize = 15.sp)
     AmbulanceMap(ui, Modifier.fillMaxWidth().height(340.dp))
-    BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) }, color = Danger)
+    if (ui.status == null || ui.status == "RECEIVED") { // once an ambulance is assigned, a 108 call would only send a second one
+        BigButton(s("📞 Call 108", "📞 108 पर फ़ोन करें", "📞 108 par call karein"), { c.emergency.call108(context) }, color = Danger)
+    }
     if (ui.phase == EmergencyPhase.TRACKING || ui.status == "ARRIVED_AT_SCENE") { // no cancelling once on board
         BigButton(s("I'm OK, cancel the ambulance", "मैं ठीक हूँ, एम्बुलेंस रद्द करें", "Main theek hoon, ambulance cancel karein"),
             { c.emergency.imOk() }, color = Leaf)
+    }
+    if (ui.status == "ARRIVED_AT_HOSPITAL" || ui.status == "COMPLETED") {
+        BigButton(s("Close", "बंद करें", "Band karein"), { c.emergency.close(); onBack() })
     }
 }
 
@@ -162,10 +169,13 @@ private fun AmbulanceMap(ui: EmergencyUi, modifier: Modifier) {
         factory = { ctx ->
             WebView(ctx).apply {
                 settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) { ready = true }
                 }
-                loadUrl("file:///android_asset/ambulance_map.html")
+                // An https base (not file://) so the map library and tile requests are sent like a normal web page's.
+                val html = ctx.assets.open("ambulance_map.html").bufferedReader().use { it.readText() }
+                loadDataWithBaseURL("https://saathi.local/", html, "text/html", "utf-8", null)
                 web = this
             }
         },

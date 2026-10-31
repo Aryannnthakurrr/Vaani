@@ -92,6 +92,29 @@ def _add_flags(session: CareSession, flags: list[str]) -> None:
             session.safety_flags.append(flag)
 
 
+async def take_turn(session: CareSession, text: str, llm: LLMClient) -> dict[str, object]:
+    """One intake turn (typed, turn-based or from the live conversation): the first description or the answer to
+    the pending follow-up. Returns the next question, or the finished note with its route."""
+    if session.pending_question:
+        record_answer(session, session.pending_question, text)
+    else:
+        record_utterance(session, text)
+    step = await next_step(session, llm)
+    if isinstance(step, IntakeNote):
+        session.pending_question = None
+        session.emit("intake_note", note_text=step.note_text, emergency=step.emergency.model_dump(),
+                     route=session.route, safety_flags=session.safety_flags)  # fmt: skip
+        return {
+            "done": True,
+            "route": session.route,
+            "note": step.model_dump(),
+            "safety_flags": session.safety_flags,
+        }
+    session.pending_question = step
+    session.emit("intake_question", text=step)
+    return {"done": False, "question": step, "safety_flags": session.safety_flags}
+
+
 async def next_step(session: CareSession, llm: LLMClient) -> str | IntakeNote:
     """The next follow-up question to ask, or the finished note (stored on the session with its route)."""
     if session.safety_flags or len(session.followups) >= MAX_FOLLOWUPS:

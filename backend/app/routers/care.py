@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.care import dispatch, orchestrator, places, triage
-from app.care.models import BookRequest, CareStart, IntakeNote, IntakeTurn, Location
+from app.care.models import BookRequest, CareStart, IntakeTurn, Location
 from app.care.session import CARE, CareSession
 from app.config import Settings
 from app.db import Database
@@ -25,10 +25,9 @@ class DispatchBody(BaseModel):
 def _family_notifier(settings: Settings, db: Database, device_id: str) -> dispatch.Notify:
     """Telegram to the saved family contacts (logged on the family page); a no-op for unconfigured devices."""
 
-    async def notify(text: str) -> None:
+    async def notify(text: str) -> bool:
         device = db.get_device(device_id)
-        if device is not None:
-            await send_to_family(settings, db, device, "emergency", text)
+        return device is not None and bool(await send_to_family(settings, db, device, "emergency", text))
 
     return notify
 
@@ -68,24 +67,7 @@ async def intake(
     session = _session(session_id, device)
     if session.note is not None:
         raise HTTPException(409, "Intake is already finished.")
-    if session.pending_question:
-        triage.record_answer(session, session.pending_question, body.text)
-    else:
-        triage.record_utterance(session, body.text)
-    step = await triage.next_step(session, llm)
-    if isinstance(step, IntakeNote):
-        session.pending_question = None
-        session.emit("intake_note", note_text=step.note_text, emergency=step.emergency.model_dump(),
-                     route=session.route, safety_flags=session.safety_flags)  # fmt: skip
-        return {
-            "done": True,
-            "route": session.route,
-            "note": step.model_dump(),
-            "safety_flags": session.safety_flags,
-        }
-    session.pending_question = step
-    session.emit("intake_question", text=step)
-    return {"done": False, "question": step, "safety_flags": session.safety_flags}
+    return await triage.take_turn(session, body.text, llm)
 
 
 @router.get("/{session_id}/events")
@@ -149,18 +131,24 @@ async def emergency_dispatch(
     session = _session(session_id, device)
     if session.note is None:
         raise HTTPException(409, "Finish the intake first.")
-    if session.location is None:
-        raise HTTPException(409, "Location is needed to send an ambulance; call 108.")
     if session.emergency.get("dispatch_id") or session.emergency.get("dispatching"):
         return {"started": False, "dispatch_id": session.emergency.get("dispatch_id")}
-    session.emergency.pop("cancelled", None)
     notify = _family_notifier(settings, db, device)
+    if session.location is None:  # no address to send: the app shows "call 108" from the dispatch_failed event
+        await dispatch._failed(session, notify, "NO_LOCATION", "Location is needed to send an ambulance.")
+        return {"started": False, "reason": "NO_LOCATION"}
+    session.emergency.pop("cancelled", None)
     orchestrator.spawn(dispatch.dispatch(session, notify, body.landmark, body.trigger))
     return {"started": True}
 
 
 @router.post("/{session_id}/emergency/cancel")
-async def emergency_cancel(session_id: str, device: str = Depends(require_device)) -> dict[str, object]:
+async def emergency_cancel(
+    session_id: str,
+    device: str = Depends(require_device),
+    settings: Settings = Depends(settings_dep),
+    db: Database = Depends(db_dep),
+) -> dict[str, object]:
     """ "I'm OK": stops a pending countdown, or cancels a dispatch with reason PATIENT_OK (A7)."""
     session = _session(session_id, device)
-    return {"cancelled": await dispatch.cancel(session)}
+    return {"cancelled": await dispatch.cancel(session, _family_notifier(settings, db, device))}

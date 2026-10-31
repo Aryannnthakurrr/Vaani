@@ -3,29 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   html, body, #map { margin: 0; height: 100%; background: #e8e8e8; }
   .amb { font-size: 30px; line-height: 30px; text-align: center; transition: transform .2s linear; }
   .pin { font-size: 30px; line-height: 30px; }
+  .fail { display: flex; height: 100%; align-items: center; justify-content: center; font: 18px sans-serif; color: #555; }
 </style>
 </head>
 <body>
 <div id="map"></div>
 <script>
 // Called from EmergencyScreen.kt: init(), setRoute(), move(). Positions animate over each 1 s update.
-const map = L.map("map", {zoomControl: false, attributionControl: true}).setView([20.6, 78.9], 5);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
+if (!window.L) { // no internet for the map library: say so instead of a blank box; the calls below become no-ops
+  document.getElementById("map").outerHTML = '<div class="fail">Map unavailable. The ambulance is still on its way.</div>';
+  window.L = null;
+}
+const map = L && L.map("map", {zoomControl: false, attributionControl: true}).setView([20.6, 78.9], 5);
+// OSM's own tile server refuses requests without a website Referer (a WebView page has none); CARTO serves OSM data without that.
+if (map) {
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    {maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO"}).addTo(map);
+  window.addEventListener("resize", () => map.invalidateSize());
+}
 let patient = null, route = [], ahead = null, done = null, amb = null, current = null, anim = null, fitted = false;
 
 function init(lat, lng) {
+  if (!map) return;
   if (patient) return;
   patient = L.marker([lat, lng], {icon: L.divIcon({className: "pin", html: "📍", iconSize: [30, 30], iconAnchor: [15, 30]})}).addTo(map);
   map.setView([lat, lng], 15);
 }
 
 function setRoute(points) {
+  if (!map) return;
   route = points;
   if (ahead) ahead.remove();
   if (done) done.remove();
@@ -56,6 +68,7 @@ function place(lat, lng, heading) {
 }
 
 function move(lat, lng, heading) {
+  if (!map) return;
   if (!current) { current = [lat, lng]; place(lat, lng, heading); return; }
   const from = current.slice(), start = performance.now();
   if (anim) cancelAnimationFrame(anim);

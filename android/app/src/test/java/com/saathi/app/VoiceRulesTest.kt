@@ -59,6 +59,10 @@ class VoiceRulesTest {
     @Test
     fun otherIntentsAndSlots() {
         assertEquals("Apollo Hospital", LocalIntentRules.route("Book a cab to Apollo Hospital please").slots.destination)
+        assertEquals("Connaught Place", LocalIntentRules.route("I want a cab to go to Connaught Place").slots.destination)
+        assertEquals("auto", LocalIntentRules.route("Auto book karo AIIMS tak").slots.vehicle)
+        assertEquals("bike", LocalIntentRules.route("Book a bike to the station").slots.vehicle)
+        assertEquals(null, LocalIntentRules.route("Book a cab to the airport").slots.vehicle)
         assertEquals("guide", LocalIntentRules.route("Mujhe ye photo Aarav ko bhejni hai, kaise karun?").intent)
         assertEquals("book_doctor", LocalIntentRules.route("I need a heart doctor").intent)
         assertEquals("care", LocalIntentRules.route("Mujhe bukhar hai aur chakkar aa raha hai").intent)
@@ -70,6 +74,11 @@ class VoiceRulesTest {
         val dishes = LocalIntentRules.route("Pronto se bartan wali bula do")
         assertEquals("book_house_help", dishes.intent)
         assertEquals("dishwashing", dishes.slots.service)
+        val later = LocalIntentRules.route("kal subah house help chahiye")
+        assertEquals("tomorrow", later.slots.date)
+        assertEquals("morning", later.slots.time)
+        assertEquals(null, later.slots.service)
+        assertEquals("10 baje", LocalIntentRules.route("aaj 10 baje maid bulao").slots.time)
         assertEquals("unknown", LocalIntentRules.route("blue elephants").intent)
         assertEquals("guide", LocalIntentRules.route("mujhe ye photo Aarav ko bhejni hai").intent)
         val fk = LocalIntentRules.route("Flipkart se Parle-G biscuit mangao")

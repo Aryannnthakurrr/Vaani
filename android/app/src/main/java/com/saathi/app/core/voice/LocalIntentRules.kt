@@ -17,7 +17,7 @@ object LocalIntentRules {
         // Sending a photo/message is taught step by step, never done for the user.
         "guide" to listOf("show me", "how do i", "how to", "teach", "kaise", "sikhao", "dikhao", "bhejni", "bhejna", "bhejun",
             "कैसे", "सिखाओ", "दिखाओ", "भेजनी", "भेजना"),
-        "book_cab" to listOf("cab", "taxi", "uber", "ola", "ride", "auto", "कैब", "टैक्सी", "गाड़ी", "gaadi", "gadi"),
+        "book_cab" to listOf("cab", "taxi", "uber", "ola", "ride", "auto", "bike", "moto", "कैब", "टैक्सी", "गाड़ी", "gaadi", "gadi", "ऑटो", "बाइक"),
         "book_house_help" to listOf("house help", "maid", "cleaning", "cleaner", "bai", "kaamwali", "safai", "सफाई", "बाई", "pronto",
             "bartan", "jhadu", "pocha", "बर्तन", "झाड़ू", "पोछा"),
         "book_doctor" to listOf("doctor", "practo", "appointment", "cardiolog", "dentist", "physician", "डॉक्टर", "daktar", "dr."),
@@ -54,21 +54,49 @@ object LocalIntentRules {
         val t = utterance.lowercase()
         val intent = MATCHERS.firstOrNull { (_, res) -> res.any { it.containsMatchIn(t) } }?.first ?: "unknown"
         val slots = when (intent) {
-            "book_cab" -> Slots(destination = destination(utterance))
+            "book_cab" -> Slots(destination = destination(utterance), vehicle = when {
+                Regex("(^|[^\\p{L}])(auto|rickshaw)|ऑटो").containsMatchIn(t) -> "auto"
+                Regex("(^|[^\\p{L}])(bike|moto)|बाइक").containsMatchIn(t) -> "bike"
+                else -> null
+            })
             "shop_online" -> Slots(product = product(utterance))
             "book_doctor" -> Slots(specialty = SPECIALTY.find(utterance)?.value?.lowercase()?.let(::specialty))
+            // Pronto books help by time, so the day and time matter more than the chore (none unless one is named).
             "book_house_help" -> Slots(service = when {
-                t.contains("kitchen") -> "kitchen cleaning"
+                t.contains("kitchen") || t.contains("rasoi") || t.contains("रसोई") -> "kitchen cleaning"
                 t.contains("bartan") || t.contains("dish") || t.contains("बर्तन") -> "dishwashing"
-                else -> "home cleaning"
-            })
+                t.contains("kapde") || t.contains("laundry") || t.contains("कपड़े") -> "laundry"
+                Regex("safai|safaai|clean|jhadu|jhaadu|pocha|सफाई|सफ़ाई|झाड़ू|पोछा").containsMatchIn(t) -> "home cleaning"
+                else -> null
+            }, date = day(t), time = clock(t))
             else -> Slots()
         }
         return IntentResult(intent, slots, style.wire, reply(intent, slots, style))
     }
 
+    /** "kal" in a booking means tomorrow. */
+    private fun day(t: String): String? = when {
+        Regex("(^|[^\\p{L}])(tomorrow|kal)([^\\p{L}]|$)|कल").containsMatchIn(t) -> "tomorrow"
+        Regex("(^|[^\\p{L}])(today|aaj)([^\\p{L}]|$)|आज").containsMatchIn(t) -> "today"
+        else -> null
+    }
+
+    /** "10 baje", "10:30 am", "4 बजे", or a part of the day. */
+    private fun clock(t: String): String? {
+        Regex("(\\d{1,2}(?::\\d{2})?)\\s*(am|pm|baje|बजे)").find(t)?.let { m ->
+            return m.groupValues[1] + " " + m.groupValues[2].let { if (it == "बजे") "baje" else it }
+        }
+        return when {
+            Regex("subah|morning|सुबह").containsMatchIn(t) -> "morning"
+            Regex("dopahar|afternoon|दोपहर").containsMatchIn(t) -> "afternoon"
+            Regex("shaam|sham |evening|शाम").containsMatchIn(t) -> "evening"
+            else -> null
+        }
+    }
+
     private fun destination(u: String): String? {
-        val stop = setOf("cab", "taxi", "uber", "ride", "book", "mujhe", "a", "the", "kar", "do")
+        // "go", "to", "reach": "I want to go to Connaught Place" is a trip to Connaught Place, not to "Go to …".
+        val stop = setOf("cab", "taxi", "uber", "ride", "auto", "bike", "book", "mujhe", "a", "an", "the", "kar", "do", "go", "to", "reach", "get")
         for (re in DESTINATION) {
             val m = re.find(u) ?: continue
             val words = m.groupValues[1].trim().split(Regex("\\s+")).filter { it.lowercase() !in stop && it != "कैब" }
@@ -87,9 +115,13 @@ object LocalIntentRules {
     }
 
     fun reply(intent: String, slots: Slots, style: ReplyStyle): String = when (intent) {
-        "book_cab" -> slots.destination?.let {
-            tr(style, "Okay, I'll book a cab to $it.", "ठीक है, $it के लिए कैब बुक करता हूँ।", "Theek hai, $it ke liye cab book karta hoon.")
-        } ?: tr(style, "Okay, let's book a cab. Where do you want to go?", "ठीक है, कैब बुक करते हैं। कहाँ जाना है?", "Theek hai, cab book karte hain. Kahan jaana hai?")
+        "book_cab" -> {
+            val (en, hi) = when (slots.vehicle) { "auto" -> "an auto" to "ऑटो"; "bike" -> "a bike" to "बाइक"; else -> "a cab" to "कैब" }
+            val hl = when (slots.vehicle) { "auto" -> "auto"; "bike" -> "bike"; else -> "cab" }
+            slots.destination?.let {
+                tr(style, "Okay, I'll book $en to $it.", "ठीक है, $it के लिए $hi बुक करता हूँ।", "Theek hai, $it ke liye $hl book karta hoon.")
+            } ?: tr(style, "Okay, let's book $en. Where do you want to go?", "ठीक है, $hi बुक करते हैं। कहाँ जाना है?", "Theek hai, $hl book karte hain. Kahan jaana hai?")
+        }
         "book_house_help" -> tr(style, "Okay, let's book house help.", "ठीक है, घर की सफाई बुक करते हैं।", "Theek hai, house help book karte hain.")
         "care" -> tr(style, "I'm sorry you're not well. Let me ask a few questions.", "आपकी तबीयत ठीक नहीं, मुझे दुख है। मैं कुछ सवाल पूछूँगा।",
             "Aapki tabiyat theek nahi, mujhe afsos hai. Main kuch sawaal poochunga.")

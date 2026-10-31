@@ -87,6 +87,33 @@ object DeviceLocation {
             ?.let { Fix(LatLng(it.latitude, it.longitude), if (it.hasAccuracy()) it.accuracy else null) }
     }
 
+    /**
+     * A fresh fix for an emergency: asks the providers for the current position (up to [timeoutMs]); a last-known
+     * fix is used only if it is under 2 minutes old or nothing fresh arrives in time.
+     */
+    @SuppressLint("MissingPermission") // checked by allowed()
+    suspend fun current(context: Context, timeoutMs: Long = 6_000L): Fix? {
+        if (!allowed(context)) return null
+        val last = lastKnown(context)
+        val lm = context.getSystemService(LocationManager::class.java) ?: return last
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return last // getCurrentLocation needs Android 11
+        lm.getProviders(true).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.time }
+            ?.takeIf { System.currentTimeMillis() - it.time < 120_000 }?.let { return last }
+        val fine = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        // Coarse permission can't use GPS, so it starts with the network provider.
+        val provider = (if (fine) listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER) else listOf(LocationManager.NETWORK_PROVIDER))
+            .firstOrNull { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) } ?: return last
+        val fresh = withTimeoutOrNull(timeoutMs) {
+            suspendCancellableCoroutine<android.location.Location?> { cont ->
+                val cancel = android.os.CancellationSignal()
+                cont.invokeOnCancellation { cancel.cancel() }
+                runCatching { lm.getCurrentLocation(provider, cancel, context.mainExecutor) { cont.resume(it) } }
+                    .onFailure { cont.resume(null) }
+            }
+        }
+        return fresh?.let { Fix(LatLng(it.latitude, it.longitude), if (it.hasAccuracy()) it.accuracy else null) } ?: last
+    }
+
     /** A readable street address for [at], or null (no geocoder, no match, slower than 3 s). */
     suspend fun address(context: Context, at: LatLng): String? {
         if (!Geocoder.isPresent()) return null

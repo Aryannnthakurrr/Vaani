@@ -18,7 +18,10 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.care import triage
+from app.care.session import CARE, CareSession
 from app.config import Settings, get_settings
+from app.llm.base import get_llm
 from app.llm.prompts import render
 from app.memory import TOPICS, fact_key, facts_for, format_memories, get_memory, name_for
 from app.speech.revoice import Revoicer
@@ -45,6 +48,8 @@ VOICE_TOOLS: list[dict[str, Any]] = [
          "task": {"type": "string", "enum": TASKS},
          "destination": _S, "product": _S, "quantity": {"type": "integer"}, "specialty": _S, "doctor": _S,
          "area": _S, "date": _S, "time": _S, "service": _S,
+         "vehicle": {"type": "string", "enum": ["car", "auto", "bike"],
+                     "description": "book_cab: auto or bike only when they ask for one; otherwise car."},
      }, ["task"])},
     {"name": "start_guide", "description": "Teach the user step by step to do something themselves on the phone.",
      "parameters_json_schema": _obj({"goal": _S}, ["goal"])},
@@ -66,6 +71,14 @@ VOICE_TOOLS: list[dict[str, Any]] = [
     {"name": "forget", "description": "Forget something the user asked you to forget: one fact (topic and key), "
                                       "or everything on a topic (topic only).",
      "parameters_json_schema": _obj({"topic": {"type": "string", "enum": list(TOPICS)}, "key": _S}, ["topic"])},
+]  # fmt: skip
+
+# Care mode (`?care=<session id>`, docs/CARE.md): the doctor intake as a live conversation. The model only relays
+# what the user said; app/care/triage.py (safety net, note, route) decides the questions and the outcome.
+CARE_TOOLS: list[dict[str, Any]] = [
+    {"name": "intake_turn", "description": "Pass on what the user just said about their symptoms or in answer to your "
+                                           "question. Returns the next question to ask, or that the intake is done.",
+     "parameters_json_schema": _obj({"said": _S}, ["said"])},
 ]  # fmt: skip
 
 _SECRET_WORDS = re.compile(
@@ -122,11 +135,20 @@ async def system_prompt(device: str, style: str) -> str:
     return render("voice", reply_style=style, user=who, memories=format_memories(facts))
 
 
+async def care_prompt(device: str, style: str) -> str:
+    try:
+        name = await asyncio.wait_for(name_for(device), 3)
+    except Exception:  # noqa: BLE001 - start without the name rather than wait
+        name = None
+    who = f"The user's name is {name}." if name else ""
+    return render("care_voice", reply_style=style, user=who)
+
+
 class Relay:
     """Phone side of one conversation: transcripts, tool round trips, and the open/closed state of lines."""
 
-    def __init__(self, ws: WebSocket, device: str) -> None:
-        self.ws, self.device = ws, device
+    def __init__(self, ws: WebSocket, device: str, care: CareSession | None = None) -> None:
+        self.ws, self.device, self.care = ws, device, care
         self.pending: dict[str, asyncio.Future[Any]] = {}
         self.open_role: str | None = None
 
@@ -142,12 +164,36 @@ class Relay:
             self.open_role = None
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
+        if self.care is not None:
+            return (
+                await self.intake_turn(args)
+                if name == "intake_turn"
+                else {"ok": False, "error": f"unknown tool {name}"}
+            )
         if name == "remember":
             return await remember(self.device, args)
         if name == "forget":
             return await forget(self.device, args)
         if name not in APP_TOOLS:
             return {"ok": False, "error": f"unknown tool {name}"}
+        return await self.phone_tool(name, args)
+
+    async def intake_turn(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Runs one triage turn; when it ends, hands the note to the phone (tool `care_done`) and tells the model."""
+        care = self.care
+        assert care is not None
+        said = str(args.get("said", "")).strip()[:2000]
+        if not said:
+            return {"error": "nothing was said"}
+        if care.note is not None:
+            return {"done": True, "route": care.route}
+        result = await triage.take_turn(care, said, get_llm(get_settings()))
+        if not result["done"]:
+            return {"question": result["question"]}
+        await self.phone_tool("care_done", result)
+        return {"done": True, "route": result["route"]}
+
+    async def phone_tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         call_id = uuid.uuid4().hex[:12]
         fut: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
         self.pending[call_id] = fut
@@ -225,8 +271,14 @@ async def _gemini_session(ws: WebSocket, relay: Relay, settings: Settings, style
     route = settings.route("voice_live")
     config = types.LiveConnectConfig(
         response_modalities=["AUDIO"],
-        system_instruction=await system_prompt(relay.device, style),
-        tools=[types.Tool(function_declarations=[types.FunctionDeclaration(**t) for t in VOICE_TOOLS])],
+        system_instruction=await (care_prompt if relay.care else system_prompt)(relay.device, style),
+        tools=[
+            types.Tool(
+                function_declarations=[
+                    types.FunctionDeclaration(**t) for t in (CARE_TOOLS if relay.care else VOICE_TOOLS)
+                ]
+            )
+        ],
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         speech_config=types.SpeechConfig(
@@ -351,7 +403,13 @@ async def live_voice(ws: WebSocket) -> None:
     await ws.accept()
     settings = get_settings()
     style = ws.query_params.get("reply_style", "en")
-    relay = Relay(ws, device)
+    care = None
+    if care_id := ws.query_params.get("care"):
+        care = CARE.get(care_id, device)
+        if care is None or settings.mock:  # the phone falls back to the turn-based intake
+            await ws.close(code=4404)
+            return
+    relay = Relay(ws, device, care)
     try:
         # The app sends its reply style first; the persona is fixed at connect time, so wait for it briefly.
         with contextlib.suppress(TimeoutError):

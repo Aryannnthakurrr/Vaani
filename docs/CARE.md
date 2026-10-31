@@ -22,7 +22,10 @@ Entry points: the voice intent `care` (any symptom, "not feeling well", "ambulan
 ## Intake (workflow §3)
 
 1. The phone sends its last known position, accuracy and reverse-geocoded address with `POST /care/session`.
-2. Each spoken turn goes to `POST /care/{id}/intake` and comes back as the next question or the finished note.
+2. The intake is a **live conversation** (Gemini Live, `WS /live/voice?care=<id>`): the user can interrupt at any
+   time. Gemini only relays what was said through the `intake_turn` tool; `triage.take_turn` decides the next
+   question (Gemini asks it in its own words) or finishes the note, which reaches the phone as the `care_done` tool.
+   If Live can't connect (offline, mock backend), each spoken turn goes to `POST /care/{id}/intake` instead.
    At most three follow-ups, red flags first, one at a time.
 3. `safety_net.scan` / `scan_answer` run on every turn, in English, Hindi and Hinglish, with simple negations
    removed. Any hit stops the questions and forces `emergency.answer = YES`, never downgraded.

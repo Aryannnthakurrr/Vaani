@@ -109,6 +109,8 @@ data class Slots(
     val date: String? = null,
     val service: String? = null,
     val quantity: Int? = null,
+    /** book_cab: "auto" or "bike" only when the user asked for one; null (or "car") means a car. */
+    val vehicle: String? = null,
 )
 
 @Serializable

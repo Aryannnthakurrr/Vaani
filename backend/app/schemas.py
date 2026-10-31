@@ -237,6 +237,7 @@ class Slots(BaseModel):
     date: str | None = None
     service: str | None = None
     quantity: int | None = None
+    vehicle: str | None = None  # book_cab: "auto" or "bike" only when asked for; None means a car
 
 
 class IntentRequest(BaseModel):

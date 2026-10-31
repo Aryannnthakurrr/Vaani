@@ -3,10 +3,13 @@ package com.saathi.app.features.care
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.voice.Answer
+import com.saathi.app.core.voice.LiveState
+import com.saathi.app.core.voice.LiveVoiceSession
 import com.saathi.app.core.voice.SpokenAnswer
 import com.saathi.app.core.voice.YesNo
 import com.saathi.app.core.voice.tr
 import com.saathi.app.features.tasks.DeviceLocation
+import com.saathi.app.util.SaathiJson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
@@ -16,9 +19,13 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 
 /**
  * The symptom-to-care conversation on the phone (docs/CARE.md). Everything is spoken and shown; every question takes
@@ -96,7 +103,7 @@ class CareFlow(private val c: AppContainer) {
 
     private suspend fun run() {
         _ui.update { it.copy(phase = CarePhase.STARTING) }
-        val fix = DeviceLocation.lastKnown(c.context)
+        val fix = DeviceLocation.current(c.context) // fresh: an ambulance may be sent to it
         val location = fix?.let {
             CareLocation(it.at.lat, it.at.lng, it.accuracyM?.toDouble(), DeviceLocation.address(c.context, it.at))
         }
@@ -104,22 +111,78 @@ class CareFlow(private val c: AppContainer) {
         val session = client.start(CareStart(location, patient, style.wire))
         sessionId = session
         _ui.update { it.copy(phase = CarePhase.INTAKE) }
-        say(s("Tell me what is wrong, for you or for someone near you. I am not a doctor, but I will help you find care.",
-            "बताइए क्या तकलीफ़ है, आपको या आपके पास किसी को। मैं डॉक्टर नहीं हूँ, पर इलाज ढूँढने में मदद करूँगा।",
-            "Bataiye kya takleef hai, aapko ya aapke paas kisi ko. Main doctor nahi hoon, par ilaaj dhoondhne mein madad karunga."))
+        // Live first: a real-time conversation the user can interrupt. Turn-based only if Live can't start.
+        when (val live = liveIntake(session)) {
+            LiveIntake.Unavailable -> say(s("Tell me what is wrong, for you or for someone near you. I am not a doctor, but I will help you find care.",
+                "बताइए क्या तकलीफ़ है, आपको या आपके पास किसी को। मैं डॉक्टर नहीं हूँ, पर इलाज ढूँढने में मदद करूँगा।",
+                "Bataiye kya takleef hai, aapko ya aapke paas kisi ko. Main doctor nahi hoon, par ilaaj dhoondhne mein madad karunga."))
+            // Dropped mid-way: carry on turn by turn; the session keeps everything said so far.
+            LiveIntake.Ended -> say(s("The connection dropped. Let's continue. Please tell me again how you are feeling.",
+                "कनेक्शन टूट गया। चलिए आगे बढ़ते हैं। कृपया फिर से बताइए कैसा महसूस हो रहा है।",
+                "Connection toot gaya. Chaliye aage badhte hain. Please phir se bataiye kaisa mehsoos ho raha hai."))
+            is LiveIntake.Done -> return finishIntake(session, live.reply, location)
+        }
         var answer = listen() ?: return
         while (true) {
             _ui.update { it.copy(phase = CarePhase.THINKING) }
             val reply = withSlowCue { client.intake(session, answer) }
-            if (reply.done) {
-                val note = reply.note ?: return fail(s("I could not finish the assessment.", "मैं आकलन पूरा नहीं कर पाया।", "Main assessment poora nahi kar paya."))
-                _ui.update { it.copy(note = note, route = reply.route) }
-                if (reply.route == "A") return c.emergency.start(session, note, location)
-                return pathB(session, note)
-            }
+            if (reply.done) return finishIntake(session, reply, location)
             _ui.update { it.copy(phase = CarePhase.INTAKE) }
             say(reply.question.orEmpty())
             answer = listen() ?: return
+        }
+    }
+
+    private suspend fun finishIntake(session: String, reply: IntakeReply, location: CareLocation?) {
+        val note = reply.note ?: return fail(s("I could not finish the assessment.", "मैं आकलन पूरा नहीं कर पाया।", "Main assessment poora nahi kar paya."))
+        _ui.update { it.copy(note = note, route = reply.route) }
+        if (reply.route == "A") return c.emergency.start(session, note, location)
+        pathB(session, note)
+    }
+
+    private sealed interface LiveIntake {
+        data object Unavailable : LiveIntake // never connected (offline, mock backend): use the turn-based intake
+        data object Ended : LiveIntake // the connection dropped before the intake finished
+        data class Done(val reply: IntakeReply) : LiveIntake
+    }
+
+    /**
+     * The intake as a Gemini Live conversation (`/live/voice?care=…`): the user can talk over Saathi at any time.
+     * The backend's triage decides the questions and the outcome and hands the note over as the `care_done` tool.
+     */
+    private suspend fun liveIntake(session: String): LiveIntake = coroutineScope {
+        val base = c.backend.liveVoiceUrl() ?: return@coroutineScope LiveIntake.Unavailable
+        val result = CompletableDeferred<LiveIntake>()
+        val live = LiveVoiceSession(c.context, "$base&care=$session", { style.wire },
+            tools = { name, args ->
+                if (name == "care_done") {
+                    runCatching { SaathiJson.decodeFromJsonElement(IntakeReply.serializer(), args) }.getOrNull()
+                        ?.let { result.complete(LiveIntake.Done(it)) }
+                }
+                buildJsonObject { put("ok", JsonPrimitive(true)) }
+            },
+            onEnded = { connected -> result.complete(if (connected) LiveIntake.Ended else LiveIntake.Unavailable) })
+        val mirror = launch {
+            live.transcripts.collect { lines ->
+                _ui.update { ui -> ui.copy(chat = lines.takeLast(6).map { ChatLine(it.role == "user", it.text) }) }
+            }
+        }
+        try {
+            live.start()
+            // The server reads the reply style first, so the opening cue goes only once the socket is open.
+            if (live.state.first { it != LiveState.CONNECTING } == LiveState.LISTENING) live.sendText("[start intake]")
+            val outcome = result.await()
+            if (outcome is LiveIntake.Done) {
+                // Let Saathi finish its closing sentence ("I am getting help now") before hanging up.
+                withTimeoutOrNull(8_000) {
+                    delay(800)
+                    live.state.first { it != LiveState.SPEAKING }
+                }
+            }
+            outcome
+        } finally {
+            mirror.cancel()
+            live.end()
         }
     }
 
@@ -223,7 +286,8 @@ class CareFlow(private val c: AppContainer) {
         book(session, picked.first, picked.second)
     }
 
-    private suspend fun book(session: String, hospitalId: String, slot: Slot) {
+    /** @param retried the booking call already failed once; a second failure gives the user the number instead. */
+    private suspend fun book(session: String, hospitalId: String, slot: Slot, retried: Boolean = false) {
         val patient = patientDetails()
         client.book(session, BookRequest(hospitalId, slot, patient))
         _ui.update { it.copy(phase = CarePhase.BOOKING, booking = null) }
@@ -242,12 +306,16 @@ class CareFlow(private val c: AppContainer) {
                     return if (yesNo()) book(session, hospitalId, alt) else say(s("Okay, I have not booked anything.", "ठीक है, मैंने कुछ बुक नहीं किया।", "Theek hai, maine kuch book nahi kiya."))
                 }
                 else -> {
-                    b.callYourself?.let { phone ->
-                        return say(s("I could not book it. Please call the hospital yourself at $phone.", "मैं बुक नहीं कर पाया। कृपया अस्पताल को $phone पर खुद फ़ोन कीजिए।",
-                            "Main book nahi kar paya. Please hospital ko $phone par khud call kijiye."))
+                    val phone = b.callYourself ?: _ui.value.hospitals.firstOrNull { it.hospital.id == hospitalId }?.hospital?.phone
+                    if (retried || b.callYourself != null) {
+                        return say(phone?.let {
+                            s("I could not book it. Please call the hospital yourself at $it.", "मैं बुक नहीं कर पाया। कृपया अस्पताल को $it पर खुद फ़ोन कीजिए।",
+                                "Main book nahi kar paya. Please hospital ko $it par khud call kijiye.")
+                        } ?: s("I could not book it. Please call the hospital yourself.", "मैं बुक नहीं कर पाया। कृपया अस्पताल को खुद फ़ोन कीजिए।",
+                            "Main book nahi kar paya. Please hospital ko khud call kijiye."))
                     }
                     say(s("The call did not go through. I will try once more.", "फ़ोन नहीं लगा। मैं एक बार और कोशिश करता हूँ।", "Call nahi laga. Main ek baar aur try karta hoon."))
-                    return book(session, hospitalId, slot)
+                    return book(session, hospitalId, slot, retried = true)
                 }
             }
         }
@@ -258,7 +326,13 @@ class CareFlow(private val c: AppContainer) {
     /** Name, age and phone for the booking: from the profile, or asked once per session. */
     private suspend fun patientDetails(): CarePatient {
         patient?.let { return it }
-        val name = c.settings.current.userName.ifBlank { null } ?: run {
+        // The profile name is the phone's owner; the patient may be a family member ("Papa is unwell").
+        val own = c.settings.current.userName.ifBlank { null }
+        val forSelf = own != null && run {
+            say(s("Is this appointment for you, $own?", "क्या यह अपॉइंटमेंट आपके लिए है, $own?", "Kya yeh appointment aapke liye hai, $own?"))
+            yesNo()
+        }
+        val name = if (forSelf) own else run {
             say(s("What is the patient's name?", "मरीज़ का नाम क्या है?", "Patient ka naam kya hai?"))
             listen()
         }

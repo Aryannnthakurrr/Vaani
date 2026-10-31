@@ -29,7 +29,7 @@ _INTENTS: list[tuple[str, str]] = [
     ("camera", r"\bcamera\b|\bscan\b|\bexpiry\b|\bmrp\b|\blabel\b|\bpacket\b|कैमरा|एक्सपायरी|\bpadh(o|kar)\b"),
     (
         "book_cab",
-        r"\bcab\b|\btaxi\b|\buber\b|\bola\b|\bride\b|\bauto\b|\bgaadi\b|\bgadi\b|कैब|टैक्सी|गाड़ी|गाडी|ऑटो",
+        r"\bcab\b|\btaxi\b|\buber\b|\bola\b|\bride\b|\bauto\b|\bbike\b|\bmoto\b|\bgaadi\b|\bgadi\b|कैब|टैक्सी|गाड़ी|गाडी|ऑटो|बाइक",
     ),
     (
         "book_doctor",
@@ -69,6 +69,7 @@ _HOUSE_SERVICES = {
     "dishwashing": r"dish|bartan|बर्तन",
     "laundry": r"laundry|kapde|कपड़े",
     "cooking": r"\bcook|khana|खाना",
+    "home cleaning": r"safai|safaai|clean|jhadu|jhaadu|pocha|सफाई|सफ़ाई|झाड़ू|पोछा",
 }
 _FILLER = r"^(please |mujhe |muje |main |mai |i want to go to |i need to go to |मुझे |मैं )+"
 # "Flipkart se biscuit" / "biscuit from Amazon" -> "biscuit": the app is a preference, not the product.
@@ -152,7 +153,8 @@ def extract_slots(text: str, intent: str) -> Slots:
     slots = Slots()
     if intent == "book_cab":
         m = (
-            re.search(r"\bto (?:the )?(.+?)(?:\s+(?:please|now|by .+))?$", low, re.IGNORECASE)
+            # "want to go to X": skip "go to" / "reach" so the destination is X, not "go to X".
+            re.search(r"\bto (?:the )?(?:go (?:to )?(?:the )?|reach (?:the )?|get to (?:the )?)?(.+?)(?:\s+(?:please|now|by .+))?$", low, re.IGNORECASE)
             or re.search(r"^(.+?)\s+(?:jaana|jana|jaane|jaani|jane)\b", low, re.IGNORECASE)
             or re.search(r"^(.+?)\s+ke\s+liye\b", low, re.IGNORECASE)
             or re.search(r"^(.+?)\s+(?:जाना|जाने|के लिए|तक)", low)
@@ -160,6 +162,10 @@ def extract_slots(text: str, intent: str) -> Slots:
         dest = _clean(m.group(1)) if m else None
         if dest and not re.search(r"\b(cab|taxi|uber|book)\b|कैब", dest, re.IGNORECASE):
             slots.destination = dest
+        if re.search(r"\bauto\b|ऑटो|\brickshaw\b", low, re.IGNORECASE):
+            slots.vehicle = "auto"
+        elif re.search(r"\bbike\b|\bmoto\b|बाइक", low, re.IGNORECASE):
+            slots.vehicle = "bike"
     elif intent == "shop_online":
         m = (
             re.search(
@@ -184,8 +190,7 @@ def extract_slots(text: str, intent: str) -> Slots:
         for service, pattern in _HOUSE_SERVICES.items():
             if re.search(pattern, low, re.IGNORECASE):
                 slots.service = service
-                break
-        slots.service = slots.service or "home cleaning"
+                break  # nothing named: no chore (Pronto books help by time, not by chore)
     t = re.search(r"\b(\d{1,2}(?::\d{2})?\s*(?:am|pm|baje))\b|(\d{1,2})\s*बजे", low, re.IGNORECASE)
     if t:
         slots.time = (t.group(1) or f"{t.group(2)} baje").lower()

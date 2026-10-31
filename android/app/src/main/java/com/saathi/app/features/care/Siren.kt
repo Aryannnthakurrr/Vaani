@@ -38,6 +38,11 @@ class Siren(private val context: Context) {
             ?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500, 200), 0))
     }
 
+    /** Quieter while the microphone listens for "I'm OK", so the siren doesn't drown the answer. */
+    fun duck(on: Boolean) {
+        track?.runCatching { setVolume(if (on) 0.15f else 1f) }
+    }
+
     fun stop() {
         track?.runCatching { stop(); release() }
         track = null

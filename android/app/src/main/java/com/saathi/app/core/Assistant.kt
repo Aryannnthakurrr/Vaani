@@ -153,11 +153,12 @@ class Assistant(private val c: AppContainer) {
 
     private suspend fun dispatch(intent: IntentResult, utterance: String, replyStyle: ReplyStyle) {
         val reply = intent.replyText ?: LocalIntentRules.reply(intent.intent, intent.slots, replyStyle)
-        val task = Tasks.forIntent(intent.intent)
+        val task = Tasks.forIntent(intent.intent)?.takeUnless { it == Tasks.PRACTO && !wantsPracto(intent.slots, utterance) }
         when {
+            intent.intent == "book_doctor" && task == null -> { c.speaker.say(reply, replyStyle); startCare() }
             task != null -> { ui.say(reply); runTask(task, intent.slots, preferredApp(utterance)) }
             intent.intent == "guide" -> { ui.say(reply); runGuide(utterance) }
-            intent.intent == "care" -> { c.speaker.say(reply, replyStyle); c.care.start(); openScreen("care") }
+            intent.intent == "care" -> { c.speaker.say(reply, replyStyle); startCare() }
             intent.intent == "camera" -> { c.speaker.say(reply, replyStyle); openScreen("camera") }
             intent.intent == "digest" -> { openScreen("digest"); c.digest.speak() }
             intent.intent == "settings" -> { c.speaker.say(reply, replyStyle); openScreen("settings") }
@@ -165,6 +166,15 @@ class Assistant(private val c: AppContainer) {
         }
         OverlayService.controller?.hideCaption()
     }
+
+    /** The symptom-to-care flow (docs/CARE.md): what "I need a doctor" means unless Practo or a named doctor was asked for. */
+    fun startCare() {
+        c.care.start()
+        openScreen("care")
+    }
+
+    fun wantsPracto(slots: Slots, utterance: String?) =
+        !slots.doctor.isNullOrBlank() || utterance?.contains("practo", ignoreCase = true) == true
 
     /** Starts a task from a Home tile or a Live tool call: asks for any missing slot first. */
     fun startTask(task: TaskSpec, slots: Slots = Slots(), preferredPkg: String? = null): Job =

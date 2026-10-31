@@ -31,7 +31,7 @@ _CATEGORY = {
 }  # fmt: skip
 _ALS = {"CARDIAC", "STROKE", "BREATHING", "TRAUMA", "UNCONSCIOUS"}
 
-Notify = Callable[[str], Awaitable[None]]
+Notify = Callable[[str], Awaitable[bool]]  # True when at least one family member got it
 
 
 def base_url() -> str:
@@ -145,10 +145,11 @@ async def dispatch(
 
 async def _failed(session: CareSession, notify: Notify, reason: str, detail: str) -> None:
     session.emergency["dispatching"] = False
-    session.emit("dispatch_failed", reason=reason, message=detail)
-    await notify(
+    alerted = await notify(
         "Saathi emergency: an ambulance could not be requested automatically. Call them and dial 108 now."
     )
+    # The app says "I have alerted your family" only when this is true.
+    session.emit("dispatch_failed", reason=reason, message=detail, family_alerted=alerted)
 
 
 async def track(session: CareSession, dispatch_id: str) -> None:
@@ -189,7 +190,7 @@ async def track(session: CareSession, dispatch_id: str) -> None:
             await asyncio.sleep(1.0)
 
 
-async def cancel(session: CareSession, reason: str = "PATIENT_OK") -> bool:
+async def cancel(session: CareSession, notify: Notify | None = None, reason: str = "PATIENT_OK") -> bool:
     """ "I'm OK" after dispatch: cancels it with the mock (allowed until the patient is on board)."""
     em = session.emergency
     em["cancelled"] = True
@@ -197,6 +198,8 @@ async def cancel(session: CareSession, reason: str = "PATIENT_OK") -> bool:
     if not dispatch_id:
         session.emit("emergency_cancelled", dispatched=False)
         return True
+    if notify is not None:  # the family was told an ambulance was requested; tell them it was called off
+        await notify("Saathi update: they said they are OK and the ambulance was cancelled. Please call them to check.")
     try:
         async with httpx.AsyncClient(timeout=8) as client:
             resp = await client.post(f"{base_url()}/v1/dispatch/{dispatch_id}/cancel", json={"reason": reason},

@@ -585,3 +585,12 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   extra delay) with the warmer **Sulafat** voice instead of Aoede. The language isn't pinned: the prompt matches
   English, Hindi or Hinglish to whatever the user just spoke. Measured first audio on `gemini-3.8-live`: 1.7–2.1 s.
   The Sarvam re-voicing stays available with `speak_with: sarvam`. Turn-based replies and clips keep the Aparna voice.
+
+## Doctor intake on Gemini Live (2026-11-01)
+
+- The care intake is now a real-time conversation: `CareFlow.liveIntake` opens `/live/voice?care=<session>`
+  (prompt `care_voice.md`, one tool `intake_turn`). Triage, the red-flag safety net, the note and the route are
+  unchanged (`triage.take_turn`, shared with `POST /care/{id}/intake`). The finished note reaches the phone as the
+  phone-side tool `care_done`; Saathi finishes its closing sentence, then Path A or B continues as before.
+- Falls back to the turn-based intake only if Live never connects (offline, mock backend: the server closes 4404).
+- The intake speaks in the Live voice (Sulafat); Path B's yes/no and booking steps stay turn-based (Aparna).

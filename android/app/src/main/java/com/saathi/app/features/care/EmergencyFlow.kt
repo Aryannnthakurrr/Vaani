@@ -16,6 +16,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
@@ -39,6 +40,7 @@ data class EmergencyUi(
     val ambulance: Triple<Double, Double, Double>? = null, // lat, lng, heading
     val timeline: List<String> = emptyList(),
     val message: String? = null,
+    val familyAlerted: Boolean = false,
 )
 
 /**
@@ -52,6 +54,7 @@ class EmergencyFlow(private val c: AppContainer) {
     val ui: StateFlow<EmergencyUi> = _ui
     private var countdown: Job? = null
     private var tracker: Job? = null
+    private var listener: Job? = null
     private var session: String? = null
     private var note: IntakeNote? = null
     @Volatile var landmark: String = ""
@@ -73,9 +76,9 @@ class EmergencyFlow(private val c: AppContainer) {
         c.assistant.openScreen("emergency")
         val seconds = runCatching { client.emergencyAlert(sessionId) }.getOrDefault(30)
         _ui.update { it.copy(secondsLeft = seconds) }
-        c.speaker.say(s("This could be an emergency. I will send an ambulance in $seconds seconds. Tap I'm OK to cancel.",
-            "यह इमरजेंसी हो सकती है। मैं $seconds सेकंड में एम्बुलेंस भेज दूँगा। रोकने के लिए 'मैं ठीक हूँ' दबाइए।",
-            "Yeh emergency ho sakti hai. Main $seconds second mein ambulance bhej dunga. Rokne ke liye 'I'm OK' dabaiye."), style)
+        c.speaker.say(s("This could be an emergency. I will send an ambulance in $seconds seconds. Say I'm OK, or tap it, to cancel.",
+            "यह इमरजेंसी हो सकती है। मैं $seconds सेकंड में एम्बुलेंस भेज दूँगा। रोकने के लिए 'मैं ठीक हूँ' बोलिए या दबाइए।",
+            "Yeh emergency ho sakti hai. Main $seconds second mein ambulance bhej dunga. Rokne ke liye 'main theek hoon' boliye ya dabaiye."), style)
         siren.start()
         countdown = c.scope.launch {
             while (_ui.value.secondsLeft > 0 && _ui.value.phase == EmergencyPhase.COUNTDOWN) {
@@ -83,6 +86,25 @@ class EmergencyFlow(private val c: AppContainer) {
                 _ui.update { it.copy(secondsLeft = it.secondsLeft - 1) }
             }
             if (_ui.value.phase == EmergencyPhase.COUNTDOWN) dispatch("countdown")
+        }
+        listener = c.scope.launch { listenDuringCountdown() }
+    }
+
+    /** Voice-first: "I'm OK" cancels and "send it" sends now, same as the buttons. Silence lets the countdown run. */
+    private suspend fun listenDuringCountdown() {
+        while (_ui.value.phase == EmergencyPhase.COUNTDOWN) {
+            siren.duck(true)
+            val heard = try {
+                runCatching { c.assistant.speech.listen() }.getOrNull()?.transcript
+            } finally {
+                siren.duck(false)
+            }
+            if (_ui.value.phase != EmergencyPhase.COUNTDOWN) return
+            when (CountdownWords.parse(heard)) {
+                CountdownWords.Said.OK -> return imOk()
+                CountdownWords.Said.SEND -> return sendNow()
+                CountdownWords.Said.NOTHING -> if (heard == null) delay(500) // no mic: don't spin
+            }
         }
     }
 
@@ -93,6 +115,7 @@ class EmergencyFlow(private val c: AppContainer) {
 
     private suspend fun dispatch(trigger: String) {
         val id = session ?: return
+        listener?.cancel()
         siren.stop()
         _ui.update { it.copy(phase = EmergencyPhase.DISPATCHING) }
         runCatching { client.emergencyDispatch(id, trigger, landmark.ifBlank { null }) }
@@ -110,7 +133,7 @@ class EmergencyFlow(private val c: AppContainer) {
             for (e in events) {
                 seq = e.seq
                 when (e.type) {
-                    "dispatch_failed" -> return noUnits(null)
+                    "dispatch_failed" -> return noUnits(null, (e.data["family_alerted"] as? JsonPrimitive)?.booleanOrNull == true)
                     "dispatch_status" -> onStatus(e.data)
                     "ambulance_location" -> onLocation(e.data)
                 }
@@ -161,17 +184,20 @@ class EmergencyFlow(private val c: AppContainer) {
         }
     }
 
-    private suspend fun noUnits(detail: String?) {
+    /** @param familyAlerted true only when the backend's message reached at least one family member. */
+    private suspend fun noUnits(detail: String?, familyAlerted: Boolean = false) {
         siren.stop()
-        _ui.update { it.copy(phase = EmergencyPhase.NO_UNITS, message = detail) }
-        c.speaker.say(s("No ambulance is available. Call 108 now. I have alerted your family.",
-            "कोई एम्बुलेंस उपलब्ध नहीं है। अभी 108 पर फ़ोन कीजिए। मैंने आपके परिवार को बता दिया है।",
-            "Koi ambulance available nahi hai. Abhi 108 par call kijiye. Maine aapke family ko bata diya hai."), style)
+        _ui.update { it.copy(phase = EmergencyPhase.NO_UNITS, message = detail, familyAlerted = familyAlerted) }
+        c.speaker.say(s("No ambulance is available. Call 108 now.", "कोई एम्बुलेंस उपलब्ध नहीं है। अभी 108 पर फ़ोन कीजिए।",
+            "Koi ambulance available nahi hai. Abhi 108 par call kijiye.") +
+            if (familyAlerted) " " + s("I have alerted your family.", "मैंने आपके परिवार को बता दिया है।", "Maine aapke family ko bata diya hai.") else "",
+            style)
     }
 
     /** "I'm OK": stops the siren, cancels any dispatch, then offers to find a doctor instead (Path B). */
     fun imOk() {
         countdown?.cancel()
+        listener?.cancel()
         tracker?.cancel()
         siren.stop()
         val id = session ?: return
@@ -189,10 +215,34 @@ class EmergencyFlow(private val c: AppContainer) {
 
     fun close() {
         countdown?.cancel()
+        listener?.cancel()
         tracker?.cancel()
         siren.stop()
     }
 
     private fun JsonObject.str(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull
     private fun JsonObject.num(key: String) = (this[key] as? JsonPrimitive)?.doubleOrNull
+}
+
+/** What someone says during the countdown. A negation ("not OK", "don't cancel") never cancels. */
+object CountdownWords {
+    enum class Said { OK, SEND, NOTHING }
+
+    private val NOT_OK = listOf("not ok", "not okay", "not fine", "theek nahi", "thik nahi", "ठीक नहीं", "cancel mat", "mat cancel",
+        "don't cancel", "dont cancel", "कैंसल मत")
+    private val OK = listOf("i'm ok", "im ok", "i am ok", "i'm okay", "im okay", "i am okay", "i'm fine", "i am fine",
+        "theek hoon", "thik hoon", "theek hun", "thik hun", "theek hu", "ठीक हूँ", "ठीक हूं", "cancel", "कैंसल", "mat bhejo",
+        "mat bulao", "मत भेजो", "मत बुलाओ", "zarurat nahi", "zaroorat nahi", "ज़रूरत नहीं", "जरूरत नहीं", "roko", "rokiye", "रोको")
+    private val SEND = listOf("send", "bhejo", "bhejiye", "bulao", "bulaiye", "jaldi", "help", "bachao", "भेजो", "भेजिए",
+        "बुलाओ", "जल्दी", "बचाओ")
+
+    fun parse(transcript: String?): Said {
+        val t = transcript?.lowercase()?.replace('’', '\'')?.ifBlank { null } ?: return Said.NOTHING
+        return when {
+            NOT_OK.any { it in t } -> Said.NOTHING
+            OK.any { it in t } -> Said.OK
+            SEND.any { it in t } -> Said.SEND
+            else -> Said.NOTHING
+        }
+    }
 }

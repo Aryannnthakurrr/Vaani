@@ -138,3 +138,13 @@ def test_mock_ambulance_takes_the_patient_to_hospital(monkeypatch) -> None:
         ]  # fmt: skip
         assert d["destination_hospital"]["name"]
         assert c.post(f"/v1/dispatch/{did}/cancel", json={"reason": "OTHER"}, headers=KEY).status_code == 409
+
+
+def test_no_location_fails_honestly(client) -> None:  # noqa: ANN001
+    sid = client.post("/care/session", json={}, headers=HEADERS).json()["session_id"]
+    client.post(f"/care/{sid}/intake", json={"text": "He passed out and is not responding"}, headers=HEADERS)
+    out = client.post(f"/care/{sid}/emergency/dispatch", json={}, headers=HEADERS).json()
+    assert out == {"started": False, "reason": "NO_LOCATION"}
+    events = client.get(f"/care/{sid}/events", headers=HEADERS).json()["events"]
+    (failed,) = [e for e in events if e["type"] == "dispatch_failed"]
+    assert failed["data"]["family_alerted"] is False  # no family contacts: the app must not claim it told them

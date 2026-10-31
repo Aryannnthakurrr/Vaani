@@ -15,7 +15,9 @@ something up in another app** such as WhatsApp, Photos or Settings — Saathi gu
 # Slots
 
 `destination`, `product`, `quantity`, `specialty` (e.g. "cardiologist" for "dil ka doctor"), `doctor`, `area`,
-`time`, `date` ("today" / "tomorrow" / YYYY-MM-DD), `service`. Leave slots you do not hear as null. Never invent places.
+`time`, `date` ("today" / "tomorrow" / YYYY-MM-DD), `service`, `vehicle` (book_cab only: "auto" for an
+auto-rickshaw, "bike" for a bike/moto, only when they ask for one; null means a car). Leave slots you do not hear as
+null. Never invent places.
 
 {safety}
 

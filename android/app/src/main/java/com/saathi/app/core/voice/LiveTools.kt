@@ -27,7 +27,7 @@ object LiveToolArgs {
         return Slots(
             destination = s.str("destination"), product = s.str("product"), specialty = s.str("specialty"),
             doctor = s.str("doctor"), area = s.str("area"), time = s.str("time"), date = s.str("date"),
-            service = s.str("service"), quantity = s["quantity"]?.let { runCatching { it.jsonPrimitive.intOrNull }.getOrNull() },
+            service = s.str("service"), vehicle = s.str("vehicle"), quantity = s["quantity"]?.let { runCatching { it.jsonPrimitive.intOrNull }.getOrNull() },
         )
     }
 
@@ -69,7 +69,12 @@ class LiveTools(
     override suspend fun handle(name: String, args: JsonObject): JsonElement = when (name) {
         "start_task" -> {
             val spec = LiveToolArgs.task(args)?.let(Tasks::forIntent)
-            if (spec == null) LiveToolArgs.error("unknown task") else {
+            if (spec == Tasks.PRACTO && !c.assistant.wantsPracto(LiveToolArgs.slots(args), null)) {
+                // The care flow runs its own conversation, so this one ends (ending cancels this handler, so it goes last).
+                c.assistant.startCare()
+                c.assistant.endLive()
+                LiveToolArgs.ok("status" to "started", "note" to "The doctor helper is open and will talk to them now. Say nothing more.")
+            } else if (spec == null) LiveToolArgs.error("unknown task") else {
                 val preferred = if (LiveToolArgs.prefersFlipkart(args)) com.saathi.app.util.Packages.FLIPKART else null
                 runInBackground(c.assistant.startTask(spec, LiveToolArgs.slots(args), preferred))
                 LiveToolArgs.ok("status" to "started", "note" to "The phone is doing it now; you will get a [task finished] note.")
