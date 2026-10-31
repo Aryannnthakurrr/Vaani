@@ -30,8 +30,9 @@ class CareClient(private val settings: () -> Settings) {
     suspend fun intake(session: String, text: String): IntakeReply =
         send("/care/$session/intake", JsonObject(mapOf("text" to JsonPrimitive(text))).toString(), IntakeReply.serializer())
 
-    suspend fun events(session: String, after: Int): List<CareEvent> =
-        send("/care/$session/events?after=$after", null, EventsReply.serializer()).events
+    /** @param waitSec > 0: the server holds the request until there is news (long-poll), so updates arrive at once. */
+    suspend fun events(session: String, after: Int, waitSec: Int = 0): List<CareEvent> =
+        send("/care/$session/events?after=$after&wait=$waitSec", null, EventsReply.serializer()).events
 
     /** @param patient sent up front so a yes during a hospital call can book there and then. */
     suspend fun search(session: String, patient: CarePatient? = null) {

@@ -27,12 +27,22 @@ enum class EmergencyPhase { COUNTDOWN, DISPATCHING, TRACKING, ARRIVED, NO_UNITS,
 data class EmergencyUi(
     val phase: EmergencyPhase = EmergencyPhase.COUNTDOWN,
     val secondsLeft: Int = 15,
+    /** The countdown's starting length, for the ring on the countdown screen. */
+    val totalSeconds: Int = 15,
     val brief: String = "",
     val topCondition: String? = null,
     val askLandmark: Boolean = false,
     val status: String? = null,
     val vehicle: String? = null,
     val crew: String? = null,
+    /** "BLS" or "ALS" from the dispatch API. */
+    val vehicleType: String? = null,
+    val driver: String? = null,
+    val paramedic: String? = null,
+    /** The first distance reported, so the progress bar shows how much of the trip is done. */
+    val startDistanceM: Int? = null,
+    /** A short place name for the location chip ("Rohini"). */
+    val area: String? = null,
     val etaSec: Int? = null,
     val distanceM: Int? = null,
     val patient: Pair<Double, Double>? = null,
@@ -62,8 +72,11 @@ class EmergencyFlow(private val c: AppContainer) {
     private val style get() = c.settings.current.replyStyle
     private fun s(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
 
-    /** Called by [CareFlow] when the intake routes to A; opens the emergency screen and starts the countdown. */
-    suspend fun start(sessionId: String, intake: IntakeNote, location: CareLocation?) {
+    /**
+     * Called by [CareFlow] when the intake routes to A; opens the emergency screen and starts the countdown.
+     * @param immediate the user asked for an ambulance outright: dispatch now, with no countdown to wait through.
+     */
+    suspend fun start(sessionId: String, intake: IntakeNote, location: CareLocation?, immediate: Boolean = false) {
         session = sessionId
         note = intake
         val lowAccuracy = location == null || (location.accuracyM ?: 1_000.0) > 100.0
@@ -72,10 +85,12 @@ class EmergencyFlow(private val c: AppContainer) {
             topCondition = intake.possibleConditions.firstOrNull()?.name,
             askLandmark = lowAccuracy,
             patient = location?.let { it.lat to it.lng },
+            area = location?.address?.let(::shortArea),
         )
         c.assistant.openScreen("emergency")
+        if (immediate) return dispatch("send_now") // it says "I am requesting an ambulance now"
         val seconds = runCatching { client.emergencyAlert(sessionId) }.getOrDefault(15)
-        _ui.update { it.copy(secondsLeft = seconds) }
+        _ui.update { it.copy(secondsLeft = seconds, totalSeconds = seconds) }
         c.speaker.say(s("This could be an emergency. I will send an ambulance in $seconds seconds. Say I'm OK, or tap it, to cancel.",
             "यह इमरजेंसी हो सकती है। मैं $seconds सेकंड में एम्बुलेंस भेज दूँगी। रोकने के लिए 'मैं ठीक हूँ' बोलिए या दबाइए।",
             "Yeh emergency ho sakti hai. Main $seconds second mein ambulance bhej dungi. Rokne ke liye 'main theek hoon' boliye ya dabaiye."), style)
@@ -129,7 +144,8 @@ class EmergencyFlow(private val c: AppContainer) {
     private suspend fun track(id: String) {
         var seq = 0
         while (true) {
-            val events = runCatching { client.events(id, seq) }.getOrDefault(emptyList())
+            // Long-poll: the server answers the moment an update exists (the ambulance moves every second).
+            val events = runCatching { client.events(id, seq, waitSec = 15) }.getOrElse { delay(1_000); emptyList() }
             for (e in events) {
                 seq = e.seq
                 when (e.type) {
@@ -139,16 +155,17 @@ class EmergencyFlow(private val c: AppContainer) {
                 }
             }
             if (_ui.value.phase in setOf(EmergencyPhase.CANCELLED, EmergencyPhase.NO_UNITS) || _ui.value.status == "COMPLETED") return
-            delay(1_000)
         }
     }
 
     private suspend fun onStatus(d: JsonObject) {
         val status = d.str("status") ?: return
         val vehicle = (d["vehicle"] as? JsonObject)?.str("registration")
-        val crew = (d["crew"] as? JsonObject)?.let { crew ->
-            listOfNotNull(crew["driver"]?.jsonObject?.str("name"), crew["paramedic"]?.jsonObject?.str("name")).joinToString(", ")
-        }
+        val crewObj = d["crew"] as? JsonObject
+        val driver = crewObj?.get("driver")?.jsonObject?.str("name")
+        val paramedic = crewObj?.get("paramedic")?.jsonObject?.str("name")
+        val crew = listOfNotNull(driver, paramedic).joinToString(", ")
+        val vehicleType = (d["vehicle"] as? JsonObject)?.str("type")
         val route = d["route"]?.takeIf { it is kotlinx.serialization.json.JsonArray }?.let {
             runCatching { SaathiJson.decodeFromJsonElement(ListSerializer(ListSerializer(Double.serializer())), it) }.getOrNull()
         }
@@ -159,7 +176,8 @@ class EmergencyFlow(private val c: AppContainer) {
                     "RECEIVED", "ASSIGNED", "EN_ROUTE" -> EmergencyPhase.TRACKING
                     else -> EmergencyPhase.ARRIVED // at the scene or later: help is with the patient
                 },
-                status = status, vehicle = vehicle ?: it.vehicle, crew = crew?.ifBlank { null } ?: it.crew,
+                status = status, vehicle = vehicle ?: it.vehicle, crew = crew.ifBlank { null } ?: it.crew,
+                vehicleType = vehicleType ?: it.vehicleType, driver = driver ?: it.driver, paramedic = paramedic ?: it.paramedic,
                 route = route ?: it.route, timeline = (it.timeline + status).distinct(),
             )
         }
@@ -179,8 +197,10 @@ class EmergencyFlow(private val c: AppContainer) {
         val lat = d.num("lat") ?: return
         val lng = d.num("lng") ?: return
         _ui.update {
+            val dist = (d["distance_m"] as? JsonPrimitive)?.intOrNull
             it.copy(ambulance = Triple(lat, lng, d.num("heading") ?: 0.0),
-                etaSec = (d["eta_sec"] as? JsonPrimitive)?.intOrNull, distanceM = (d["distance_m"] as? JsonPrimitive)?.intOrNull)
+                etaSec = (d["eta_sec"] as? JsonPrimitive)?.intOrNull, distanceM = dist,
+                startDistanceM = it.startDistanceM ?: dist?.takeIf { m -> m > 0 })
         }
     }
 
@@ -218,6 +238,12 @@ class EmergencyFlow(private val c: AppContainer) {
         listener?.cancel()
         tracker?.cancel()
         siren.stop()
+    }
+
+    /** "Plot 12, Sector 5, Rohini, Delhi, 110085, India" → "Rohini": the locality, before city, PIN and country. */
+    private fun shortArea(address: String): String? {
+        val parts = address.split(",").map { it.trim() }.filter { it.isNotEmpty() && !it.all { ch -> ch.isDigit() || ch == ' ' } }
+        return (parts.getOrNull(parts.size - 3) ?: parts.firstOrNull())?.take(28)
     }
 
     private fun JsonObject.str(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull

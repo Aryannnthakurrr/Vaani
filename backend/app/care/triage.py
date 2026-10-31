@@ -96,12 +96,19 @@ def _add_flags(session: CareSession, flags: list[str]) -> None:
 
 async def take_turn(session: CareSession, text: str, llm: LLMClient) -> dict[str, object]:
     """One intake turn (typed, turn-based or from the live conversation): the first description or the answer to
-    the pending follow-up. Returns the next question, or the finished note with its route."""
+    the pending follow-up. Returns the next question, or the finished note with its route.
+
+    A first sentence that asks for something outright ("send an ambulance now", "book an orthopedic appointment")
+    skips the questions: `explicit` in the reply tells the phone to dispatch at once or start the hospital calls."""
+    first = not session.pending_question and not session.utterances and not session.followups
+    kind = explicit_request(text) if first else None
     if session.pending_question:
         record_answer(session, session.pending_question, text)
     else:
         record_utterance(session, text)
-    step = await next_step(session, llm)
+    if kind == "appointment" and session.safety_flags:
+        kind = None  # a red flag in the same sentence still gets the full emergency check
+    step = _explicit_note(session, kind, text) if kind else await next_step(session, llm)
     if isinstance(step, IntakeNote):
         session.pending_question = None
         session.emit("intake_note", note_text=step.note_text, emergency=step.emergency.model_dump(),
@@ -111,10 +118,55 @@ async def take_turn(session: CareSession, text: str, llm: LLMClient) -> dict[str
             "route": session.route,
             "note": step.model_dump(),
             "safety_flags": session.safety_flags,
+            "explicit": kind,
         }
     session.pending_question = step
     session.emit("intake_question", text=step)
     return {"done": False, "question": step, "safety_flags": session.safety_flags}
+
+
+_AMBULANCE = re.compile(r"ambulance|ambulence|एम्बुलेंस|ऐम्बुलेंस|एंबुलेंस", _I)
+_ASKING = re.compile(
+    r"\b(send|book|call|need|want|get|bhej|bula|chahiye|mangwa|abhi|now|jaldi|turant|please)|भेज|बुला|चाहिए|अभी|जल्दी|तुरंत", _I
+)
+_REFUSING = re.compile(r"\b(mat|nahi|nahin|don'?t|do not|no need|not)\b|मत|नहीं", _I)
+_BOOKING = re.compile(
+    r"\b(appointment|book|booking|number|consult|milna|dikhana|dikhaana|check ?up)\b|अपॉइंटमेंट|बुक|दिखाना|मिलना", _I
+)
+_DOCTOR = re.compile(
+    r"ortho|cardio|neuro|derma|gyn|p(a)?ediatric|dentist|\bent\b|\beye|skin|specialist|physician|doctor|daktar|"
+    r"डॉक्टर|डाक्टर|हड्डी",
+    _I,
+)
+
+
+def explicit_request(text: str) -> str | None:
+    """"ambulance" for an outright ask for one, "appointment" for a named doctor or specialist booking, else None."""
+    if _AMBULANCE.search(text) and _ASKING.search(text) and not _REFUSING.search(text):
+        return "ambulance"
+    if _BOOKING.search(text) and _DOCTOR.search(text):
+        return "appointment"
+    return None
+
+
+def _explicit_note(session: CareSession, kind: str, text: str) -> IntakeNote:
+    """The note for an outright request: no follow-up questions, the user's own words as the complaint."""
+    note = template_note(session)
+    if kind == "ambulance":
+        note.emergency = Emergency(answer="YES", reasoning="The user asked for an ambulance.",
+                                   triggering_red_flags=note.emergency.triggering_red_flags, acuity=2)  # fmt: skip
+        plan = "emergency dispatch (requested by the user)"
+    else:
+        note.emergency = Emergency(answer="NO", reasoning="The user asked to book an appointment; no red flag.", acuity=4)
+        plan = f"book a {note.specialty} appointment (requested by the user)"
+        note.appointment_timeframe = "next available"
+    note.note_text = "\n".join([
+        "CLINICAL INTAKE NOTE  (AI-generated. Not a diagnosis.)",
+        f"Session: {session.id}            Time: {_now_iso()}",
+        f"Request: {text[:200]}",
+        f"Plan: {plan}",
+    ])  # fmt: skip
+    return _finalize(session, note)
 
 
 async def next_step(session: CareSession, llm: LLMClient) -> str | IntakeNote:
@@ -241,20 +293,27 @@ def _user_emergency_answer(session: CareSession) -> str | None:
 # ------------------------------------------------------------------------------------------- template note
 
 _SPECIALTIES = [
-    ("cardiology", r"chest|heart|dil|seen|chhati|palpitat|bp|blood pressure"),
-    ("neurology", r"head|sir|sar|dizz|chakkar|numb|seizure|stroke|migraine"),
+    ("cardiology", r"cardio|chest|heart|dil|seen|chhati|palpitat|bp|blood pressure"),
+    ("neurology", r"neuro|head|sir|sar|dizz|chakkar|\bnumb|seizure|stroke|migraine"),
     ("pulmonology", r"breath|saa?ns|cough|khaansi|asthma|wheez"),
     ("gastroenterology", r"stomach|pet|vomit|ulti|diarr|loose motion|acidity|gas"),
-    ("orthopedics", r"bone|haddi|joint|knee|ghutn|back pain|kamar|fracture|sprain"),
-    ("dermatology", r"skin|rash|itch|khujli|daane"),
-    ("ent", r"\bear\b|kaan|throat|gala|nose|naak|sinus"),
+    ("orthopedics", r"ortho|bone|haddi|हड्डी|joint|knee|ghutn|back pain|kamar|fracture|sprain"),
+    ("dermatology", r"derma|skin|rash|itch|khujli|daane"),
+    ("ent", r"\bent\b|\bear\b|kaan|throat|gala|nose|naak|sinus"),
     ("ophthalmology", r"\beye|aankh|vision|nazar"),
-    ("gynecology", r"pregnan|period|garbh|white discharge"),
+    ("gynecology", r"gyn|pregnan|period|garbh|white discharge"),
+]
+
+
+# A specialty the user names ("orthopedic", "cardiologist") wins over a symptom word in the same sentence.
+_NAMED = [
+    ("orthopedics", r"ortho"), ("cardiology", r"cardio"), ("neurology", r"neuro"), ("dermatology", r"derma"),
+    ("gynecology", r"gyn"), ("ent", r"\bent\b"), ("ophthalmology", r"ophthal|eye (doctor|specialist)"),
 ]
 
 
 def _specialty(text: str) -> str:
-    return next((name for name, pattern in _SPECIALTIES if re.search(pattern, text, _I)), "general medicine")
+    return next((name for name, pattern in _NAMED + _SPECIALTIES if re.search(pattern, text, _I)), "general medicine")
 
 
 def _queries(specialty: str) -> list[str]:

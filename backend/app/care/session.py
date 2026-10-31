@@ -6,6 +6,7 @@ logged, never their contents (DEVELOPING.md: raw personal text is never logged).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import secrets
 import threading
@@ -82,6 +83,16 @@ class CareSession:
     def events_after(self, seq: int) -> list[dict[str, Any]]:
         with self._lock:
             return [e for e in self.events if e["seq"] > seq]
+
+    async def wait_events(self, seq: int, wait_s: float) -> list[dict[str, Any]]:
+        """Long-poll: returns as soon as an event after `seq` exists, or empty after `wait_s`. The phone asks again at
+        once, so updates arrive within ~0.1 s instead of a polling interval, with one request per update."""
+        deadline = time.monotonic() + wait_s
+        while True:
+            events = self.events_after(seq)
+            if events or time.monotonic() >= deadline:
+                return events
+            await asyncio.sleep(0.1)
 
     def hospital(self, hospital_id: str) -> Hospital | None:
         return next((h for h in self.hospitals if h.id == hospital_id), None)

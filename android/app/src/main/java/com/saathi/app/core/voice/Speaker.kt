@@ -12,6 +12,8 @@ import com.saathi.app.core.privacy.PrivateSpan
 import com.saathi.app.core.privacy.PrivateSpans
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -81,10 +83,17 @@ class Speaker(
         return span != null
     }
 
-    private suspend fun sayPublic(text: String, style: ReplyStyle) {
-        val audio = cloudAudio(text, style)
-        if (audio != null && playFile(audio, SPEECH_USAGE)) return
-        speakOnDevice(text, style, SPEECH_USAGE)
+    /**
+     * Sarvam returns a whole clip at once, so a long reply used to wait for all of it. Longer text is split into
+     * sentences that are all requested together; the first plays as soon as it arrives while the rest finish.
+     */
+    private suspend fun sayPublic(text: String, style: ReplyStyle) = coroutineScope {
+        val chunks = sentences(text)
+        val clips = chunks.map { async { cloudAudio(it, style) } }
+        chunks.forEachIndexed { i, chunk ->
+            val audio = clips[i].await()
+            if (audio == null || !playFile(audio, SPEECH_USAGE)) speakOnDevice(chunk, style, SPEECH_USAGE)
+        }
     }
 
     /** Speaks a safety phrase from the bundled table. Never touches the network. */
@@ -194,6 +203,22 @@ class Speaker(
         MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }.take(32)
 
     companion object {
+        private val SENTENCE_END = Regex("(?<=[.!?।])\\s+")
+
+        /** Sentences of at least ~40 characters (tiny ones join the next), so short replies stay one clip. */
+        fun sentences(text: String): List<String> {
+            val out = mutableListOf<String>()
+            var current = ""
+            for (piece in text.trim().split(SENTENCE_END)) {
+                current = if (current.isEmpty()) piece else "$current $piece"
+                if (current.length >= MIN_CHUNK) { out += current; current = "" }
+            }
+            if (current.isNotBlank()) if (out.isEmpty()) out += current else out[out.lastIndex] = out.last() + " " + current
+            return out
+        }
+
+        private const val MIN_CHUNK = 40
+
         /**
          * Speech plays on the media volume. Samsung keeps a separate, hidden "assistant" volume that was at 1/15 on a
          * test phone, so USAGE_ASSISTANT made Saathi nearly silent while the media volume was at maximum.

@@ -71,10 +71,14 @@ async def intake(
 
 
 @router.get("/{session_id}/events")
-def events(
-    session_id: str, after: int = Query(default=0, ge=0), device: str = Depends(require_device)
+async def events(
+    session_id: str,
+    after: int = Query(default=0, ge=0),
+    wait: float = Query(default=0, ge=0, le=25),
+    device: str = Depends(require_device),
 ) -> dict[str, object]:
-    return {"events": _session(session_id, device).events_after(after)}
+    """`wait` > 0 holds the request open until something happens (long-poll); 0 answers at once."""
+    return {"events": await _session(session_id, device).wait_events(after, wait)}
 
 
 class SearchBody(BaseModel):

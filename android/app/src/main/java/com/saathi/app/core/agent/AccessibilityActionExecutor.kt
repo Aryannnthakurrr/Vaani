@@ -142,7 +142,11 @@ class AccessibilityActionExecutor(
         } ?: false
 
     companion object {
-        const val SETTLE_QUIET_MS = 600L
-        const val SETTLE_MAX_MS = 5_000L
+        const val SETTLE_QUIET_MS = 350L
+        /**
+         * Apps that never stop animating (Uber's live map, Pronto's banners) keep sending events, so they used to hit
+         * this cap after every tap; 2 s is enough for a screen change to land.
+         */
+        const val SETTLE_MAX_MS = 2_000L
     }
 }

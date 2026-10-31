@@ -59,12 +59,13 @@ class CareFlow(private val c: AppContainer) {
 
     val running: Boolean get() = job?.isActive == true
 
-    fun start() {
+    /** @param firstWords what the user already said to the assistant ("send an ambulance now"), used as the first turn. */
+    fun start(firstWords: String? = null) {
         if (running) return
         _ui.value = CareUi()
         job = c.scope.launch {
             try {
-                run()
+                run(firstWords?.trim()?.ifBlank { null })
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -101,7 +102,7 @@ class CareFlow(private val c: AppContainer) {
 
     // ------------------------------------------------------------------------------------------- intake
 
-    private suspend fun run() {
+    private suspend fun run(firstWords: String?) {
         _ui.update { it.copy(phase = CarePhase.STARTING) }
         val fix = DeviceLocation.current(c.context) // fresh: an ambulance may be sent to it
         val location = fix?.let {
@@ -113,18 +114,20 @@ class CareFlow(private val c: AppContainer) {
         val session = client.start(CareStart(location, patient, style.wire))
         sessionId = session
         _ui.update { it.copy(phase = CarePhase.INTAKE) }
-        // Live first: a real-time conversation the user can interrupt. Turn-based only if Live can't start.
-        when (val live = liveIntake(session)) {
-            LiveIntake.Unavailable -> say(s("Tell me what is wrong, for you or for someone near you. I am not a doctor, but I will help you find care.",
-                "बताइए क्या तकलीफ़ है, आपको या आपके पास किसी को। मैं डॉक्टर नहीं हूँ, पर इलाज ढूँढने में मदद करूँगी।",
-                "Bataiye kya takleef hai, aapko ya aapke paas kisi ko. Main doctor nahi hoon, par ilaaj dhoondhne mein madad karungi."))
+        // Words already said to the assistant are the first turn; otherwise one short opening line.
+        if (firstWords != null) {
+            _ui.update { it.copy(chat = it.chat + ChatLine(true, firstWords)) }
+        } else when (val live = liveIntake(session)) {
+            // Live first: a real-time conversation the user can interrupt. Turn-based only if Live can't start.
+            LiveIntake.Unavailable -> say(s("Tell me, how can I help you?", "बताइए, मैं आपकी मदद कैसे कर सकती हूँ?",
+                "Bataiye, main aapki madad kaise kar sakti hoon?"))
             // Dropped mid-way: carry on turn by turn; the session keeps everything said so far.
             LiveIntake.Ended -> say(s("The connection dropped. Let's continue. Please tell me again how you are feeling.",
                 "कनेक्शन टूट गया। चलिए आगे बढ़ते हैं। कृपया फिर से बताइए कैसा महसूस हो रहा है।",
                 "Connection toot gaya. Chaliye aage badhte hain. Please phir se bataiye kaisa mehsoos ho raha hai."))
             is LiveIntake.Done -> return finishIntake(session, live.reply, location)
         }
-        var answer = listen() ?: return
+        var answer = firstWords ?: listen() ?: return
         while (true) {
             _ui.update { it.copy(phase = CarePhase.THINKING) }
             val reply = withSlowCue { client.intake(session, answer) }
@@ -138,8 +141,8 @@ class CareFlow(private val c: AppContainer) {
     private suspend fun finishIntake(session: String, reply: IntakeReply, location: CareLocation?) {
         val note = reply.note ?: return fail(s("I could not finish the assessment.", "मैं आकलन पूरा नहीं कर पाई।", "Main assessment poora nahi kar payi."))
         _ui.update { it.copy(note = note, route = reply.route) }
-        if (reply.route == "A") return c.emergency.start(session, note, location)
-        pathB(session, note)
+        if (reply.route == "A") return c.emergency.start(session, note, location, immediate = reply.explicit == "ambulance")
+        pathB(session, note, askFirst = reply.explicit != "appointment")
     }
 
     private sealed interface LiveIntake {
@@ -281,7 +284,7 @@ class CareFlow(private val c: AppContainer) {
             when (ui.phase) {
                 CarePhase.RECOMMEND -> return recommend(session, ui.recommendation ?: return)
                 CarePhase.NO_OPTIONS, CarePhase.ERROR -> return say(ui.message ?: s("I could not find an appointment.", "मुझे अपॉइंटमेंट नहीं मिला।", "Mujhe appointment nahi mila."))
-                else -> delay(POLL_MS)
+                else -> Unit // poll() long-polls, so the next round starts at once
             }
         }
     }
@@ -312,7 +315,8 @@ class CareFlow(private val c: AppContainer) {
     }
 
     private suspend fun poll(session: String): CareUi {
-        val events = runCatching { client.events(session, _ui.value.lastSeq) }.getOrDefault(emptyList())
+        val events = runCatching { client.events(session, _ui.value.lastSeq, LONG_POLL_S) }
+            .getOrElse { delay(POLL_MS); emptyList() } // offline: don't spin
         _ui.update { ui -> events.fold(ui) { acc, e -> CareReducer.apply(acc, e) } }
         return _ui.value
     }
@@ -337,7 +341,6 @@ class CareFlow(private val c: AppContainer) {
         _ui.update { it.copy(phase = CarePhase.BOOKING, booking = null) }
         say(s("I am calling the hospital to book it.", "मैं बुक करने के लिए अस्पताल को फ़ोन कर रही हूँ।", "Main book karne ke liye hospital ko call kar rahi hoon."))
         while (true) {
-            delay(POLL_MS)
             val b = poll(session).booking?.takeIf { it.status != "calling" } ?: continue
             when (b.status) {
                 "confirmed" -> return booked(b)
@@ -382,8 +385,15 @@ class CareFlow(private val c: AppContainer) {
         }
         say(s("And the patient's age?", "और मरीज़ की उम्र?", "Aur patient ki umar?"))
         val age = listen()?.let { Regex("\\d{1,3}").find(it)?.value?.toIntOrNull() }
-        say(s("Which phone number should the hospital use?", "अस्पताल किस फ़ोन नंबर पर संपर्क करे?", "Hospital kis phone number par contact kare?"))
-        val phone = listen()?.filter { it.isDigit() || it == '+' }?.takeIf { it.length >= 10 }
+        // This phone's own number when the SIM has it; asked only when it doesn't.
+        val phone = DevicePhone.number(c.context)?.also {
+            val last = it.takeLast(4)
+            say(s("I'll give them this phone's number, ending $last.", "मैं उन्हें इस फ़ोन का नंबर दूँगी, जिसके आख़िरी अंक $last हैं।",
+                "Main unhe is phone ka number dungi, jiske last digits $last hain."))
+        } ?: run {
+            say(s("Which phone number should the hospital use?", "अस्पताल किस फ़ोन नंबर पर संपर्क करे?", "Hospital kis phone number par contact kare?"))
+            DevicePhone.normalize(listen())
+        }
         return CarePatient(name = name, age = age, phone = phone).also { patient = it }
     }
 
@@ -406,6 +416,8 @@ class CareFlow(private val c: AppContainer) {
 
     private companion object {
         const val POLL_MS = 1_500L
+        /** How long the server may hold one events request open (long-poll). */
+        const val LONG_POLL_S = 15
         const val SLOW_MS = 4_000L
         /** A little under the backend's 25 s hold (care/live_confirm.py WAIT_S), so a yes still reaches the call. */
         const val LIVE_ANSWER_MS = 20_000L
