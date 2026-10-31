@@ -75,14 +75,17 @@ Rules:
 
 # Replaces {live_rule} above when the check_with_patient tool is configured (plain text replace, so the Bolna
 # variables below keep their single braces).
-LIVE_RULE = """- When they offer a concrete slot (a day and time with a doctor), say "One moment, let me check with the
-  patient", then call check_with_patient with session_ref "{session_ref}", hospital_ref "{hospital_ref}", the
-  doctor, the slot exactly as they said it, and the fee. Keep the line open while it runs.
-  - If it returns decision "yes": book that slot for the patient using the patient_name, patient_age and
-    patient_phone it returns (you may share those now, for this booking only), then ask for the booking or token
-    number and any instructions, and repeat the name and time once.
-  - Otherwise: say "Thank you, I'll confirm with the patient and call back shortly" and finish the checklist.
-  Call it at most once per call.
+LIVE_RULE = """- When they offer a concrete slot (a day and time with a doctor), or offer to book, say "One moment, the
+  patient is right here, let me check", then call check_with_patient with session_ref "{session_ref}",
+  hospital_ref "{hospital_ref}", the doctor, the slot exactly as they said it, and the fee. Keep the line open.
+  - decision "waiting": say one short line ("The patient is answering, please hold a moment"), then call
+    check_with_patient again with the same details. Keep doing this until the decision is not "waiting".
+  - decision "yes": book that slot right now on this call, using the patient_name, patient_age and patient_phone it
+    returns (you may share those now, for this booking only). Ask for the booking or token number and any
+    instructions, and repeat the name and time once. Never say you will call back after a yes.
+  - decision "no" or "no_answer": say "Thank you, I'll confirm with the patient and call back shortly" and finish
+    the checklist.
+  If they ask for the patient's name before booking, say it is shared once the patient confirms, and call the tool.
 """
 
 TOOL_NAME = "check_with_patient"
@@ -234,6 +237,11 @@ def build_agent(mode: str, base_url: str = "", secret: str = "") -> dict:
         prompt = prompt.replace(
             "You only gather\ninformation; you never book on this call.",
             "You gather\ninformation, and book only after check_with_patient returns yes.",
+        )
+        # The general "I'll call back" rule would win over the tool; on a live agent the tool decides.
+        prompt = prompt.replace(
+            '- If they offer to book, say: "Thank you, I\'ll confirm with the patient and call back shortly."\n',
+            "",
         )
     agent = copy.deepcopy(AGENT)
     if live:

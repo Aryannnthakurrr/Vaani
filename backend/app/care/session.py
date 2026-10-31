@@ -69,6 +69,9 @@ class CareSession:
     # confirming while the hospital is on the line (care/live_confirm.py)
     live_asks: dict[str, Any] = field(default_factory=dict)  # ask_id -> asyncio.Future[bool]
     live_booked: dict[str, Slot] = field(default_factory=dict)  # hospital_id -> slot the user said yes to
+    live_pending: dict[str, tuple[str, float, str]] = field(
+        default_factory=dict
+    )  # hospital_id -> (ask_id, deadline, slot)
     # path A
     emergency: dict[str, Any] = field(default_factory=dict)
     # events

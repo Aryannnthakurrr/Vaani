@@ -312,9 +312,12 @@ class CareFlow(private val c: AppContainer) {
     private suspend fun askWhileOnTheCall(session: String, ask: LiveAsk) {
         val who = listOf(ask.doctor, ask.hospitalName).filter { it.isNotBlank() }.joinToString(", ")
         val fee = ask.fee.takeIf { it.isNotBlank() }?.let { s(", fee $it", ", फ़ीस $it", ", fee $it") }.orEmpty()
-        say(s("I'm on the phone with ${ask.hospitalName} now. They can see you: $who, ${ask.slot}$fee. Shall I book it?",
+        // The hospital is holding the line: on-device voice, so the question starts at once instead of after a cloud clip.
+        val question = s("I'm on the phone with ${ask.hospitalName} now. They can see you: $who, ${ask.slot}$fee. Shall I book it?",
             "मैं अभी ${ask.hospitalName} से फ़ोन पर बात कर रही हूँ। $who, ${ask.slot}$fee मिल सकता है। क्या बुक कर दूँ?",
-            "Main abhi ${ask.hospitalName} se phone par baat kar rahi hoon. $who, ${ask.slot}$fee mil sakta hai. Kya book kar doon?"))
+            "Main abhi ${ask.hospitalName} se phone par baat kar rahi hoon. $who, ${ask.slot}$fee mil sakta hai. Kya book kar doon?")
+        _ui.update { it.copy(chat = it.chat + ChatLine(false, question)) }
+        c.speaker.sayQuick(question, style)
         val yes = withTimeoutOrNull(LIVE_ANSWER_MS) { yesNo() }
         if (yes == null) {
             tapped = null; typed = null  // yesNo() was cancelled before its own clean-up
@@ -415,19 +418,30 @@ class CareFlow(private val c: AppContainer) {
 
     private suspend fun booked(b: BookingStatus) {
         val cal = b.calendar
-        val added = cal?.let { c.calendar.insertEvent(it.title, it.location, it.description, it.startIso, it.endIso) } != null
-        // Shared with every other workflow: reminders, "cab to my appointment", and the assistant's context.
+        // Shared with every other workflow: "cab to my appointment" and the assistant's context.
         val hospital = _ui.value.hospitals.firstOrNull { it.hospital.id == b.hospitalId }?.hospital
         val appt = com.saathi.app.core.net.Appointment(doctor = b.doctorName, clinic = hospital?.name,
             address = hospital?.address ?: cal?.location, phone = hospital?.phone, startIso = b.startIso ?: cal?.startIso)
         c.settings.setLastAppointment(com.saathi.app.util.SaathiJson.encodeToString(com.saathi.app.core.net.Appointment.serializer(), appt))
-        com.saathi.app.features.inbox.ReminderPlanner.forAppointment(appt, java.time.ZonedDateTime.now())
-            .forEach { c.reminders.add(c.db.reminders(), it) }
         val whenText = CareText.time(b.startIso ?: cal?.startIso.orEmpty(), style)
         val ref = b.bookingRef?.let { s(", reference $it", ", रेफ़रेंस $it", ", reference $it") }.orEmpty()
-        say(s("Booked: ${b.doctorName ?: cal?.title ?: "the appointment"}, $whenText$ref." + if (added) " I added it to your calendar." else "",
-            "बुक हो गया: ${b.doctorName ?: cal?.title ?: "अपॉइंटमेंट"}, $whenText$ref।" + if (added) " मैंने इसे आपके कैलेंडर में जोड़ दिया।" else "",
-            "Book ho gaya: ${b.doctorName ?: cal?.title ?: "appointment"}, $whenText$ref." + if (added) " Maine ise aapke calendar mein jod diya." else ""))
+        val doctor = b.doctorName ?: cal?.title
+        say(s("Booked: ${doctor ?: "the appointment"}, $whenText$ref. Shall I add it to your calendar and remind you a day before and two hours before?",
+            "बुक हो गया: ${doctor ?: "अपॉइंटमेंट"}, $whenText$ref। क्या मैं इसे कैलेंडर में जोड़ दूँ और एक दिन पहले और दो घंटे पहले याद दिला दूँ?",
+            "Book ho gaya: ${doctor ?: "appointment"}, $whenText$ref. Kya main ise calendar mein jod doon aur ek din pehle aur do ghante pehle yaad dila doon?"))
+        if (!yesNo()) return say(s("Okay, I haven't added it. It's saved here if you need it.", "ठीक है, मैंने नहीं जोड़ा। यह यहाँ सेव है।",
+            "Theek hai, maine nahi joda. Yeh yahan save hai."))
+        val added = cal?.let { c.calendar.insertEvent(it.title, it.location, it.description, it.startIso, it.endIso) } != null
+        val reminders = com.saathi.app.features.inbox.ReminderPlanner.forAppointment(appt, java.time.ZonedDateTime.now())
+        reminders.forEach { c.reminders.add(c.db.reminders(), it) }
+        say(when {
+            added && reminders.isNotEmpty() -> s("Done. It's in your calendar and I'll remind you.", "हो गया। कैलेंडर में जोड़ दिया और मैं याद दिला दूँगी।",
+                "Ho gaya. Calendar mein jod diya aur main yaad dila doongi.")
+            reminders.isNotEmpty() -> s("I'll remind you. I couldn't add it to the calendar.", "मैं याद दिला दूँगी। कैलेंडर में नहीं जोड़ पाई।",
+                "Main yaad dila doongi. Calendar mein nahi jod payi.")
+            added -> s("It's in your calendar.", "कैलेंडर में जोड़ दिया।", "Calendar mein jod diya.")
+            else -> s("I couldn't add it, but it's saved here.", "मैं नहीं जोड़ पाई, पर यह यहाँ सेव है।", "Main nahi jod payi, par yeh yahan save hai.")
+        })
     }
 
     private companion object {
@@ -435,8 +449,8 @@ class CareFlow(private val c: AppContainer) {
         /** How long the server may hold one events request open (long-poll). */
         const val LONG_POLL_S = 15
         const val SLOW_MS = 4_000L
-        /** A little under the backend's 25 s hold (care/live_confirm.py WAIT_S), so a yes still reaches the call. */
-        const val LIVE_ANSWER_MS = 20_000L
+        /** A little under the backend's 40 s hold (care/live_confirm.py WAIT_S), so a yes still reaches the call. */
+        const val LIVE_ANSWER_MS = 35_000L
     }
 }
 

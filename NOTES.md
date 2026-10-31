@@ -708,3 +708,18 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   outside this network (this PC's own HTTPS checks fail, see the FortiGate note), and the tool returns 401 without
   the secret and 200 with it (raw or "Bearer "). A quick tunnel dies with the process or a reboot: start it again,
   then update `PUBLIC_BASE_URL` and re-run `scripts/bolna_agent.py --mode inquiry`.
+
+## Mid-call booking fix: Bolna drops long tool requests (2026-11-01)
+
+- Seen on a real call (agent 57cf8926, 31 Oct 19:14): the agent called `check_with_patient`, said "one moment", then
+  "I'll call back" within seconds although the patient said yes on the phone. Bolna's tool request gives up long
+  before our 25 s hold. Now each request returns within `HOLD_S` (6 s) with `waiting`; the agent tells the receptionist
+  the patient is answering and calls again, joining the same question (one `live_confirm` on the phone). The whole
+  question stays open `WAIT_S` (40 s); the phone waits 35 s.
+- The live prompt no longer carries the general "if they offer to book, say I'll call back" rule, which beat the tool.
+  **Existing inquiry agents keep the old prompt: re-run `scripts/bolna_agent.py --mode inquiry` on each backend and
+  update `BOLNA_INQUIRY_AGENT_ID`.**
+- The on-call question is spoken with on-device TTS (`Speaker.sayQuick`) so it starts at once.
+- After a booking the phone asks before adding the calendar event and the two reminders (a day and 2 h before,
+  `ReminderPlanner`); the appointment itself is always saved for "cab to my appointment".
+- Not reproduced: "the recommendation isn't spoken". The code speaks it (`CareFlow.recommend`); needs a phone log.

@@ -144,3 +144,34 @@ def test_a_yes_the_transcript_does_not_confirm_is_not_called_booked(client, demo
     _wait_for(client, sid, "recommendation")  # the usual flow takes over
     types = [e["type"] for e in client.get(f"/care/{sid}/events", headers=HEADERS).json()["events"]]
     assert "booking_status" not in types
+
+
+def test_short_tool_requests_rejoin_the_same_question(client, demo) -> None:
+    """Bolna drops long tool requests: each one returns `waiting` quickly and the next joins the open question."""
+    demo.setattr(live_confirm, "HOLD_S", 0.05)
+    replies: list[dict] = []
+
+    async def fake_run(session, hospital_id, number, mode, user_data):  # type: ignore[no-untyped-def]
+        if hospital_id != "demo/1":
+            return CallRun(f"ex-{hospital_id}", "NO_ANSWER", [])
+        while True:  # what the agent does: call again while the patient is answering
+            out = await live_confirm.ask(session, hospital_id, "Dr. Meera Iyer", "kal 11 baje", "600")
+            replies.append(out)
+            if out["decision"] != "waiting":
+                break
+        said = "Haan, Dr. Meera Iyer, kal 11 baje. Booked for Kamla Devi, confirmed, token number is CC-2291"
+        return CallRun("ex-1", "COMPLETED", [{"role": "clinic", "text": said}])
+
+    demo.setattr(calls, "run_call", fake_run)
+    sid = _route_b(client)
+    client.post(f"/care/{sid}/search", headers=HEADERS)
+    ask = _wait_for(client, sid, "live_confirm")
+    time.sleep(0.3)  # a few "waiting" rounds go by before the patient answers
+    yes = {"ask_id": ask["ask_id"], "yes": True}
+    assert client.post(f"/care/{sid}/live_confirm", json=yes, headers=HEADERS).json() == {"accepted": True}
+    assert _wait_for(client, sid, "booking_status")["status"] == "confirmed"
+    assert {r["decision"] for r in replies[:-1]} == {"waiting"} and replies[-1]["decision"] == "yes"
+    events = client.get(f"/care/{sid}/events", headers=HEADERS).json()["events"]
+    assert (
+        sum(e["type"] == "live_confirm" for e in events) == 1
+    )  # one question on the phone, however many requests

@@ -5,6 +5,10 @@ hospital offers a concrete slot, the agent says "one moment" and calls `POST /ca
 a `live_confirm` event to the phone, which asks the user (voice or tap) and answers through
 `POST /care/{id}/live_confirm`. Yes → the agent books in the same call with the patient's details; no or silence →
 it says it will call back, and the usual recommendation and booking call follow.
+
+Bolna gives up on a tool request after a few seconds, so one request never waits long: it returns `waiting` after
+HOLD_S, the agent tells the receptionist the patient is answering and calls again, and later calls for the same
+hospital join the question already on the phone. The whole question stays open for WAIT_S.
 """
 
 from __future__ import annotations
@@ -12,12 +16,14 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
+import time
 
 from app.care.extract import parse_slots
 from app.care.models import Slot
 from app.care.session import CareSession
 
-WAIT_S = 25.0  # how long the hospital is kept waiting; the agent says "one moment" meanwhile
+WAIT_S = 40.0  # how long the hospital is kept on the line in all
+HOLD_S = 6.0  # longest single tool request; Bolna's own limit is shorter than WAIT_S
 
 
 def tool_secret() -> str:
@@ -36,7 +42,7 @@ def authorised(header: str | None) -> bool:
 async def ask(
     session: CareSession, hospital_id: str, doctor: str, slot_text: str, fee: str
 ) -> dict[str, object]:
-    """Puts the offer to the user and waits for their answer. Returns what the agent should do next."""
+    """Puts the offer to the user (or rejoins the open question) and waits up to HOLD_S for their answer."""
     if session.live_booked:
         return {
             "decision": "no",
@@ -45,27 +51,30 @@ async def ask(
     hospital = session.hospital(hospital_id)
     if hospital is None:
         return {"decision": "no_answer", "say": "Say you will confirm with the patient and call back."}
-    ask_id = secrets.token_urlsafe(6)
-    future: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
-    session.live_asks[ask_id] = future
-    session.emit("live_confirm", ask_id=ask_id, hospital_id=hospital_id, hospital_name=hospital.name,
-                 doctor=doctor[:80], slot=slot_text[:80], fee=fee[:20], wait_s=WAIT_S)  # fmt: skip
+    ask_id, deadline, slot_text = session.live_pending.get(hospital_id) or _open(
+        session, hospital_id, hospital.name, doctor, slot_text, fee
+    )
+    future = session.live_asks[ask_id]
+    remaining = deadline - time.monotonic()
     try:
-        yes = await asyncio.wait_for(future, WAIT_S)
+        yes = await asyncio.wait_for(asyncio.shield(future), max(0.0, min(HOLD_S, remaining)))
     except TimeoutError:
-        session.emit("live_confirm_done", ask_id=ask_id, decision="no_answer")
+        if remaining > HOLD_S:
+            return {
+                "decision": "waiting",
+                "say": "Say the patient is answering on their phone, ask them to hold a moment, then call "
+                "check_with_patient again with the same details.",
+            }
+        _close(session, hospital_id, ask_id, "no_answer")
         return {
             "decision": "no_answer",
             "say": "The patient didn't answer in time. Say you'll call back shortly.",
         }
-    finally:
-        session.live_asks.pop(ask_id, None)
+    _close(session, hospital_id, ask_id, "yes" if yes else "no")
     if not yes:
-        session.emit("live_confirm_done", ask_id=ask_id, decision="no")
         return {"decision": "no", "say": "The patient said no for now. Thank them and say you'll call back."}
     slots = parse_slots(slot_text)
     session.live_booked[hospital_id] = slots[0] if slots else Slot(start=slot_text)
-    session.emit("live_confirm_done", ask_id=ask_id, decision="yes")
     p = session.patient
     return {
         "decision": "yes",
@@ -74,6 +83,24 @@ async def ask(
         "patient_age": str(p.age or ""),
         "patient_phone": p.phone or "",
     }
+
+
+def _open(
+    session: CareSession, hospital_id: str, name: str, doctor: str, slot_text: str, fee: str
+) -> tuple[str, float, str]:
+    ask_id = secrets.token_urlsafe(6)
+    session.live_asks[ask_id] = asyncio.get_running_loop().create_future()
+    pending = (ask_id, time.monotonic() + WAIT_S, slot_text)
+    session.live_pending[hospital_id] = pending
+    session.emit("live_confirm", ask_id=ask_id, hospital_id=hospital_id, hospital_name=name,
+                 doctor=doctor[:80], slot=slot_text[:80], fee=fee[:20], wait_s=WAIT_S)  # fmt: skip
+    return pending
+
+
+def _close(session: CareSession, hospital_id: str, ask_id: str, decision: str) -> None:
+    session.live_asks.pop(ask_id, None)
+    session.live_pending.pop(hospital_id, None)
+    session.emit("live_confirm_done", ask_id=ask_id, decision=decision)
 
 
 def answer(session: CareSession, ask_id: str, yes: bool) -> bool:

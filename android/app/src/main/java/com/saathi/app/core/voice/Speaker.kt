@@ -112,6 +112,18 @@ class Speaker(
         }
     }
 
+    /**
+     * On-device voice only, no cloud round trip: for a question someone is waiting on, such as a hospital holding the
+     * line for the patient's yes.
+     */
+    suspend fun sayQuick(text: String, style: ReplyStyle) {
+        if (text.isBlank()) return
+        speakingWhile {
+            _caption.value = text
+            speakOnDevice(text, style, SPEECH_USAGE)
+        }
+    }
+
     /** Speaks a safety phrase from the bundled table. Never touches the network. */
     suspend fun sayPhrase(key: String, style: ReplyStyle, inCall: Boolean = false) = speakingWhile { sayPhraseNow(key, style, inCall) }
 
