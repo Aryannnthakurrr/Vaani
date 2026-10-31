@@ -51,8 +51,8 @@
   },
   "confirm_yes_ack": {
     "en": "Okay, doing it now.",
-    "hi": "ठीक है, अभी कर रहा हूँ।",
-    "hinglish": "Theek hai, abhi kar raha hoon."
+    "hi": "ठीक है, अभी कर रही हूँ।",
+    "hinglish": "Theek hai, abhi kar rahi hoon."
   },
   "confirm_no_ack": {
     "en": "Okay, I have stopped. Nothing was booked.",
@@ -61,8 +61,8 @@
   },
   "pin_screen": {
     "en": "This screen needs your PIN. Please enter it yourself. I will wait. Say done when you finish.",
-    "hi": "इस स्क्रीन पर आपका पिन चाहिए। कृपया इसे खुद डालिए। मैं इंतज़ार करूँगा। हो जाए तो बोलिए हो गया।",
-    "hinglish": "Is screen par aapka PIN chahiye. Please ise khud daaliye. Main wait karunga. Ho jaye to boliye ho gaya."
+    "hi": "इस स्क्रीन पर आपका पिन चाहिए। कृपया इसे खुद डालिए। मैं इंतज़ार करूँगी। हो जाए तो बोलिए हो गया।",
+    "hinglish": "Is screen par aapka PIN chahiye. Please ise khud daaliye. Main wait karungi. Ho jaye to boliye ho gaya."
   },
   "login_screen": {
     "en": "This app wants you to log in. Please log in yourself, then tell me to continue.",
@@ -81,13 +81,13 @@
   },
   "listening": {
     "en": "I am listening.",
-    "hi": "मैं सुन रहा हूँ।",
-    "hinglish": "Main sun raha hoon."
+    "hi": "मैं सुन रही हूँ।",
+    "hinglish": "Main sun rahi hoon."
   },
   "didnt_understand": {
     "en": "Sorry, I did not understand. Please say it again.",
-    "hi": "माफ़ कीजिए, मैं समझ नहीं पाया। कृपया फिर से बोलिए।",
-    "hinglish": "Maaf kijiye, main samjha nahi. Please phir se boliye."
+    "hi": "माफ़ कीजिए, मैं समझ नहीं पाई। कृपया फिर से बोलिए।",
+    "hinglish": "Maaf kijiye, main samjhi nahi. Please phir se boliye."
   },
   "ask_yes_no_again": {
     "en": "Please say yes or no.",
@@ -101,12 +101,12 @@
   },
   "still_listening": {
     "en": "I am still listening. Please say your answer.",
-    "hi": "मैं अभी भी सुन रहा हूँ। अपना जवाब बोलिए।",
-    "hinglish": "Main abhi bhi sun raha hoon. Apna jawab boliye."
+    "hi": "मैं अभी भी सुन रही हूँ। अपना जवाब बोलिए।",
+    "hinglish": "Main abhi bhi sun rahi hoon. Apna jawab boliye."
   },
   "waiting_for_tap": {
     "en": "I will wait. You can also tap the buttons at the bottom of the screen.",
-    "hi": "मैं इंतज़ार करूँगा। आप स्क्रीन के नीचे वाले बटन भी दबा सकते हैं।",
-    "hinglish": "Main wait karunga. Aap screen ke neeche wale buttons bhi daba sakte hain."
+    "hi": "मैं इंतज़ार करूँगी। आप स्क्रीन के नीचे वाले बटन भी दबा सकते हैं।",
+    "hinglish": "Main wait karungi. Aap screen ke neeche wale buttons bhi daba sakte hain."
   }
 }

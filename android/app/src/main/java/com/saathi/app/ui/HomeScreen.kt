@@ -202,14 +202,14 @@ private fun BigTile(t: Tile, modifier: Modifier) {
 private fun MicBar(state: AssistantState, live: LiveState?, style: ReplyStyle, onClick: () -> Unit) {
     val idle = state == AssistantState.IDLE
     val status = when {
-        live == LiveState.CONNECTING -> tr(style, "Connecting…", "जुड़ रहा हूँ…", "Connect ho raha hoon…")
+        live == LiveState.CONNECTING -> tr(style, "Connecting…", "जुड़ रही हूँ…", "Connect ho rahi hoon…")
         live == LiveState.SPEAKING -> tr(style, "Saathi is speaking. You can interrupt.", "साथी बोल रहा है। आप बीच में बोल सकते हैं।",
             "Saathi bol raha hai. Aap beech mein bol sakte hain.")
-        live == LiveState.LISTENING -> tr(style, "Talk freely. I'm listening.", "बेझिझक बोलिए। मैं सुन रहा हूँ।", "Aaram se boliye. Main sun raha hoon.")
+        live == LiveState.LISTENING -> tr(style, "Talk freely. I'm listening.", "बेझिझक बोलिए। मैं सुन रही हूँ।", "Aaram se boliye. Main sun rahi hoon.")
         else -> when (state) {
-        AssistantState.LISTENING -> tr(style, "Listening… speak now", "सुन रहा हूँ… बोलिए", "Sun raha hoon… boliye")
-        AssistantState.THINKING -> tr(style, "Thinking…", "सोच रहा हूँ…", "Soch raha hoon…")
-        AssistantState.RUNNING -> tr(style, "Working on it. Press Stop anytime.", "काम कर रहा हूँ। कभी भी रोकें।", "Kaam kar raha hoon. Kabhi bhi Stop dabaiye.")
+        AssistantState.LISTENING -> tr(style, "Listening… speak now", "सुन रही हूँ… बोलिए", "Sun rahi hoon… boliye")
+        AssistantState.THINKING -> tr(style, "Thinking…", "सोच रही हूँ…", "Soch rahi hoon…")
+        AssistantState.RUNNING -> tr(style, "Working on it. Press Stop anytime.", "काम कर रही हूँ। कभी भी रोकें।", "Kaam kar rahi hoon. Kabhi bhi Stop dabaiye.")
         AssistantState.IDLE -> null
         }
     }

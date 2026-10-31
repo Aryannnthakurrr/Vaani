@@ -46,7 +46,10 @@ data class Settings(
     val profileId: String = "",
 ) {
     /** Style to speak in when we have no fresh utterance to mirror. */
-    val replyStyle: ReplyStyle get() = ReplyStyle.from(if (language == "auto") lastStyle else language)
+    val replyStyle: ReplyStyle get() = if (language == "auto") autoStyle(ReplyStyle.from(lastStyle)) else ReplyStyle.from(language)
+
+    /** "auto": English when the user speaks English, Hinglish for anything else (Hindi included). */
+    fun autoStyle(heard: ReplyStyle): ReplyStyle = if (language == "auto" && heard == ReplyStyle.HI) ReplyStyle.HINGLISH else heard
 }
 
 class SettingsStore(private val context: Context, scope: CoroutineScope) {

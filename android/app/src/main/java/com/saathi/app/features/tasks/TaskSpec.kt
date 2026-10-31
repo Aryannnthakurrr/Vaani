@@ -24,6 +24,22 @@ data class TaskSpec(
 )
 
 /** Deep links built by Saathi's own code. These are the only URIs the agent may open. */
+/**
+ * "2026-11-01" → "tomorrow (Sun 1 Nov)": Pronto's date chips say "Today", "Tomorrow", "Sun 1", so an ISO date made the
+ * agent scroll past the right chip.
+ */
+object DayWords {
+    fun of(date: String, today: java.time.LocalDate = java.time.LocalDate.now()): String {
+        val d = runCatching { java.time.LocalDate.parse(date.trim()) }.getOrNull() ?: return date
+        val label = d.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", java.util.Locale.ENGLISH))
+        return when (d) {
+            today -> "today ($label)"
+            today.plusDays(1) -> "tomorrow ($label)"
+            else -> label
+        }
+    }
+}
+
 object DeepLinks {
     /**
      * Uber universal deep link. Uber needs coordinates for the drop-off; without them we open the app and let
@@ -32,6 +48,15 @@ object DeepLinks {
     fun uber(destination: String, lat: Double?, lng: Double?): String? {
         if (lat == null || lng == null) return null
         return uberString(destination, lat, lng)
+    }
+
+    /**
+     * "यहाँ से India Gate" / "from here to India Gate" → "India Gate": the pickup words would make the geocoder miss the
+     * place, and then there is no deep link.
+     */
+    fun cleanDestination(said: String): String? {
+        val pickup = Regex("""(?i)^(?:from\s+)?(?:here|yahan|yaha|yahaan|यहाँ|यहां|यहा)\s*(?:se|से|to|tak|तक)?\s+|^(?:to|tak)\s+""")
+        return said.trim().replace(pickup, "").trim().ifBlank { null }
     }
 
     /** Pure builder (no android.net.Uri), so JVM tests check the exact link the app opens. */
@@ -75,14 +100,14 @@ object Tasks {
             "If the asked type isn't offered, say so with ask_user instead of picking another. " +
             "Stop after the ride is requested and a driver/vehicle/'arriving' line is visible; read driver, car and ETA.",
         deeplink = { slots, places ->
-            slots.destination?.takeIf { it.isNotBlank() }?.let { d -> places.find(d)?.let { DeepLinks.uber(d, it.lat, it.lng) } }
+            slots.destination?.let(DeepLinks::cleanDestination)?.let { d -> places.find(d)?.let { DeepLinks.uber(d, it.lat, it.lng) } }
         },
     )
     val HOUSE_HELP = TaskSpec(
         id = "book_house_help", pkg = Packages.HOUSE_HELP, scenario = "house_help", required = emptyList(),
         goal = {
             "Add a Pronto house-help visit to the cart${it.service?.let { s -> " for $s" } ?: ""}" +
-                "${it.date?.let { d -> ", $d" } ?: ""}${it.time?.let { t -> " at $t" } ?: ""}."
+                "${it.date?.let { d -> ", ${DayWords.of(d)}" } ?: ""}${it.time?.let { t -> " at $t" } ?: ""}."
         },
         // Landmarks seen in Pronto on a real phone (2026-10-31). Pronto books by time, not by chore.
         addendum = "Pronto books help by time, not by chore. Close any promo pop-up with its close (×) button. " +

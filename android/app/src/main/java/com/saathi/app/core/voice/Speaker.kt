@@ -108,7 +108,7 @@ class Speaker(
 
     private suspend fun cloudAudio(text: String, style: ReplyStyle): File? {
         // The voice is part of the key: changing it in models.yaml must not replay audio cached in the old voice.
-        val file = File(cacheDir, hash("$text|$style|aparna_hi_customer|1.0") + ".wav")
+        val file = File(cacheDir, hash("$text|$style|aparna_hi_customer|1.1") + ".wav")
         if (file.exists()) return file.also { it.setLastModified(System.currentTimeMillis()) }
         // Bulbul takes ~1 s for a short line and longer for a whole digest, so the wait scales with length.
         val budgetMs = (4_000L + text.length * 15L).coerceAtMost(12_000L)

@@ -67,7 +67,7 @@ class InboxPrivacyTest {
     }
 
     @Test fun contactMessagesNeverProduceACloudItem() {
-        val p = InboxPipeline.prepare("2", "+919810012345", "Mummy, kal 4 baje aaunga. Bill 1240 bhar diya.", fromContact = true)
+        val p = InboxPipeline.prepare("2", "+919810012345", "Mummy, kal 4 baje aaungi. Bill 1240 bhar diya.", fromContact = true)
         assertNull(p.cloudItem)
         assertFalse(InboxPipeline.mayLeaveDevice(isOtp = false, fromContact = true))
     }

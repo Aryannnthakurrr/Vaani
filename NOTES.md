@@ -701,3 +701,10 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
 - "Booked" is only said when the call's transcript confirms it; an unclear yes falls back to the normal
   recommendation and booking call. Answers after 20 s on the phone (25 s on the server) become "we'll call back".
 
+- **Tunnel restarted (2026-10-31, late):** `cloudflared` (official binary in `~/.saathi-toolchain/cloudflared/`, not on
+  PATH) runs a quick tunnel to `localhost:8000`; its URL is `PUBLIC_BASE_URL`. `BOLNA_TOOL_SECRET` was unset, which
+  silently switched the mid-call tool off; it now has a random value. The inquiry agent was re-created and its
+  `check_with_patient` tool reads back with the new URL and token. Checked: `/health` through the tunnel answers from
+  outside this network (this PC's own HTTPS checks fail, see the FortiGate note), and the tool returns 401 without
+  the secret and 200 with it (raw or "Bearer "). A quick tunnel dies with the process or a reboot: start it again,
+  then update `PUBLIC_BASE_URL` and re-run `scripts/bolna_agent.py --mode inquiry`.

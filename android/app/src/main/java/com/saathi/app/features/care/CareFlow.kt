@@ -116,8 +116,8 @@ class CareFlow(private val c: AppContainer) {
         // Live first: a real-time conversation the user can interrupt. Turn-based only if Live can't start.
         when (val live = liveIntake(session)) {
             LiveIntake.Unavailable -> say(s("Tell me what is wrong, for you or for someone near you. I am not a doctor, but I will help you find care.",
-                "बताइए क्या तकलीफ़ है, आपको या आपके पास किसी को। मैं डॉक्टर नहीं हूँ, पर इलाज ढूँढने में मदद करूँगा।",
-                "Bataiye kya takleef hai, aapko ya aapke paas kisi ko. Main doctor nahi hoon, par ilaaj dhoondhne mein madad karunga."))
+                "बताइए क्या तकलीफ़ है, आपको या आपके पास किसी को। मैं डॉक्टर नहीं हूँ, पर इलाज ढूँढने में मदद करूँगी।",
+                "Bataiye kya takleef hai, aapko ya aapke paas kisi ko. Main doctor nahi hoon, par ilaaj dhoondhne mein madad karungi."))
             // Dropped mid-way: carry on turn by turn; the session keeps everything said so far.
             LiveIntake.Ended -> say(s("The connection dropped. Let's continue. Please tell me again how you are feeling.",
                 "कनेक्शन टूट गया। चलिए आगे बढ़ते हैं। कृपया फिर से बताइए कैसा महसूस हो रहा है।",
@@ -136,7 +136,7 @@ class CareFlow(private val c: AppContainer) {
     }
 
     private suspend fun finishIntake(session: String, reply: IntakeReply, location: CareLocation?) {
-        val note = reply.note ?: return fail(s("I could not finish the assessment.", "मैं आकलन पूरा नहीं कर पाया।", "Main assessment poora nahi kar paya."))
+        val note = reply.note ?: return fail(s("I could not finish the assessment.", "मैं आकलन पूरा नहीं कर पाई।", "Main assessment poora nahi kar payi."))
         _ui.update { it.copy(note = note, route = reply.route) }
         if (reply.route == "A") return c.emergency.start(session, note, location)
         pathB(session, note)
@@ -268,15 +268,15 @@ class CareFlow(private val c: AppContainer) {
             if (ui.liveUnclear) {
                 _ui.update { it.copy(liveUnclear = false) }
                 say(s("I couldn't confirm that booking on the call. I'll tell you what the hospitals said.",
-                    "उस कॉल पर बुकिंग पक्की नहीं हो पाई। मैं बताता हूँ अस्पतालों ने क्या कहा।",
-                    "Us call par booking pakki nahi ho payi. Main batata hoon hospitals ne kya kaha."))
+                    "उस कॉल पर बुकिंग पक्की नहीं हो पाई। मैं बताती हूँ अस्पतालों ने क्या कहा।",
+                    "Us call par booking pakki nahi ho payi. Main batati hoon hospitals ne kya kaha."))
             }
             ui.booking?.takeIf { it.status == "confirmed" }?.let { return booked(it) }
             if (!announcedCalls && ui.phase == CarePhase.CALLING) {
                 announcedCalls = true
                 val calling = ui.hospitals.filter { it.calling }.joinToString(", ") { it.hospital.name }
-                say(s("I am calling $calling now. This takes a few minutes.", "मैं अभी $calling को फ़ोन कर रहा हूँ। इसमें कुछ मिनट लगेंगे।",
-                    "Main abhi $calling ko call kar raha hoon. Isme kuch minute lagenge."))
+                say(s("I am calling $calling now. This takes a few minutes.", "मैं अभी $calling को फ़ोन कर रही हूँ। इसमें कुछ मिनट लगेंगे।",
+                    "Main abhi $calling ko call kar rahi hoon. Isme kuch minute lagenge."))
             }
             when (ui.phase) {
                 CarePhase.RECOMMEND -> return recommend(session, ui.recommendation ?: return)
@@ -294,19 +294,19 @@ class CareFlow(private val c: AppContainer) {
         val who = listOf(ask.doctor, ask.hospitalName).filter { it.isNotBlank() }.joinToString(", ")
         val fee = ask.fee.takeIf { it.isNotBlank() }?.let { s(", fee $it", ", फ़ीस $it", ", fee $it") }.orEmpty()
         say(s("I'm on the phone with ${ask.hospitalName} now. They can see you: $who, ${ask.slot}$fee. Shall I book it?",
-            "मैं अभी ${ask.hospitalName} से फ़ोन पर बात कर रहा हूँ। $who, ${ask.slot}$fee मिल सकता है। क्या बुक कर दूँ?",
-            "Main abhi ${ask.hospitalName} se phone par baat kar raha hoon. $who, ${ask.slot}$fee mil sakta hai. Kya book kar doon?"))
+            "मैं अभी ${ask.hospitalName} से फ़ोन पर बात कर रही हूँ। $who, ${ask.slot}$fee मिल सकता है। क्या बुक कर दूँ?",
+            "Main abhi ${ask.hospitalName} se phone par baat kar rahi hoon. $who, ${ask.slot}$fee mil sakta hai. Kya book kar doon?"))
         val yes = withTimeoutOrNull(LIVE_ANSWER_MS) { yesNo() }
         if (yes == null) {
             tapped = null; typed = null  // yesNo() was cancelled before its own clean-up
             _asking.value = Asking.NOTHING
             c.speaker.stop()
-            return say(s("I'll tell them we'll call back.", "मैं उन्हें बोल देता हूँ कि हम वापस फ़ोन करेंगे।", "Main unhe bol deta hoon ki hum wapas call karenge."))
+            return say(s("I'll tell them we'll call back.", "मैं उन्हें बोल देती हूँ कि हम वापस फ़ोन करेंगे।", "Main unhe bol deti hoon ki hum wapas call karenge."))
         }
         val accepted = runCatching { client.liveConfirm(session, ask.askId, yes) }.getOrDefault(false)
         say(when {
-            !accepted -> s("They couldn't wait, so I'll call them back.", "वे रुक नहीं पाए, मैं उन्हें वापस फ़ोन करूँगा।", "Woh ruk nahi paaye, main unhe wapas call karunga.")
-            yes -> s("Booking it now, while they're on the line.", "अभी फ़ोन पर ही बुक कर रहा हूँ।", "Abhi phone par hi book kar raha hoon.")
+            !accepted -> s("They couldn't wait, so I'll call them back.", "वे रुक नहीं पाए, मैं उन्हें वापस फ़ोन करूँगी।", "Woh ruk nahi paaye, main unhe wapas call karungi.")
+            yes -> s("Booking it now, while they're on the line.", "अभी फ़ोन पर ही बुक कर रही हूँ।", "Abhi phone par hi book kar rahi hoon.")
             else -> s("Okay, not this one.", "ठीक है, यह नहीं।", "Theek hai, yeh nahi.")
         })
     }
@@ -325,8 +325,8 @@ class CareFlow(private val c: AppContainer) {
             val result = select<Pair<String, Slot>?> { tap.onAwait { it }; spoken.onAwait { it } }
             spoken.cancel(); choice = null; tapped = null
             result
-        } ?: return say(s("Okay, I won't book. The other options are on the screen.", "ठीक है, मैं बुक नहीं करूँगा। बाकी विकल्प स्क्रीन पर हैं।",
-            "Theek hai, main book nahi karunga. Baaki options screen par hain."))
+        } ?: return say(s("Okay, I won't book. The other options are on the screen.", "ठीक है, मैं बुक नहीं करूँगी। बाकी विकल्प स्क्रीन पर हैं।",
+            "Theek hai, main book nahi karungi. Baaki options screen par hain."))
         book(session, picked.first, picked.second)
     }
 
@@ -335,7 +335,7 @@ class CareFlow(private val c: AppContainer) {
         val patient = patientDetails()
         client.book(session, BookRequest(hospitalId, slot, patient))
         _ui.update { it.copy(phase = CarePhase.BOOKING, booking = null) }
-        say(s("I am calling the hospital to book it.", "मैं बुक करने के लिए अस्पताल को फ़ोन कर रहा हूँ।", "Main book karne ke liye hospital ko call kar raha hoon."))
+        say(s("I am calling the hospital to book it.", "मैं बुक करने के लिए अस्पताल को फ़ोन कर रही हूँ।", "Main book karne ke liye hospital ko call kar rahi hoon."))
         while (true) {
             delay(POLL_MS)
             val b = poll(session).booking?.takeIf { it.status != "calling" } ?: continue
@@ -353,12 +353,12 @@ class CareFlow(private val c: AppContainer) {
                     val phone = b.callYourself ?: _ui.value.hospitals.firstOrNull { it.hospital.id == hospitalId }?.hospital?.phone
                     if (retried || b.callYourself != null) {
                         return say(phone?.let {
-                            s("I could not book it. Please call the hospital yourself at $it.", "मैं बुक नहीं कर पाया। कृपया अस्पताल को $it पर खुद फ़ोन कीजिए।",
-                                "Main book nahi kar paya. Please hospital ko $it par khud call kijiye.")
-                        } ?: s("I could not book it. Please call the hospital yourself.", "मैं बुक नहीं कर पाया। कृपया अस्पताल को खुद फ़ोन कीजिए।",
-                            "Main book nahi kar paya. Please hospital ko khud call kijiye."))
+                            s("I could not book it. Please call the hospital yourself at $it.", "मैं बुक नहीं कर पाई। कृपया अस्पताल को $it पर खुद फ़ोन कीजिए।",
+                                "Main book nahi kar payi. Please hospital ko $it par khud call kijiye.")
+                        } ?: s("I could not book it. Please call the hospital yourself.", "मैं बुक नहीं कर पाई। कृपया अस्पताल को खुद फ़ोन कीजिए।",
+                            "Main book nahi kar payi. Please hospital ko khud call kijiye."))
                     }
-                    say(s("The call did not go through. I will try once more.", "फ़ोन नहीं लगा। मैं एक बार और कोशिश करता हूँ।", "Call nahi laga. Main ek baar aur try karta hoon."))
+                    say(s("The call did not go through. I will try once more.", "फ़ोन नहीं लगा। मैं एक बार और कोशिश करती हूँ।", "Call nahi laga. Main ek baar aur try karti hoon."))
                     return book(session, hospitalId, slot, retried = true)
                 }
             }

@@ -1,10 +1,6 @@
 package com.saathi.app.core.agent
 
 import com.saathi.app.core.data.ActionLogEntity
-import com.saathi.app.core.guard.PriceGuard
-import com.saathi.app.core.guard.PriceVerdict
-import com.saathi.app.core.guard.RideClass
-import com.saathi.app.core.guard.TextBox
 import com.saathi.app.core.net.AgentAction
 import com.saathi.app.core.net.AgentMode
 import com.saathi.app.core.net.AgentOutcomeReport
@@ -32,8 +28,6 @@ data class TaskContext(
     val taskHint: String? = null,
     val trustedDeeplinks: Set<String> = emptySet(),
     val allowedPackages: Set<String> = Packages.ACT_ALLOWLIST,
-    /** Cab bookings: the ride type asked for, so the price check knows what "cheapest" means. Null = no check. */
-    val rideClass: RideClass? = null,
 )
 
 sealed interface AgentOutcome {
@@ -54,8 +48,6 @@ class AgentLoop(
     private val style: () -> ReplyStyle,
     private val log: suspend (ActionLogEntity) -> Unit = {},
     private val clock: () -> Long = System::currentTimeMillis,
-    /** On-device OCR of the current screen, for the price check before a booking tap (null in replay and tests). */
-    private val priceLines: (suspend () -> List<TextBox>)? = null,
 ) {
     private val history = mutableListOf<HistoryItem>()
 
@@ -117,8 +109,8 @@ class AgentLoop(
                 }
                 ScreenStop.FOREIGN_APP -> {
                     val msg = s("I can't work inside ${Packages.displayName(snap.pkg)}. I have stopped.",
-                        "मैं ${Packages.displayName(snap.pkg)} के अंदर काम नहीं कर सकता। मैंने रोक दिया है।",
-                        "Main ${Packages.displayName(snap.pkg)} ke andar kaam nahi kar sakta. Maine rok diya hai.")
+                        "मैं ${Packages.displayName(snap.pkg)} के अंदर काम नहीं कर सकती। मैंने रोक दिया है।",
+                        "Main ${Packages.displayName(snap.pkg)} ke andar kaam nahi kar sakti. Maine rok diya hai.")
                     return fail(goal, snap, msg)
                 }
                 null -> Unit
@@ -129,14 +121,14 @@ class AgentLoop(
             seen[fp] = repeats
             if (repeats > MAX_SAME_SCREEN) {
                 return fail(goal, snap, s("I'm stuck on this screen. Shall I show you how to do it instead?",
-                    "मैं इस स्क्रीन पर अटक गया हूँ। क्या मैं आपको तरीका दिखाऊँ?",
-                    "Main is screen par atak gaya hoon. Kya main aapko tareeka dikhaun?"))
+                    "मैं इस स्क्रीन पर अटक गई हूँ। क्या मैं आपको तरीका दिखाऊँ?",
+                    "Main is screen par atak gayi hoon. Kya main aapko tareeka dikhaun?"))
             }
 
             val action = nextAction(goal, mode, snap, task)
             if (!ActionParser.isComplete(action) || action.action !in AgentAction.ALL) {
                 if (++invalidInARow >= 2) return fail(goal, snap, s("I got confused. Shall I show you instead?",
-                    "मैं उलझ गया। क्या मैं आपको दिखाऊँ?", "Main confuse ho gaya. Kya main aapko dikhaun?"))
+                    "मैं उलझ गई। क्या मैं आपको दिखाऊँ?", "Main confuse ho gayi. Kya main aapko dikhaun?"))
                 continue
             }
             invalidInARow = 0
@@ -175,9 +167,14 @@ class AgentLoop(
                 return null
             }
             AgentAction.HIGHLIGHT -> {
-                val node = snap.node(action.id)
-                val instruction = action.instruction.orEmpty()
-                ui.showHighlight(node?.let { currentBounds(it) }, instruction, action.gesture)
+                // "Swipe up" while the app the user wants is already visible: point at it instead.
+                val app = if (action.id == null) GuideTarget.app(goal) else null
+                val shortcut = app?.let { GuideTarget.visible(it, snap) }
+                val node = shortcut ?: snap.node(action.id)
+                val instruction = if (shortcut != null) {
+                    s("Tap the $app icon.", "$app वाले आइकन पर टैप कीजिए।", "$app wale icon par tap kijiye.")
+                } else action.instruction.orEmpty()
+                ui.showHighlight(node?.let { currentBounds(it) }, instruction, if (shortcut != null) null else action.gesture)
                 ui.say(instruction)
                 logLine(goal, action, snap.pkg, "Showed you: $instruction", "ok")
                 if (!performer.awaitUserInteraction(GUIDE_WAIT_MS)) {
@@ -223,36 +220,8 @@ class AgentLoop(
         }
         val v = SafetyPolicy.validate(inner, snap, mode, confirmed = true, task.trustedDeeplinks, task.allowedPackages)
         if (v is Verdict.Block) return blocked(goal, snap, inner, v.why)
-        if (!pricesCheckOut(goal, task, snap, summary, original)) return null // the agent picks the cheaper ride and asks again
         ui.sayPhrase("confirm_yes_ack")
         return execute(goal, snap, inner, recorded = original)
-    }
-
-    /**
-     * After the yes and before the tap: a screenshot read on the phone (OCR) checks that the agreed price is the
-     * cheapest ride of the asked type, and mentions a cheaper cab when an auto or bike costs more. A mismatch is
-     * put to the user once more; "no" sends the agent back to pick the cheaper ride. Unreadable screens don't block.
-     */
-    private suspend fun pricesCheckOut(goal: String, task: TaskContext, snap: ScreenSnapshot, summary: String, original: AgentAction): Boolean {
-        val wanted = task.rideClass ?: return true
-        val read = priceLines ?: return true
-        val question = when (val v = PriceGuard.check(read(), wanted, summary)) {
-            is PriceVerdict.Ok, PriceVerdict.Unread -> return true
-            is PriceVerdict.CheaperSameType -> s(
-                "Wait: the screen shows ${v.cheapest.name} for ₹${v.cheapest.price}, cheaper than ₹${v.quoted}. Book the ₹${v.quoted} one anyway?",
-                "रुकिए: स्क्रीन पर ${v.cheapest.name} ₹${v.cheapest.price} में है, जो ₹${v.quoted} से सस्ता है। फिर भी ₹${v.quoted} वाला बुक करूँ?",
-                "Rukiye: screen par ${v.cheapest.name} ₹${v.cheapest.price} mein hai, jo ₹${v.quoted} se sasta hai. Phir bhi ₹${v.quoted} wala book karun?",
-            ) to "the user wants the cheaper ${v.cheapest.name} (₹${v.cheapest.price}): select it, then confirm again"
-            is PriceVerdict.CheaperOtherType -> s(
-                "Note: a cab, ${v.other.name}, is ₹${v.other.price} right now, cheaper than this at ₹${v.quoted}. Still book this one?",
-                "ध्यान दीजिए: अभी कैब (${v.other.name}) ₹${v.other.price} में है, इससे सस्ती (₹${v.quoted})। फिर भी यही बुक करूँ?",
-                "Dhyan dijiye: abhi cab (${v.other.name}) ₹${v.other.price} mein hai, isse sasti (₹${v.quoted}). Phir bhi yahi book karun?",
-            ) to "the user switched to the cheaper cab ${v.other.name} (₹${v.other.price}): select it, then confirm again"
-        }
-        val keep = ui.confirm(question.first)
-        logLine(goal, original, snap.pkg, "Price check: ${question.first} You said ${if (keep) "yes" else "no"}.", if (keep) "ok" else "changed")
-        if (!keep) remember(original, question.second)
-        return keep
     }
 
     private suspend fun execute(goal: String, snap: ScreenSnapshot, action: AgentAction, recorded: AgentAction = action): AgentOutcome? {
@@ -369,7 +338,7 @@ class AgentLoop(
     }
 
     private fun progressLine(a: AgentAction): String = when (a.action) {
-        AgentAction.TYPE -> s("Searching for ${a.text}…", "${a.text} ढूँढ रहा हूँ…", "${a.text} search kar raha hoon…")
+        AgentAction.TYPE -> s("Searching for ${a.text}…", "${a.text} ढूँढ रही हूँ…", "${a.text} search kar rahi hoon…")
         else -> s("Still working on it…", "काम चल रहा है…", "Kaam chal raha hai…")
     }
 

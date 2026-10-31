@@ -245,9 +245,9 @@ class Relay:
 _MOCK = {
     "hello": {"en": "Hello! I am Saathi. How can I help you today?", "hi": "नमस्ते! मैं साथी हूँ। आज मैं आपकी क्या मदद करूँ?",
               "hinglish": "Namaste! Main Saathi hoon. Aaj main aapki kya madad karun?"},
-    "cab": {"en": "Okay, I am booking your cab now.", "hi": "ठीक है, मैं अभी आपकी कैब बुक कर रहा हूँ।",
-            "hinglish": "Theek hai, main abhi aapki cab book kar raha hoon."},
-    "noted": {"en": "I will remember that.", "hi": "मैं यह याद रखूँगा।", "hinglish": "Main yeh yaad rakhunga."},
+    "cab": {"en": "Okay, I am booking your cab now.", "hi": "ठीक है, मैं अभी आपकी कैब बुक कर रही हूँ।",
+            "hinglish": "Theek hai, main abhi aapki cab book kar rahi hoon."},
+    "noted": {"en": "I will remember that.", "hi": "मैं यह याद रखूँगी।", "hinglish": "Main yeh yaad rakhungi."},
 }  # fmt: skip
 
 

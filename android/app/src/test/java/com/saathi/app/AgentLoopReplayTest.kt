@@ -72,30 +72,6 @@ class AgentLoopReplayTest {
     }
 
     @Test
-    fun priceCheckRunsBetweenTheYesAndTheTap() = runTest {
-        fun row(name: String, price: Int, top: Int) = listOf(
-            com.saathi.app.core.guard.TextBox(name, 200, top, 480, top + 50),
-            com.saathi.app.core.guard.TextBox("₹$price", 860, top + 5, 1020, top + 55),
-        )
-        val task = TaskContext(taskHint = "uber_book", rideClass = com.saathi.app.core.guard.RideClass.CAR)
-        // The agreed Uber Go (₹184) is the cheapest car: one question, then the booking tap.
-        val fair = FakeUi()
-        val ok = AgentLoop({ backend }, ReplayScreenReader(Fixtures.screens("uber_book")), ReplayPerformer(pauseMs = 0), fair,
-            { ReplyStyle.EN }, priceLines = { row("Uber Go", 184, 900) + row("Go Sedan", 230, 1050) })
-            .run("book a cab to Apollo", AgentMode.ACT, task)
-        assertTrue(ok is AgentOutcome.Done)
-        assertEquals(1, fair.confirms.size)
-        // A cheaper car on screen: the user is asked again, with both prices, before anything is tapped.
-        val cheaper = FakeUi()
-        val out = AgentLoop({ backend }, ReplayScreenReader(Fixtures.screens("uber_book")), ReplayPerformer(pauseMs = 0), cheaper,
-            { ReplyStyle.EN }, priceLines = { row("Uber Go", 184, 900) + row("Uber Mini", 150, 1050) })
-            .run("book a cab to Apollo", AgentMode.ACT, task)
-        assertTrue(out is AgentOutcome.Done)
-        assertEquals(2, cheaper.confirms.size)
-        assertTrue(cheaper.confirms[1], cheaper.confirms[1].contains("Uber Mini for ₹150") && cheaper.confirms[1].contains("₹184"))
-    }
-
-    @Test
     fun sayingNoToTheConfirmSheetStopsBeforeTheButton() = runTest {
         val performer = ReplayPerformer(pauseMs = 0)
         val ui = FakeUi(confirmAnswer = false)

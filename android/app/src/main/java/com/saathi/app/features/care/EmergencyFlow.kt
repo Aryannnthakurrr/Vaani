@@ -77,8 +77,8 @@ class EmergencyFlow(private val c: AppContainer) {
         val seconds = runCatching { client.emergencyAlert(sessionId) }.getOrDefault(15)
         _ui.update { it.copy(secondsLeft = seconds) }
         c.speaker.say(s("This could be an emergency. I will send an ambulance in $seconds seconds. Say I'm OK, or tap it, to cancel.",
-            "यह इमरजेंसी हो सकती है। मैं $seconds सेकंड में एम्बुलेंस भेज दूँगा। रोकने के लिए 'मैं ठीक हूँ' बोलिए या दबाइए।",
-            "Yeh emergency ho sakti hai. Main $seconds second mein ambulance bhej dunga. Rokne ke liye 'main theek hoon' boliye ya dabaiye."), style)
+            "यह इमरजेंसी हो सकती है। मैं $seconds सेकंड में एम्बुलेंस भेज दूँगी। रोकने के लिए 'मैं ठीक हूँ' बोलिए या दबाइए।",
+            "Yeh emergency ho sakti hai. Main $seconds second mein ambulance bhej dungi. Rokne ke liye 'main theek hoon' boliye ya dabaiye."), style)
         siren.start()
         countdown = c.scope.launch {
             while (_ui.value.secondsLeft > 0 && _ui.value.phase == EmergencyPhase.COUNTDOWN) {
@@ -120,8 +120,8 @@ class EmergencyFlow(private val c: AppContainer) {
         _ui.update { it.copy(phase = EmergencyPhase.DISPATCHING) }
         runCatching { client.emergencyDispatch(id, trigger, landmark.ifBlank { null }) }
             .onFailure { return noUnits(it.message) }
-        c.speaker.say(s("I am requesting an ambulance now. Stay where you are.", "मैं अभी एम्बुलेंस बुला रहा हूँ। जहाँ हैं वहीं रहिए।",
-            "Main abhi ambulance bula raha hoon. Jahan hain wahin rahiye."), style)
+        c.speaker.say(s("I am requesting an ambulance now. Stay where you are.", "मैं अभी एम्बुलेंस बुला रही हूँ। जहाँ हैं वहीं रहिए।",
+            "Main abhi ambulance bula rahi hoon. Jahan hain wahin rahiye."), style)
         tracker?.cancel()
         tracker = c.scope.launch { track(id) }
     }

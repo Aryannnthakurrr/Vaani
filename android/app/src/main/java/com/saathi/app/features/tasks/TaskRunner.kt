@@ -16,8 +16,6 @@ import com.saathi.app.core.agent.ScreenSource
 import com.saathi.app.core.agent.TaskContext
 import com.saathi.app.core.agent.TreeSerializer
 import com.saathi.app.core.agent.Verdict
-import com.saathi.app.core.guard.RideClass
-import com.saathi.app.features.guard.OcrScreen
 import com.saathi.app.core.net.AgentAction
 import com.saathi.app.core.net.AgentMode
 import com.saathi.app.core.net.Slots
@@ -53,8 +51,6 @@ class TaskRunner(private val c: AppContainer) {
     fun loop(screen: ScreenSource, performer: ActionPerformer, ui: AgentUi) = AgentLoop(
         backend = { c.backend }, screen = screen, performer = performer, ui = ui,
         style = { c.settings.current.replyStyle }, log = { c.db.actionLog().insert(it) },
-        // The price check reads real screenshots only; replayed fixture screens have nothing to photograph.
-        priceLines = (screen as? LiveScreenReader)?.let { live -> OcrScreen { live.captureBitmap() }::lines },
     )
 
     /** @param preferredPkg an app the user named ("on Flipkart"); used when it can do the task. */
@@ -70,10 +66,11 @@ class TaskRunner(private val c: AppContainer) {
             return AgentOutcome.Failed(msg)
         }
         // Replay runs on recorded screens, so it never looks up places or opens links.
-        val (placeSlots, lookup) = if (replay) slots to places else resolvePlace(spec, slots, ui)
-        val taskSlots = if (spec.id == Tasks.UBER.id && !replay) adviseRide(placeSlots, ui) else placeSlots
+        // Cabs go straight to the deep link, as before: no place-choice or ride-advice questions first.
+        val cabSlots = if (spec.id == Tasks.UBER.id) slots.copy(destination = slots.destination?.let(DeepLinks::cleanDestination)) else slots
+        val (taskSlots, lookup) = if (replay || spec.id == Tasks.UBER.id) cabSlots to places else resolvePlace(spec, slots, ui)
         val link = if (replay) null else spec.deeplink?.invoke(taskSlots, lookup)
-        val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link), rideClass = rideClassFor(spec, taskSlots))
+        val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link))
         if (!replay) {
             // The first hop is Saathi's own code, still checked by the same policy as model actions.
             val launch = link?.let { AgentAction(AgentAction.OPEN_DEEPLINK, uri = it, reason = "task launch") }
@@ -83,6 +80,7 @@ class TaskRunner(private val c: AppContainer) {
                 performer.perform(launch, first)
                 delay(1500)
                 performer.awaitSettle()
+                awaitLoaded(screen, pkg)
             }
         }
         val about = c.profiles.contextLine()?.let { "\nAbout the user (respect it): $it" }.orEmpty()
@@ -112,8 +110,8 @@ class TaskRunner(private val c: AppContainer) {
                 options.mapNotNull { it.area }.joinToString(", ")), options)
         if (chosen == null) {
             ui.say(tr(style, "I'm not sure which one you mean, so I'll search for it in the app.",
-                "मुझे पक्का नहीं पता आपका मतलब कौन सा है, इसलिए मैं ऐप में ढूँढता हूँ।",
-                "Mujhe pakka nahi pata aapka matlab kaun sa hai, isliye main app mein dhoondhta hoon."))
+                "मुझे पक्का नहीं पता आपका मतलब कौन सा है, इसलिए मैं ऐप में ढूँढती हूँ।",
+                "Mujhe pakka nahi pata aapka matlab kaun sa hai, isliye main app mein dhoondhti hoon."))
             return resolved to PlaceLookup { null }
         }
         return slots.copy(destination = "$dest, ${chosen.area}") to PlaceLookup { chosen.at }
@@ -124,25 +122,15 @@ class TaskRunner(private val c: AppContainer) {
     }
 
     /**
-     * The profile can argue for a different ride: a car for sore knees instead of an auto, an XL for a wheelchair.
-     * It is only a suggestion, asked as a yes/no; "no" keeps what they asked for.
+     * A splash screen (Pronto's logo, a blank React Native view) has almost nothing to tap; asking the model about it
+     * costs a whole step. Waits up to 5 s for the app's real first screen.
      */
-    private suspend fun adviseRide(slots: Slots, ui: AgentUi): Slots {
-        val advice = com.saathi.app.core.profile.Profiles.rideAdvice(c.profiles.current(), slots.vehicle) ?: return slots
-        val asked = slots.vehicle ?: tr(style, "a regular car", "सामान्य कार", "normal car")
-        val name = if (advice.vehicle == "xl") "Uber XL" else tr(style, "a car", "कार", "car")
-        val yes = ui.confirm(tr(style, "You asked for $asked, but $name might suit you better: ${advice.reason}. Book $name instead?",
-            "आपने $asked कहा, पर $name बेहतर रहेगी: ${advice.reason}। $name बुक करूँ?",
-            "Aapne $asked kaha, par $name behtar rahegi: ${advice.reason}. $name book karun?"))
-        return if (yes) slots.copy(vehicle = advice.vehicle) else slots
-    }
-
-    /** Cabs only: the ride type the user asked for (a car unless they said auto or bike). */
-    private fun rideClassFor(spec: TaskSpec, slots: Slots): RideClass? = when {
-        spec.id != Tasks.UBER.id -> null
-        slots.vehicle.equals("auto", true) -> RideClass.AUTO
-        slots.vehicle.equals("bike", true) -> RideClass.BIKE
-        else -> RideClass.CAR
+    private suspend fun awaitLoaded(screen: ScreenSource, pkg: String) {
+        repeat(10) {
+            val snap = screen.read()
+            if (snap.pkg == pkg && !snap.needsScreenshot && snap.interactiveCount >= 3) return
+            delay(500)
+        }
     }
 
     /** Shopping uses Amazon, or Flipkart when the user asked for it or only Flipkart is installed. */

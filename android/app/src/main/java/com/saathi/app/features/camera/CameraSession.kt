@@ -125,8 +125,8 @@ class CameraSession(private val c: AppContainer) {
             "expired" -> tr(style, "It has EXPIRED. Do not buy it.", "यह एक्सपायर हो चुका है। इसे मत खरीदिए।", "Yeh expire ho chuka hai. Ise mat kharidiye.")
             "soon" -> tr(style, "It expires soon.", "यह जल्दी एक्सपायर होगा।", "Yeh jaldi expire hoga.")
             "ok" -> tr(style, "The expiry date is fine.", "एक्सपायरी ठीक है।", "Expiry theek hai.")
-            else -> tr(style, "I could not read the expiry. Please turn the pack over.", "मैं एक्सपायरी नहीं पढ़ पाया। पैकेट पलटिए।",
-                "Main expiry nahi padh paya. Packet palatiye.")
+            else -> tr(style, "I could not read the expiry. Please turn the pack over.", "मैं एक्सपायरी नहीं पढ़ पाई। पैकेट पलटिए।",
+                "Main expiry nahi padh payi. Packet palatiye.")
         }
         val line = listOfNotNull(card.name, card.quantity, card.mrpText?.let { tr(style, "Printed MRP $it.", "छपा एमआरपी $it।", "Printed MRP $it.") }, status)
             .joinToString(". ")

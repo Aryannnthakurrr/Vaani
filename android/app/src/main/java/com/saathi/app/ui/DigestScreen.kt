@@ -43,7 +43,7 @@ fun DigestScreen(container: AppContainer, onBack: () -> Unit, onCallClinic: () -
 
     SaathiScaffold(tr(style, "My updates", "मेरी जानकारी", "Meri updates"), onBack) {
         BigButton(
-            text = if (busy) tr(style, "Reading…", "पढ़ रहा हूँ…", "Padh raha hoon…") else tr(style, "🔊 Read aloud", "🔊 पढ़कर सुनाओ", "🔊 Padhkar sunao"),
+            text = if (busy) tr(style, "Reading…", "पढ़ रही हूँ…", "Padh rahi hoon…") else tr(style, "🔊 Read aloud", "🔊 पढ़कर सुनाओ", "🔊 Padhkar sunao"),
             enabled = !busy,
             onClick = {
                 busy = true

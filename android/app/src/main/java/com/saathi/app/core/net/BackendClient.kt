@@ -116,7 +116,11 @@ class BackendClient(
 
     override fun liveCameraUrl(): String = wsUrl("/live/camera")
 
-    override fun liveVoiceUrl(): String = wsUrl("/live/voice")
+    /**
+     * Off: the realtime (WebSocket) conversation caused problems, so the mic and the doctor intake use the
+     * turn-based path (record, transcribe, answer). Set LIVE_VOICE = true to bring Live back.
+     */
+    override fun liveVoiceUrl(): String? = if (LIVE_VOICE) wsUrl("/live/voice") else null
 
     private fun wsUrl(path: String): String {
         val ws = baseUrl().trimEnd('/').replaceFirst("http", "ws")
@@ -125,5 +129,6 @@ class BackendClient(
 
     companion object {
         const val DEVICE_HEADER = "X-Saathi-Device"
+        private const val LIVE_VOICE = false
     }
 }

@@ -25,8 +25,8 @@ fun AlertsScreen(container: AppContainer, onBack: () -> Unit) {
         InfoCard(
             title = tr(style, "Scam Shield is on", "धोखा-रक्षक चालू है", "Scam Shield on hai"),
             body = tr(style, "I check every message and warn you during suspicious calls. OTPs never leave your phone.",
-                "मैं हर संदेश जाँचता हूँ और संदिग्ध कॉल पर आपको सावधान करता हूँ। ओटीपी कभी फ़ोन से बाहर नहीं जाते।",
-                "Main har message check karta hoon aur suspicious call par aapko savdhaan karta hoon. OTP kabhi phone se bahar nahi jaate."),
+                "मैं हर संदेश जाँचती हूँ और संदिग्ध कॉल पर आपको सावधान करती हूँ। ओटीपी कभी फ़ोन से बाहर नहीं जाते।",
+                "Main har message check karti hoon aur suspicious call par aapko savdhaan karti hoon. OTP kabhi phone se bahar nahi jaate."),
             icon = "🛡️", accent = Leaf,
         )
         if (shown.isEmpty()) {

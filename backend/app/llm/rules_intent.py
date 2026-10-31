@@ -24,7 +24,8 @@ _INTENTS: list[tuple[str, str]] = [
         "guide",
         r"\bhow (do|can|to) (i|we)?\b|\bhow to\b|\bshow me how\b|\bteach me\b|\bkaise\b|\bsikha|कैसे|सिखा|"
         # "mujhe ye photo Aarav ko bhejni hai": sending something is taught, never done for the user.
-        r"\b(photo|pic|picture|video|message)\b.*\b(bhej|send)|\b(bhejni|bhejna|bhejun)\b|भेजनी|भेजना",
+        r"\b(photo|pic|picture|video|message)\b.*\b(bhej|send|share)|\b(bhejni|bhejna|bhejun|bhejo)\b|"
+        r"\b(send|share) (this|it|ye|yeh)\b|भेजनी|भेजना|भेजो|भेज दो",
     ),
     ("camera", r"\bcamera\b|\bscan\b|\bexpiry\b|\bmrp\b|\blabel\b|\bpacket\b|कैमरा|एक्सपायरी|\bpadh(o|kar)\b"),
     (
@@ -40,7 +41,9 @@ _INTENTS: list[tuple[str, str]] = [
         "book_house_help",
         r"\bmaid\b|\bcleaning\b|\bhouse ?help\b|\bsafai\b|\bkaamwali\b|\bbai\b|\bcook\b|"
         r"\bpronto\b|\bbartan\b|\bjhadu\b|\bpocha\b|\bdishes\b|\blaundry\b|"
-        r"सफाई|सफ़ाई|कामवाली|बर्तन|झाड़ू|पोछा",
+        # "mujhe help chahiye": in Hindi "help" on its own usually means a domestic helper.
+        r"\bhelp chahiye\b|\bhelper\b|\bkaam ?wa+li\b|\bghar (ka|ke) kaam\b|"
+        r"सफाई|सफ़ाई|कामवाली|बर्तन|झाड़ू|पोछा|हेल्प|घर का काम|घर के काम",
     ),
     (
         "shop_online",
@@ -80,45 +83,45 @@ _APP_WORDS = (
 _REPLIES: dict[str, dict[str, str]] = {
     "book_cab": {
         "en": "Okay, I will book a cab{to_en}.",
-        "hi": "ठीक है, मैं{to_hi} कैब बुक करता हूँ।",
-        "hinglish": "Theek hai,{to_hl} cab book karta hoon.",
+        "hi": "ठीक है, मैं{to_hi} कैब बुक करती हूँ।",
+        "hinglish": "Theek hai,{to_hl} cab book karti hoon.",
     },
     "book_house_help": {
         "en": "Okay, let me book house help for you.",
-        "hi": "ठीक है, मैं घर की मदद बुक करता हूँ।",
-        "hinglish": "Theek hai, main ghar ki help book karta hoon.",
+        "hi": "ठीक है, मैं घर की मदद बुक करती हूँ।",
+        "hinglish": "Theek hai, main ghar ki help book karti hoon.",
     },
     "shop_online": {
         "en": "Okay, I will find {product_en} online.",
-        "hi": "ठीक है, मैं {product_hi} ऑनलाइन ढूँढता हूँ।",
-        "hinglish": "Theek hai, main {product_hl} online dhoondhta hoon.",
+        "hi": "ठीक है, मैं {product_hi} ऑनलाइन ढूँढती हूँ।",
+        "hinglish": "Theek hai, main {product_hl} online dhoondhti hoon.",
     },
     "care": {
         "en": "I'm sorry you're not well. Let me ask a few questions.",
-        "hi": "आपकी तबीयत ठीक नहीं, मुझे दुख है। मैं कुछ सवाल पूछूँगा।",
-        "hinglish": "Aapki tabiyat theek nahi, mujhe afsos hai. Main kuch sawaal poochunga.",
+        "hi": "आपकी तबीयत ठीक नहीं, मुझे दुख है। मैं कुछ सवाल पूछूँगी।",
+        "hinglish": "Aapki tabiyat theek nahi, mujhe afsos hai. Main kuch sawaal poochungi.",
     },
     "book_doctor": {
         "en": "Okay, I will look for a {spec} for you.",
-        "hi": "ठीक है, मैं आपके लिए डॉक्टर ढूँढता हूँ।",
-        "hinglish": "Theek hai, main aapke liye {spec} dhoondhta hoon.",
+        "hi": "ठीक है, मैं आपके लिए डॉक्टर ढूँढती हूँ।",
+        "hinglish": "Theek hai, main aapke liye {spec} dhoondhti hoon.",
     },
     "guide": {
         "en": "Sure, I will show you step by step.",
-        "hi": "ज़रूर, मैं आपको एक-एक कदम दिखाता हूँ।",
-        "hinglish": "Zaroor, main aapko step by step dikhata hoon.",
+        "hi": "ज़रूर, मैं आपको एक-एक कदम दिखाती हूँ।",
+        "hinglish": "Zaroor, main aapko step by step dikhati hoon.",
     },
     "camera": {
         "en": "Opening the camera. Hold the packet in front of it.",
-        "hi": "कैमरा खोल रहा हूँ। पैकेट सामने रखिए।",
-        "hinglish": "Camera khol raha hoon. Packet saamne rakhiye.",
+        "hi": "कैमरा खोल रही हूँ। पैकेट सामने रखिए।",
+        "hinglish": "Camera khol rahi hoon. Packet saamne rakhiye.",
     },
     "digest": {
         "en": "Here are your updates.",
         "hi": "यह रहे आपके आज के संदेश।",
         "hinglish": "Yeh rahe aapke updates.",
     },
-    "settings": {"en": "Opening settings.", "hi": "सेटिंग्स खोल रहा हूँ।", "hinglish": "Settings khol raha hoon."},
+    "settings": {"en": "Opening settings.", "hi": "सेटिंग्स खोल रही हूँ।", "hinglish": "Settings khol rahi hoon."},
     "chitchat": {
         "en": "Namaste! I am Saathi. How can I help you?",
         "hi": "नमस्ते! मैं साथी हूँ। मैं आपकी क्या मदद करूँ?",
@@ -126,8 +129,8 @@ _REPLIES: dict[str, dict[str, str]] = {
     },
     "unknown": {
         "en": "Sorry, I did not understand. You can say: book a cab, or show me how.",
-        "hi": "माफ़ कीजिए, मैं समझ नहीं पाया। आप बोल सकते हैं: कैब बुक करो।",
-        "hinglish": "Maaf kijiye, main samjha nahi. Aap bol sakte hain: cab book karo.",
+        "hi": "माफ़ कीजिए, मैं समझ नहीं पाई। आप बोल सकते हैं: कैब बुक करो।",
+        "hinglish": "Maaf kijiye, main samjhi nahi. Aap bol sakte hain: cab book karo.",
     },
 }
 

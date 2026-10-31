@@ -59,7 +59,7 @@ class OverlayAgentUi(
             speaker.sayPhrase("answer_cue", style())
             val heard = SpokenAnswer.freeText(
                 listen = {
-                    overlay()?.showCaption(question, s("Listening… or type below", "सुन रहा हूँ… या नीचे लिखिए", "Sun raha hoon… ya neeche likhiye"))
+                    overlay()?.showCaption(question, s("Listening… or type below", "सुन रही हूँ… या नीचे लिखिए", "Sun rahi hoon… ya neeche likhiye"))
                     speech.listen(cue = true)?.transcript
                 },
                 reprompt = { speaker.sayPhrase("still_listening", style()) },
@@ -127,7 +127,7 @@ class OverlayAgentUi(
 
     override suspend fun waitForUserDone(prompt: String): Boolean = coroutineScope {
         val tapped = CompletableDeferred<Boolean>()
-        overlay()?.showCaption(prompt, s("Waiting for you", "आपका इंतज़ार कर रहा हूँ", "Aapka wait kar raha hoon"),
+        overlay()?.showCaption(prompt, s("Waiting for you", "आपका इंतज़ार कर रही हूँ", "Aapka wait kar rahi hoon"),
             s("Done", "हो गया", "Ho gaya")) { tapped.complete(true) }
         val byVoice = async {
             // Listen in short turns until the user says "done"; the Stop chip cancels the whole run.
@@ -156,7 +156,7 @@ class OverlayAgentUi(
         val box = overlay()?.showAnswerBox(question)
         box?.invokeOnCompletion { box.getCompleted().let(result::complete) }
         typed.invokeOnCompletion { typed.getCompleted().let(result::complete) }
-        overlay()?.showCaption(question, s("Listening… or type below", "सुन रहा हूँ… या नीचे लिखिए", "Sun raha hoon… ya neeche likhiye"))
+        overlay()?.showCaption(question, s("Listening… or type below", "सुन रही हूँ… या नीचे लिखिए", "Sun rahi hoon… ya neeche likhiye"))
         currentBox = box
         return result
     }
@@ -195,7 +195,7 @@ class OverlayAgentUi(
 
     fun openDoneButton(prompt: String): CompletableDeferred<Boolean> {
         val tapped = CompletableDeferred<Boolean>()
-        overlay()?.showCaption(prompt, s("Waiting for you", "आपका इंतज़ार कर रहा हूँ", "Aapka wait kar raha hoon"),
+        overlay()?.showCaption(prompt, s("Waiting for you", "आपका इंतज़ार कर रही हूँ", "Aapka wait kar rahi hoon"),
             s("Done", "हो गया", "Ho gaya")) { tapped.complete(true) }
         return tapped
     }

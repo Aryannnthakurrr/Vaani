@@ -157,15 +157,20 @@ class Assistant(private val c: AppContainer) {
         launch { handleUtterance(text, LanguageStyle.detect(text)) }
     }
 
-    private suspend fun handleUtterance(text: String, heardStyle: ReplyStyle) {
+    private suspend fun handleUtterance(text: String, heard: ReplyStyle) {
         _lastHeard.value = text
+        val heardStyle = c.settings.current.autoStyle(heard)
         if (switchLanguageIfAsked(text)) return
         if (c.settings.current.language == "auto") c.settings.setLastStyle(heardStyle)
         _state.value = AssistantState.THINKING
-        OverlayService.controller?.showCaption("“$text”", tr(heardStyle, "Thinking…", "सोच रहा हूँ…", "Soch raha hoon…"))
-        val intent = withTimeoutOrNull(4_000) { runCatching { c.backend.intent(text, heardStyle) }.getOrNull() }
-            ?: LocalIntentRules.route(text)
-        dispatch(intent, text, ReplyStyle.from(intent.replyStyle ?: heardStyle.wire))
+        OverlayService.controller?.showCaption("“$text”", tr(heardStyle, "Thinking…", "सोच रही हूँ…", "Soch rahi hoon…"))
+        // A clear cab request ("cab to Saket") is routed on the phone at once; the cloud router can take 5-10 s.
+        // Only a clean place name qualifies: "मुझे Saket" would not geocode, so the Uber deep link would be lost.
+        val local = LocalIntentRules.route(text)
+        val intent = local.takeIf { it.intent == "book_cab" && LocalIntentRules.cleanPlace(it.slots.destination) }
+            ?: withTimeoutOrNull(4_000) { runCatching { c.backend.intent(text, heardStyle) }.getOrNull() }
+            ?: local
+        dispatch(intent, text, c.settings.current.autoStyle(ReplyStyle.from(intent.replyStyle ?: heardStyle.wire)))
     }
 
     private suspend fun dispatch(intent: IntentResult, utterance: String, replyStyle: ReplyStyle) {

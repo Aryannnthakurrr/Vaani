@@ -82,9 +82,9 @@ class LiveVoiceTest {
         assertTrue(lines[0].final)
 
         log.apply(LiveEvent.Transcript("saathi", "Theek", false))
-        lines = log.apply(LiveEvent.Transcript("saathi", " hai, cab book karta hoon.", false))
+        lines = log.apply(LiveEvent.Transcript("saathi", " hai, cab book karti hoon.", false))
         assertEquals(2, lines.size)
-        assertEquals("Theek hai, cab book karta hoon.", lines[1].text)
+        assertEquals("Theek hai, cab book karti hoon.", lines[1].text)
         assertFalse(lines[1].final)
 
         lines = log.closeOpen()

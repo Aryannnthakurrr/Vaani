@@ -24,10 +24,24 @@ class GuideMode(private val c: AppContainer, private val runner: TaskRunner) {
             ui.say(msg)
             return AgentOutcome.Failed(msg)
         }
-        val guideGoal = goal + "\nGuide notes: one short instruction per step, name the button by colour, position and label. " +
-            "If the user goes to the wrong screen, gently tell them how to get back. Praise them when finished."
+        val guideGoal = withDefaultApp(goal) + "\nGuide notes: one short instruction per step, name the button by colour, position and label. " +
+            "If the app or button the user needs is anywhere in the element list, highlight it by id; ask for a swipe only " +
+            "when it is truly not listed. If the user goes to the wrong screen, gently tell them how to get back. " +
+            "Praise them when finished."
         // Any app is allowed in GUIDE mode: the allowlist only gates acting, and guide mode never acts.
         return runner.loop(screen, performer, ui).run(guideGoal, AgentMode.GUIDE, TaskContext(taskHint = scenario, allowedPackages = emptySet()))
+    }
+
+    /** Sharing a photo or message goes through WhatsApp unless the user named another app. */
+    private fun withDefaultApp(goal: String): String {
+        if (!SENDING.containsMatchIn(goal) || OTHER_APP.containsMatchIn(goal) || goal.contains("whatsapp", ignoreCase = true)) return goal
+        // Also when WhatsApp was said in Devanagari, so the loop can spot the "WhatsApp" icon by name.
+        return "$goal\nSend it on WhatsApp (in the share list, pick WhatsApp)."
+    }
+
+    private companion object {
+        val SENDING = Regex("(?i)send|share|bhej|भेज|शेयर")
+        val OTHER_APP = Regex("(?i)telegram|gmail|e-?mail|\\bmail|\\bsms\\b|instagram|facebook|signal|messages app")
     }
 
     /** Picks the recorded GUIDE scenario that matches the user's words (demo/replay only). */

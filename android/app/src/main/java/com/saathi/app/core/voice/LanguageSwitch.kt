@@ -33,5 +33,5 @@ object LanguageSwitch {
 
     /** What Saathi says after switching, in the new language. */
     fun confirmation(code: String): String =
-        if (code == "hi") "ठीक है, अब से मैं सिर्फ़ हिंदी में बात करूँगा।" else "Okay, from now on I will speak in English."
+        if (code == "hi") "ठीक है, अब से मैं सिर्फ़ हिंदी में बात करूँगी।" else "Okay, from now on I will speak in English."
 }

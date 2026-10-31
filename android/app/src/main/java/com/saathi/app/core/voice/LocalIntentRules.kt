@@ -16,10 +16,12 @@ object LocalIntentRules {
         "camera" to listOf("camera", "scan", "expiry", "mrp", "packet", "label", "कैमरा", "एक्सपायरी", "padh ke", "dekh ke batao"),
         // Sending a photo/message is taught step by step, never done for the user.
         "guide" to listOf("show me", "how do i", "how to", "teach", "kaise", "sikhao", "dikhao", "bhejni", "bhejna", "bhejun",
-            "कैसे", "सिखाओ", "दिखाओ", "भेजनी", "भेजना"),
+            "bhejo", "bhej do", "send", "share", "कैसे", "सिखाओ", "दिखाओ", "भेजनी", "भेजना", "भेजो", "भेज दो", "शेयर"),
         "book_cab" to listOf("cab", "taxi", "uber", "ola", "ride", "auto", "bike", "moto", "कैब", "टैक्सी", "गाड़ी", "gaadi", "gadi", "ऑटो", "बाइक"),
         "book_house_help" to listOf("house help", "maid", "cleaning", "cleaner", "bai", "kaamwali", "safai", "सफाई", "बाई", "pronto",
-            "bartan", "jhadu", "pocha", "बर्तन", "झाड़ू", "पोछा"),
+            "bartan", "jhadu", "pocha", "बर्तन", "झाड़ू", "पोछा",
+            // "Mujhe help chahiye": in Hindi "help" on its own usually means a domestic helper.
+            "help chahiye", "helper", "kaam wali", "kaamwaali", "ghar ka kaam", "ghar ke kaam", "हेल्प", "घर का काम", "घर के काम", "कामवाली"),
         "book_doctor" to listOf("doctor", "practo", "appointment", "cardiolog", "dentist", "physician", "डॉक्टर", "daktar", "dr."),
         "shop_online" to listOf("amazon", "flipkart", "order", "buy", "cart", "kharid", "mangwa", "manga", "खरीद", "मंगा", "ऑर्डर"),
         "digest" to listOf("update", "digest", "bill", "messages", "what's new", "kya aaya", "khabar", "संदेश", "अपडेट", "बिल"),
@@ -94,6 +96,15 @@ object LocalIntentRules {
         }
     }
 
+    private val FILLER = setOf("mujhe", "jana", "jaana", "hai", "karo", "kar", "do", "please", "ek", "se", "chahiye", "book", "now")
+
+    /** A place name in Latin letters with no leftover filler words, safe to geocode for a deep link. */
+    fun cleanPlace(dest: String?): Boolean {
+        val d = dest?.trim() ?: return false
+        if (d.length < 2 || !Regex("^[A-Za-z][A-Za-z .'-]*$").matches(d)) return false
+        return d.lowercase().split(Regex("\\s+")).none { it in FILLER }
+    }
+
     private fun destination(u: String): String? {
         // "go", "to", "reach": "I want to go to Connaught Place" is a trip to Connaught Place, not to "Go to …".
         val stop = setOf("cab", "taxi", "uber", "ride", "auto", "bike", "book", "mujhe", "a", "an", "the", "kar", "do", "go", "to", "reach", "get")
@@ -119,21 +130,21 @@ object LocalIntentRules {
             val (en, hi) = when (slots.vehicle) { "auto" -> "an auto" to "ऑटो"; "bike" -> "a bike" to "बाइक"; else -> "a cab" to "कैब" }
             val hl = when (slots.vehicle) { "auto" -> "auto"; "bike" -> "bike"; else -> "cab" }
             slots.destination?.let {
-                tr(style, "Okay, I'll book $en to $it.", "ठीक है, $it के लिए $hi बुक करता हूँ।", "Theek hai, $it ke liye $hl book karta hoon.")
+                tr(style, "Okay, I'll book $en to $it.", "ठीक है, $it के लिए $hi बुक करती हूँ।", "Theek hai, $it ke liye $hl book karti hoon.")
             } ?: tr(style, "Okay, let's book $en. Where do you want to go?", "ठीक है, $hi बुक करते हैं। कहाँ जाना है?", "Theek hai, $hl book karte hain. Kahan jaana hai?")
         }
         "book_house_help" -> tr(style, "Okay, let's book house help.", "ठीक है, घर की सफाई बुक करते हैं।", "Theek hai, house help book karte hain.")
-        "care" -> tr(style, "I'm sorry you're not well. Let me ask a few questions.", "आपकी तबीयत ठीक नहीं, मुझे दुख है। मैं कुछ सवाल पूछूँगा।",
-            "Aapki tabiyat theek nahi, mujhe afsos hai. Main kuch sawaal poochunga.")
+        "care" -> tr(style, "I'm sorry you're not well. Let me ask a few questions.", "आपकी तबीयत ठीक नहीं, मुझे दुख है। मैं कुछ सवाल पूछूँगी।",
+            "Aapki tabiyat theek nahi, mujhe afsos hai. Main kuch sawaal poochungi.")
         "book_doctor" -> tr(style, "Okay, let's find a doctor.", "ठीक है, डॉक्टर ढूँढते हैं।", "Theek hai, doctor dhoondhte hain.")
         "shop_online" -> tr(style, "Okay, let's order ${slots.product ?: "it"}.", "ठीक है, ${slots.product ?: "सामान"} मंगाते हैं।", "Theek hai, ${slots.product ?: "saamaan"} mangwate hain.")
-        "guide" -> tr(style, "Sure, I'll show you step by step.", "ज़रूर, मैं आपको एक-एक कदम दिखाता हूँ।", "Zaroor, main aapko step by step dikhata hoon.")
-        "camera" -> tr(style, "Opening the camera. Hold the pack in front of it.", "कैमरा खोल रहा हूँ। पैकेट कैमरे के सामने रखिए।", "Camera khol raha hoon. Packet camera ke saamne rakhiye.")
+        "guide" -> tr(style, "Sure, I'll show you step by step.", "ज़रूर, मैं आपको एक-एक कदम दिखाती हूँ।", "Zaroor, main aapko step by step dikhati hoon.")
+        "camera" -> tr(style, "Opening the camera. Hold the pack in front of it.", "कैमरा खोल रही हूँ। पैकेट कैमरे के सामने रखिए।", "Camera khol rahi hoon. Packet camera ke saamne rakhiye.")
         "digest" -> tr(style, "Here are your updates.", "ये रहे आपके अपडेट।", "Ye rahe aapke updates.")
-        "settings" -> tr(style, "Opening settings.", "सेटिंग्स खोल रहा हूँ।", "Settings khol raha hoon.")
+        "settings" -> tr(style, "Opening settings.", "सेटिंग्स खोल रही हूँ।", "Settings khol rahi hoon.")
         "chitchat" -> tr(style, "Namaste! I'm here to help.", "नमस्ते! मैं आपकी मदद के लिए हूँ।", "Namaste! Main aapki madad ke liye hoon.")
         else -> tr(style, "Sorry, I didn't understand. You can say: book a cab, or show me how.",
-            "माफ़ कीजिए, मैं समझ नहीं पाया। आप कह सकते हैं: कैब बुक करो, या मुझे दिखाओ।",
-            "Maaf kijiye, main samjha nahi. Aap keh sakte hain: cab book karo, ya mujhe dikhao.")
+            "माफ़ कीजिए, मैं समझ नहीं पाई। आप कह सकते हैं: कैब बुक करो, या मुझे दिखाओ।",
+            "Maaf kijiye, main samjhi nahi. Aap keh sakte hain: cab book karo, ya mujhe dikhao.")
     }
 }
