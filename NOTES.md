@@ -247,3 +247,77 @@ camera WebSocket, and a mock agent replay of every scenario in `fixtures/agent_s
 - **Digest Hindi grammar:** "गुरुवार को तक" now reads "गुरुवार तक" (the same fix applies to Hinglish).
 
 **Test counts:** Android 104/104, backend 95/95, ruff clean.
+
+## Live API bring-up (2026-10-31)
+
+Keys go in the repo-root `.env` (git-ignored). Status with the keys provided:
+
+| Service | Status |
+|---|---|
+| **Gemini** | Key valid and every model ID in `models.yaml` exists for this key (`gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-3.1-pro-preview`, `gemini-3.8-live`). But every generate call returns **402 "prepayment credits are depleted"**, so routes fall back to the offline rules and `/agent/step` returns a kind `fail`. Needs credits on the key's own AI Studio project. |
+| **Sarvam** | ✅ TTS (Bulbul v4-flash, persona voices) and STT (Saaras v4 codemix) work, verified by a TTS → STT round trip in EN/HI/Hinglish. The app now speaks with Bulbul (audio cached on the device). |
+| **Safe Browsing** | ✅ Google's test malware URL comes back `dangerous`. |
+| **Telegram** | ✅ The bot `@sorted_admin_bot` answers `getMe`, and the backend long-polls for `/start`. Real alerts need a family member to send `/start` and add the chat ID in Settings. |
+| **Twilio** | Keys are stored but not used; real clinic calls are not built (the simulated call screen is). |
+
+**Fixes made while bringing this up**
+- **Sarvam TTS timed out (503)** with a flat 3 s limit. The backend created a new SDK client per sentence and imported the SDK inside the first request's deadline. Now there is one cached client, warmed at startup (also used by STT), and the timeout is `4 s + 15 ms/char`, capped at 12 s (`models.yaml`). The app's wait scales the same way.
+  Measured: about 1 s per short line warm, about 6 s for a 200-character digest.
+- **On Windows, `http://localhost` adds about 2 s per request** (IPv6 is tried first). Use `127.0.0.1` in scripts. The emulator (`10.0.2.2`) and `adb reverse` are not affected.
+- **Safety clips** are rendered with Bulbul into `res/raw` as **Ogg Vorbis**: 57 clips, 2.3 MB (WAV was 17 MB).
+  - `render_alert_clips.py` now reads `.env` itself.
+  - It rejects run-on clips: one Hindi clip came back 53 s long, so anything over `4 s + 0.2 s/char` is re-requested.
+  - New optional extra: `pip install -e "backend[clips]"` (soundfile).
+- **Offline intent rules** (used whenever Gemini is unavailable):
+  - "mujhe ye photo Aarav ko bhejni hai" is now `guide`.
+  - "Flipkart se biscuit mangao" now gives product "biscuit", not "Flipkart se biscuit".
+  - Tests added on both sides.
+- **Hinglish script check (Phase 1):** Saaras transcribes Bulbul's Roman-script Hinglish back as accurate Devanagari Hindi ("आपकी Uber book हो गई है, चार मिनट में आ रही है"), so pronunciation from Roman script is intelligible. `transliterate_hinglish` stays `false`; it still needs a human listening check.
+
+## Real AI calls to the clinic over Twilio (2026-10-31)
+
+- **Backend:** `app/telephony/` (TwiML builders, Twilio signature check, call sessions, REST client) and
+  `routers/telephony.py`.
+  - `POST /calls/clinic/real/start` asks Twilio to dial.
+  - Twilio fetches each line from `/calls/twilio/voice` and posts the clinic's speech to `/calls/twilio/gather`.
+    Both use `<Gather input="speech" language="en-IN">` with the Polly.Aditi voice.
+  - Every turn uses the same `clinic_call_turn` brain as the practice call (Gemini, falling back to the script).
+  - `GET /calls/clinic/real/{id}` returns the live transcript; `POST …/hangup` ends the call.
+- **Safety:**
+  - Every Twilio webhook must carry a valid `X-Twilio-Signature` (HMAC of the public URL and the form).
+  - Outbound calls only go to `CALL_ALLOWED_NUMBERS`.
+  - A call is capped at 6 Saathi turns, and hangs up after 2 silent replies.
+  - Transcripts are kept in memory only.
+- **App:** Digest → "📞 Call the clinic for me" opens a choice between a **real call** (live transcript, End call) and
+  the **practice call**. It talks to the backend through its own `RealCallClient`.
+- **Tests:** `tests/test_telephony.py` covers a full signed webhook conversation, silence handling, forged
+  signatures, numbers not on the allow-list, missing config and hang-up.
+- **Live Gemini check:** the receptionist spoke Hinglish ("aadha ghanta wait hai"). Gemini confirmed, asked the wait,
+  got 30 minutes and said goodbye in Hinglish. The summary came back in the patient's language: Devanagari for `hi`,
+  Roman Hindi for `hinglish`, after the prompt was tightened.
+- **Fixed:** the offline script read "aadha ghanta" as 60 minutes. Hindi fractions (aadha, pauna, sava, dedh, dhai)
+  are now parsed on both backend and Android.
+- **Needs the user (Twilio console):** the account is a Trial with no number, no verified caller ID and $0 balance.
+  Claim a number (set it as `TWILIO_FROM_NUMBER`), verify the destination phone, enable India in Voice
+  geographic permissions, and make sure there is credit. Webhooks need the public HTTPS backend (`PUBLIC_BASE_URL`
+  on the Droplet). Trial calls start with a Twilio notice and a "press any key" prompt.
+
+### Gemini live (after credits were activated)
+
+- **Model choice changed after measuring:** `gemini-3.8-flash` was overloaded (503s; one answer took 166 s) and rejects `thinking_level: minimal`. Routes now use `gemini-3.5-flash` / `-flash-lite` with `thinking: minimal` (about 2–3 s typical, occasionally about 10 s), and fall back to a second model once on 503/429/500 or timeout (`fallback:` in `models.yaml`).
+- **Live probe:**
+  - Intents work in EN/HI/Hinglish, including "photo Aarav ko bhejni hai" → guide (after a prompt fix).
+  - Classify, digest, appointment extraction and the clinic call all work.
+  - `agent_step` gave correct actions on every fixture:
+    - Uber "Where to?" → tap.
+    - Add to cart → `confirm` with price.
+    - UPI PIN screen → `ask_user` to enter it themselves.
+    - Prompt-injection text on screen → ignored.
+- **Spec acceptance (§7.2) passed with the real key on the emulator:** guide mode in the real Settings app went swipe-up arrow → "Tap Display & touch" → "Display size and text" → Font size slider → "Well done! The text has been made bigger."
+- **Fixes found on that run:**
+  - The app's agent timeout went from 10 s to 25 s, plus one quiet retry.
+  - Guide mode now counts a **swipe** as the user acting, not only a tap.
+  - It waits for scrolling to stop before reading the screen.
+  - It re-locates the target right before drawing the ring (the ring was landing one row off after a fling).
+  - The Stop chip moves to the top when the target is in the lower 40% of the screen.
+- **Digest dates:** Gemini called a Sunday "next Friday". Each item now gets a precomputed `when` ("tomorrow", "on Friday", "on 8 November"), and the prompt says to use it verbatim.
