@@ -157,6 +157,16 @@ class OverlayController(private val ctx: Context, private val container: AppCont
 
     fun hideStop() = ui { remove(stopChip); stopChip = null }
 
+    private fun placeStopChip(atTop: Boolean) {
+        val chip = stopChip ?: return
+        val wm = added[chip] ?: return
+        val lp = chip.layoutParams as? WindowManager.LayoutParams ?: return
+        lp.gravity = (if (atTop) Gravity.TOP else Gravity.BOTTOM) or Gravity.CENTER_HORIZONTAL
+        // Top: just below the instruction card (max ~3 lines). Bottom: above the navigation bar.
+        lp.y = OverlayViews.dp(ctx, if (atTop) 250 else 120)
+        runCatching { wm.updateViewLayout(chip, lp) }
+    }
+
     // ---------------------------------------------------------------- guide highlight
 
     fun showHighlight(bounds: List<Int>?, instruction: String, gesture: String?) = ui {
@@ -167,12 +177,19 @@ class OverlayController(private val ctx: Context, private val container: AppCont
         }
         h.gesture = gesture
         h.target = bounds
+        // Never let the Stop chip cover the button we are pointing at: move it to the other half of the screen.
+        val screenH = ctx.resources.displayMetrics.heightPixels
+        placeStopChip(atTop = bounds != null && bounds[3] > screenH * 0.6)
         // Re-add the caption on top of the ring layer, with the instruction in big text.
         caption?.let { remove(it.root) }; caption = null
         showCaption(instruction, tr(style, "Your turn", "अब आप दबाइए", "Ab aap dabaiye"))
     }
 
-    fun clearHighlight() = ui { remove(highlight); highlight = null }
+    fun clearHighlight() = ui {
+        remove(highlight)
+        highlight = null
+        placeStopChip(atTop = false)
+    }
 
     // ---------------------------------------------------------------- confirm sheet
 

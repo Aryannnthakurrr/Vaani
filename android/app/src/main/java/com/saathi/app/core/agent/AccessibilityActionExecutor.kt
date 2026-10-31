@@ -124,7 +124,7 @@ class AccessibilityActionExecutor(
         withTimeoutOrNull(SETTLE_MAX_MS) {
             while (true) {
                 val quiet = withTimeoutOrNull(SETTLE_QUIET_MS) {
-                    AgentService.events.filter { it.kind != UiEventKind.CLICKED }.first()
+                    AgentService.events.filter { it.kind != UiEventKind.CLICKED }.first() // scrolling = not settled yet
                 }
                 if (quiet == null) break
             }
@@ -134,7 +134,8 @@ class AccessibilityActionExecutor(
     override suspend fun awaitUserInteraction(timeoutMs: Long): Boolean =
         withTimeoutOrNull(timeoutMs) {
             AgentService.events.filter {
-                it.pkg != Packages.SELF && (it.kind == UiEventKind.CLICKED || it.kind == UiEventKind.WINDOW_CHANGED)
+                // A swipe counts too: guide mode asks for scrolls as well as taps.
+                it.pkg != Packages.SELF && it.kind != UiEventKind.CONTENT_CHANGED
             }.first()
             delay(SETTLE_QUIET_MS)
             true

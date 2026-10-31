@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** Kinds of accessibility events the agent loop waits on. */
-enum class UiEventKind { CONTENT_CHANGED, WINDOW_CHANGED, CLICKED }
+enum class UiEventKind { CONTENT_CHANGED, WINDOW_CHANGED, CLICKED, SCROLLED }
 
 data class UiEvent(val kind: UiEventKind, val pkg: String?, val ts: Long)
 
@@ -37,6 +37,7 @@ class AgentService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> UiEventKind.WINDOW_CHANGED
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, AccessibilityEvent.TYPE_WINDOWS_CHANGED -> UiEventKind.CONTENT_CHANGED
             AccessibilityEvent.TYPE_VIEW_CLICKED -> UiEventKind.CLICKED
+            AccessibilityEvent.TYPE_VIEW_SCROLLED -> UiEventKind.SCROLLED
             else -> return
         }
         if (pkg == Packages.SELF && kind != UiEventKind.WINDOW_CHANGED) return

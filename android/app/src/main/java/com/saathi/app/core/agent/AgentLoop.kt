@@ -141,7 +141,7 @@ class AgentLoop(
             AgentAction.HIGHLIGHT -> {
                 val node = snap.node(action.id)
                 val instruction = action.instruction.orEmpty()
-                ui.showHighlight(node?.bounds, instruction, action.gesture)
+                ui.showHighlight(node?.let { currentBounds(it) }, instruction, action.gesture)
                 ui.say(instruction)
                 logLine(goal, action, snap.pkg, "Showed you: $instruction", "ok")
                 if (!performer.awaitUserInteraction(GUIDE_WAIT_MS)) {
@@ -149,6 +149,9 @@ class AgentLoop(
                     performer.awaitUserInteraction(GUIDE_WAIT_MS)
                 }
                 ui.clearHighlight()
+                // A swipe keeps the list moving for a moment; reading the screen mid-fling gives stale positions
+                // and the next ring lands on the wrong row.
+                performer.awaitSettle()
                 remember(action)
                 screen.onActionExecuted(action)
                 return null
@@ -199,20 +202,39 @@ class AgentLoop(
         return null
     }
 
-    private suspend fun nextAction(goal: String, mode: AgentMode, snap: ScreenSnapshot, task: TaskContext): AgentAction =
-        try {
-            backend().agentStep(AgentStepRequest(
-                goal = goal, mode = mode.name, language = style().wire,
-                screenText = TreeSerializer.serialize(snap), pkg = snap.pkg,
-                screenshotB64 = snap.screenshotB64, history = history.takeLast(HISTORY), taskHint = task.taskHint,
-            ))
+    private suspend fun nextAction(goal: String, mode: AgentMode, snap: ScreenSnapshot, task: TaskContext): AgentAction {
+        val request = AgentStepRequest(
+            goal = goal, mode = mode.name, language = style().wire,
+            screenText = TreeSerializer.serialize(snap), pkg = snap.pkg,
+            screenshotB64 = snap.screenshotB64, history = history.takeLast(HISTORY), taskHint = task.taskHint,
+        )
+        // One quiet retry: a single slow or dropped model call should not end the user's task.
+        return try {
+            backend().agentStep(request)
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
-            AgentAction.fail(s("I can't reach my helper right now. Shall I try again later?",
-                "अभी मैं अपने सर्वर तक नहीं पहुँच पा रहा। क्या बाद में फिर कोशिश करें?",
-                "Abhi main server tak nahi pahunch pa raha. Kya baad mein try karein?"), "network: ${e.message}")
+        } catch (first: Exception) {
+            try {
+                backend().agentStep(request)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AgentAction.fail(s("I can't reach my helper right now. Shall I try again later?",
+                    "अभी मैं अपने सर्वर तक नहीं पहुँच पा रहा। क्या बाद में फिर कोशिश करें?",
+                    "Abhi main server tak nahi pahunch pa raha. Kya baad mein try karein?"), "network: ${e.message}")
+            }
         }
+    }
+
+    /**
+     * The model may take seconds to answer while a list is still easing to a stop, so the ring is placed using the
+     * element's position on the screen as it is now (matched by label and type), not as it was when we asked.
+     */
+    private suspend fun currentBounds(target: ScreenNode): List<Int> {
+        val now = runCatching { screen.read() }.getOrNull() ?: return target.bounds
+        val same = now.nodes.filter { it.cls == target.cls && it.label == target.label && it.label.isNotEmpty() }
+        return same.minByOrNull { kotlin.math.abs(it.bounds[1] - target.bounds[1]) }?.bounds ?: target.bounds
+    }
 
     private fun remember(action: AgentAction, reason: String? = action.reason) {
         history += HistoryItem(action, reason)
