@@ -1,6 +1,5 @@
 package com.saathi.app.features.tasks
 
-import android.net.Uri
 import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.net.Slots
 import com.saathi.app.core.voice.tr
@@ -20,7 +19,8 @@ data class TaskSpec(
     val required: List<SlotQuestion>,
     val goal: (Slots) -> String,
     val addendum: String,
-    val deeplink: ((Slots) -> String?)? = null,
+    /** Builds the launch link, or null to open the app instead. May look up places near the user. */
+    val deeplink: (suspend (Slots, PlaceLookup) -> String?)? = null,
 )
 
 /** Deep links built by Saathi's own code. These are the only URIs the agent may open. */
@@ -31,16 +31,10 @@ object DeepLinks {
      */
     fun uber(destination: String, lat: Double?, lng: Double?): String? {
         if (lat == null || lng == null) return null
-        return Uri.Builder().scheme("uber").authority("")
-            .appendQueryParameter("action", "setPickup")
-            .appendQueryParameter("pickup", "my_location")
-            .appendQueryParameter("dropoff[latitude]", lat.toString())
-            .appendQueryParameter("dropoff[longitude]", lng.toString())
-            .appendQueryParameter("dropoff[nickname]", destination)
-            .build().toString()
+        return uberString(destination, lat, lng)
     }
 
-    /** Pure variant (no android.net.Uri) used by JVM tests and anywhere Uri is unavailable. */
+    /** Pure builder (no android.net.Uri), so JVM tests check the exact link the app opens. */
     fun uberString(destination: String, lat: Double, lng: Double): String {
         fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20")
         return "uber://?action=setPickup&pickup=my_location" +
@@ -64,15 +58,26 @@ object Tasks {
         id = "book_cab", pkg = Packages.UBER, scenario = "uber_book", required = listOf(destination),
         goal = { "Book the cheapest non-shared Uber ride to ${it.destination}." },
         addendum = "Landmarks: 'Where to?' search box, ride list with fares, a 'Confirm …' button. " +
+            "If Uber opens straight on the ride list, the drop-off was set by a deep link: check it matches the goal " +
+            "(search again if not), then pick the ride. " +
             "Stop after the ride is requested and a driver/vehicle/'arriving' line is visible; read driver, car and ETA.",
-        deeplink = { DeepLinks.uber(it.destination.orEmpty(), null, null) },
+        deeplink = { slots, places ->
+            slots.destination?.takeIf { it.isNotBlank() }?.let { d -> places.find(d)?.let { DeepLinks.uber(d, it.lat, it.lng) } }
+        },
     )
     val HOUSE_HELP = TaskSpec(
         id = "book_house_help", pkg = Packages.HOUSE_HELP, scenario = "house_help", required = emptyList(),
-        goal = { "Book ${it.service ?: "home cleaning"} on Pronto${it.date?.let { d -> " for $d" } ?: ""}${it.time?.let { t -> " at $t" } ?: ""}." },
-        addendum = "Pick the service and the shortest duration. With no date or time asked, choose 'Now'; otherwise 'Schedule' " +
-            "and the matching slot. Read the price and duration, and wrap the final 'Book' button in confirm. Never pay; " +
-            "stop at any payment or UPI screen.",
+        goal = {
+            "Add a Pronto house-help visit to the cart${it.service?.let { s -> " for $s" } ?: ""}" +
+                "${it.date?.let { d -> ", $d" } ?: ""}${it.time?.let { t -> " at $t" } ?: ""}."
+        },
+        // Landmarks seen in Pronto on a real phone (2026-10-31). Pronto books by time, not by chore.
+        addendum = "Pronto books help by time, not by chore. Close any promo pop-up with its close (×) button. " +
+            "With no date or time asked, tap 'Get Instant Service'; otherwise 'Schedule for Later'. If Pronto says its " +
+            "partners are busy it shows the schedule screen instead: pick the asked day (else the earliest), the 0.5 hr " +
+            "'Service duration' unless the user asked for longer, the Morning/Afternoon/Evening tab, and the earliest slot " +
+            "matching the asked time. Read day, time, duration and price, and wrap 'Add to cart' in confirm. Once it is in " +
+            "the cart, finish with done and tell the user to pay in Pronto themselves; never open checkout or payment.",
     )
     val SHOP = TaskSpec(
         id = "shop_online", pkg = Packages.AMAZON, scenario = "amazon_add_cart", required = listOf(product),

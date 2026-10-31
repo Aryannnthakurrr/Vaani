@@ -14,58 +14,57 @@
  "steps": [
   {
    "when_contains": [
-    "Kitchen cleaning",
-    "Laundry"
-   ],
-   "action": {
-    "action": "tap",
-    "id": 3,
-    "reason": "Kitchen cleaning"
-   }
-  },
-  {
-   "when_contains": [
-    "30 mins"
+    "Get Instant Service"
    ],
    "action": {
     "action": "tap",
     "id": 2,
+    "reason": "No time asked, so instant"
+   }
+  },
+  {
+   "when_contains": [
+    "Service duration"
+   ],
+   "action": {
+    "action": "tap",
+    "id": 5,
     "reason": "Shortest duration"
    }
   },
   {
    "when_contains": [
-    "Now · arrives"
+    "7:00 am"
    ],
    "action": {
     "action": "tap",
-    "id": 1,
-    "reason": "No time asked, so now"
+    "id": 10,
+    "reason": "Earliest slot"
    }
   },
   {
    "when_contains": [
-    "Book now"
+    "Add to cart"
    ],
    "action": {
     "action": "confirm",
-    "summary": "Kitchen cleaning for 30 minutes, ₹49, someone arrives in about 15 minutes. You pay after the service. Book it?",
+    "summary": "Pronto is busy right now, so the earliest visit is tomorrow at 7 am, for half an hour, ₹40. Add it to the cart?",
     "then": {
      "action": "tap",
-     "id": 3,
+     "id": 11,
      "reason": "User approved"
     },
-    "reason": "Booking needs a yes"
+    "reason": "Adding to cart needs a yes"
    }
   },
   {
    "when_contains": [
-    "Booking confirmed"
+    "Proceed to pay"
    ],
    "action": {
     "action": "done",
-    "message": "Kitchen cleaning is booked. Someone from Pronto will arrive in about 15 minutes.",
-    "reason": "Booked"
+    "message": "House help for tomorrow at 7 am is in your Pronto cart, ₹40. Please open Pronto and pay to confirm it.",
+    "reason": "In the cart; payment is the user's"
    }
   }
  ]

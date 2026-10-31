@@ -345,47 +345,60 @@ SCENARIOS["practo_book"] = {
 }
 
 # --------------------------------------------------------------------------- house help
-# Pronto is React Native: buttons are clickable ViewGroups labelled by content-desc, as seen on a device.
+# Pronto, modelled on the real app (2026-10-31): React Native, so buttons are clickable ViewGroups labelled by
+# content-desc; help is booked by time (duration + slot), and "Add to cart" leads to payment, where Saathi stops.
 PRONTO = "com.company.pronto"
+
+
+def pr_schedule(duration_checked=False, slot_checked=False):
+    return screen(PRONTO, "Schedule for later", [
+        node("ViewGroup", desc="Today", top=220, left=40, right=270, depth=2, clickable=True),
+        node("ViewGroup", desc="Tomorrow", top=220, left=310, right=540, depth=2, clickable=True,
+             checkable=True, checked=True),
+        label("All our partners are busy right now. Please schedule this booking for later.", 420, depth=1),
+        label("Service duration", 680, depth=1),
+        node("ViewGroup", desc="0.5 hr ₹40", top=740, left=70, right=300, depth=2, clickable=True,
+             checkable=True, checked=duration_checked),
+        node("ViewGroup", desc="1 hr ₹79", top=740, left=340, right=570, depth=2, clickable=True, checkable=True),
+        label("Service start time", 1000, depth=1),
+        node("ViewGroup", desc="Morning", top=1080, left=80, right=380, depth=2, clickable=True,
+             checkable=True, checked=True),
+        node("ViewGroup", desc="Afternoon", top=1080, left=400, right=680, depth=2, clickable=True, checkable=True),
+        node("ViewGroup", desc="7:00 am", top=1340, left=100, right=300, depth=2, clickable=True,
+             checkable=True, checked=slot_checked),
+        node("ViewGroup", desc="Add to cart", top=2130, depth=1, clickable=True),
+    ])
+
+
 pr_home = screen(PRONTO, "Pronto", [
-    label("House help in 15 minutes", 250, depth=1),
-    node("ViewGroup", desc="Home cleaning", top=450, left=40, right=520, h=300, depth=2, clickable=True),
-    node("ViewGroup", desc="Kitchen cleaning", top=450, left=560, right=1040, h=300, depth=2, clickable=True),
-    node("ViewGroup", desc="Dishwashing", top=800, left=40, right=520, h=300, depth=2, clickable=True),
-    node("ViewGroup", desc="Laundry", top=800, left=560, right=1040, h=300, depth=2, clickable=True),
+    label("A block, Meera Bagh", 160, depth=1),
+    node("ViewGroup", desc="Get Instant Service", top=780, left=40, right=520, h=300, depth=2, clickable=True),
+    node("ViewGroup", desc="Schedule for Later", top=780, left=560, right=1040, h=300, depth=2, clickable=True),
 ])
-pr_duration = screen(PRONTO, "Kitchen cleaning", [
-    label("How long do you need?", 250, depth=1),
-    node("ViewGroup", desc="30 mins · ₹49", top=400, depth=2, clickable=True),
-    node("ViewGroup", desc="60 mins · ₹98", top=560, depth=2, clickable=True),
-])
-pr_when = screen(PRONTO, "When?", [
-    node("ViewGroup", desc="Now · arrives in 15 mins", top=400, depth=2, clickable=True),
-    node("ViewGroup", desc="Later", top=560, depth=2, clickable=True),
-])
-pr_summary = screen(PRONTO, "Summary", [
-    label("Kitchen cleaning · 30 mins · ₹49", 300, depth=1),
-    label("Arrives in about 15 minutes · Pay after service", 420, depth=1),
-    node("ViewGroup", desc="Book now", top=1800, depth=1, clickable=True),
-])
-pr_done = screen(PRONTO, "Booking confirmed", [
-    label("Booking confirmed", 300, depth=1),
-    label("Your expert is on the way.", 420, depth=1),
+pr_duration = pr_schedule()
+pr_slot = pr_schedule(duration_checked=True)
+pr_ready = pr_schedule(duration_checked=True, slot_checked=True)
+pr_cart = screen(PRONTO, "Cart", [
+    label("House help · Tomorrow 7:00 am · 0.5 hr", 300, depth=1),
+    label("To pay ₹40", 420, depth=1),
+    node("ViewGroup", desc="Proceed to pay ₹40", top=2130, depth=1, clickable=True),
 ])
 SCENARIOS["house_help"] = {
     "mode": "ACT",
     "goal_keywords": ["cleaning", "maid", "house help", "bai", "safai", "सफाई", "kaamwali", "pronto"],
-    "screens": [pr_home, pr_duration, pr_when, pr_summary, pr_done],
+    "screens": [pr_home, pr_duration, pr_slot, pr_ready, pr_cart],
     "steps": [
-        step(["Kitchen cleaning", "Laundry"], act("tap", "Kitchen cleaning", id=nid(pr_home, "Kitchen cleaning"))),
-        step(["30 mins"], act("tap", "Shortest duration", id=nid(pr_duration, "30 mins"))),
-        step(["Now · arrives"], act("tap", "No time asked, so now", id=nid(pr_when, "Now"))),
-        step(["Book now"], act("confirm", "Booking needs a yes",
-             summary="Kitchen cleaning for 30 minutes, ₹49, someone arrives in about 15 minutes. "
-                     "You pay after the service. Book it?",
-             then={"action": "tap", "id": nid(pr_summary, "Book now"), "reason": "User approved"})),
-        step(["Booking confirmed"], act("done", "Booked",
-             message="Kitchen cleaning is booked. Someone from Pronto will arrive in about 15 minutes.")),
+        step(["Get Instant Service"], act("tap", "No time asked, so instant",
+             id=nid(pr_home, "Get Instant Service"))),
+        step(["Service duration"], act("tap", "Shortest duration", id=nid(pr_duration, "0.5 hr"))),
+        step(["7:00 am"], act("tap", "Earliest slot", id=nid(pr_slot, "7:00 am"))),
+        step(["Add to cart"], act("confirm", "Adding to cart needs a yes",
+             summary="Pronto is busy right now, so the earliest visit is tomorrow at 7 am, for half an hour, "
+                     "₹40. Add it to the cart?",
+             then={"action": "tap", "id": nid(pr_ready, "Add to cart"), "reason": "User approved"})),
+        step(["Proceed to pay"], act("done", "In the cart; payment is the user's",
+             message="House help for tomorrow at 7 am is in your Pronto cart, ₹40. "
+                     "Please open Pronto and pay to confirm it.")),
     ],
 }
 

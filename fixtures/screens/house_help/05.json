@@ -1,11 +1,11 @@
 {
  "package": "com.company.pronto",
- "title": "Booking confirmed",
+ "title": "Cart",
  "secure": false,
  "nodes": [
   {
    "cls": "TextView",
-   "text": "Booking confirmed",
+   "text": "House help · Tomorrow 7:00 am · 0.5 hr",
    "desc": null,
    "hint": null,
    "viewId": null,
@@ -25,7 +25,7 @@
   },
   {
    "cls": "TextView",
-   "text": "Your expert is on the way.",
+   "text": "To pay ₹40",
    "desc": null,
    "hint": null,
    "viewId": null,
@@ -36,6 +36,26 @@
     540
    ],
    "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Proceed to pay ₹40",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    2130,
+    1040,
+    2250
+   ],
+   "clickable": true,
    "editable": false,
    "scrollable": false,
    "checkable": false,

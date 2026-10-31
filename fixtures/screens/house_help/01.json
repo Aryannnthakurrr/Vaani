@@ -5,15 +5,15 @@
  "nodes": [
   {
    "cls": "TextView",
-   "text": "House help in 15 minutes",
+   "text": "A block, Meera Bagh",
    "desc": null,
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    250,
+    160,
     1040,
-    370
+    280
    ],
    "clickable": false,
    "editable": false,
@@ -26,14 +26,14 @@
   {
    "cls": "ViewGroup",
    "text": null,
-   "desc": "Home cleaning",
+   "desc": "Get Instant Service",
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    450,
+    780,
     520,
-    750
+    1080
    ],
    "clickable": true,
    "editable": false,
@@ -46,54 +46,14 @@
   {
    "cls": "ViewGroup",
    "text": null,
-   "desc": "Kitchen cleaning",
+   "desc": "Schedule for Later",
    "hint": null,
    "viewId": null,
    "bounds": [
     560,
-    450,
+    780,
     1040,
-    750
-   ],
-   "clickable": true,
-   "editable": false,
-   "scrollable": false,
-   "checkable": false,
-   "checked": false,
-   "focused": false,
-   "depth": 2
-  },
-  {
-   "cls": "ViewGroup",
-   "text": null,
-   "desc": "Dishwashing",
-   "hint": null,
-   "viewId": null,
-   "bounds": [
-    40,
-    800,
-    520,
-    1100
-   ],
-   "clickable": true,
-   "editable": false,
-   "scrollable": false,
-   "checkable": false,
-   "checked": false,
-   "focused": false,
-   "depth": 2
-  },
-  {
-   "cls": "ViewGroup",
-   "text": null,
-   "desc": "Laundry",
-   "hint": null,
-   "viewId": null,
-   "bounds": [
-    560,
-    800,
-    1040,
-    1100
+    1080
    ],
    "clickable": true,
    "editable": false,

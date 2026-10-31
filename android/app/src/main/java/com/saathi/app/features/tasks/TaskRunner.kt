@@ -34,6 +34,7 @@ class TaskRunner(private val c: AppContainer) {
 
 
     private val style get() = c.settings.current.replyStyle
+    private val places by lazy { AndroidPlaceFinder(c.context) }
 
     /** Live eyes and hands, or the debug replay of the task's scenario. */
     fun io(scenario: String?): Pair<ScreenSource, ActionPerformer>? {
@@ -63,7 +64,8 @@ class TaskRunner(private val c: AppContainer) {
             ui.say(msg)
             return AgentOutcome.Failed(msg)
         }
-        val link = spec.deeplink?.invoke(slots)
+        // Replay runs on recorded screens, so it never looks up places or opens links.
+        val link = if (replay) null else spec.deeplink?.invoke(slots, places)
         val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link))
         if (!replay) {
             // The first hop is Saathi's own code, still checked by the same policy as model actions.

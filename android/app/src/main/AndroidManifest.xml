@@ -24,6 +24,8 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Rough area only: biases the Uber destination lookup to places near the user. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Hackathon only: detect which target apps are installed. -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"

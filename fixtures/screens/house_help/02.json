@@ -1,19 +1,79 @@
 {
  "package": "com.company.pronto",
- "title": "Kitchen cleaning",
+ "title": "Schedule for later",
  "secure": false,
  "nodes": [
   {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Today",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    220,
+    270,
+    340
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Tomorrow",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    310,
+    220,
+    540,
+    340
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": true,
+   "checked": true,
+   "focused": false,
+   "depth": 2
+  },
+  {
    "cls": "TextView",
-   "text": "How long do you need?",
+   "text": "All our partners are busy right now. Please schedule this booking for later.",
    "desc": null,
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    250,
+    420,
     1040,
-    370
+    540
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "TextView",
+   "text": "Service duration",
+   "desc": null,
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    680,
+    1040,
+    800
    ],
    "clickable": false,
    "editable": false,
@@ -26,19 +86,19 @@
   {
    "cls": "ViewGroup",
    "text": null,
-   "desc": "30 mins · ₹49",
+   "desc": "0.5 hr ₹40",
    "hint": null,
    "viewId": null,
    "bounds": [
-    40,
-    400,
-    1040,
-    520
+    70,
+    740,
+    300,
+    860
    ],
    "clickable": true,
    "editable": false,
    "scrollable": false,
-   "checkable": false,
+   "checkable": true,
    "checked": false,
    "focused": false,
    "depth": 2
@@ -46,14 +106,114 @@
   {
    "cls": "ViewGroup",
    "text": null,
-   "desc": "60 mins · ₹98",
+   "desc": "1 hr ₹79",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    340,
+    740,
+    570,
+    860
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": true,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "TextView",
+   "text": "Service start time",
+   "desc": null,
    "hint": null,
    "viewId": null,
    "bounds": [
     40,
-    560,
+    1000,
     1040,
-    680
+    1120
+   ],
+   "clickable": false,
+   "editable": false,
+   "scrollable": false,
+   "checkable": false,
+   "checked": false,
+   "focused": false,
+   "depth": 1
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Morning",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    80,
+    1080,
+    380,
+    1200
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": true,
+   "checked": true,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Afternoon",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    400,
+    1080,
+    680,
+    1200
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": true,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "7:00 am",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    100,
+    1340,
+    300,
+    1460
+   ],
+   "clickable": true,
+   "editable": false,
+   "scrollable": false,
+   "checkable": true,
+   "checked": false,
+   "focused": false,
+   "depth": 2
+  },
+  {
+   "cls": "ViewGroup",
+   "text": null,
+   "desc": "Add to cart",
+   "hint": null,
+   "viewId": null,
+   "bounds": [
+    40,
+    2130,
+    1040,
+    2250
    ],
    "clickable": true,
    "editable": false,
@@ -61,7 +221,7 @@
    "checkable": false,
    "checked": false,
    "focused": false,
-   "depth": 2
+   "depth": 1
   }
  ]
 }

@@ -381,3 +381,22 @@ Keys go in the repo-root `.env` (git-ignored). Status with the keys provided:
   `BackendClient.agentHttp` to 55 s, so a step that needs the fallback model still fits.
 - Left `intent_router` at 5 s on purpose: the phone waits only 4 s (`Assistant.kt`) and then answers from
   `LocalIntentRules`, so users never sit through a slow model after speaking.
+
+## Deep links for Uber and Pronto (2026-10-31, evening)
+
+- **Uber now launches by deep link** when it can: `AndroidPlaceFinder` looks the destination up with Android's
+  `Geocoder`, limited to ±0.3° (~33 km) around the phone's last known coarse position (`NearbyBox`), with a 3 s cap.
+  The link is `uber://?action=setPickup&pickup=my_location&dropoff[...]`, so Uber opens on the ride list and the
+  agent skips searching for the destination. No permission, position or match → it opens Uber as before. The task
+  notes tell the agent to check the drop-off matches before choosing a ride.
+- New permission **ACCESS_COARSE_LOCATION** (onboarding step "Your area"; granted by `dev_install.sh`). Only the
+  place name and the search box go to the platform geocoder; nothing is logged. Replay mode never looks places up.
+- **Pronto has no usable deep link.** `pronto://service/<id>` exists in the bundle, but the ids are server-side
+  listing ids; `pronto://service/kitchen_cleaning` shows "Could not load listing". The task opens the app.
+- **Pronto's real flow** (seen on a Galaxy S21 FE): home → "Get Instant Service" / "Schedule for Later" (when
+  partners are busy it jumps to scheduling) → day chips → "Service duration" chips (0.5 hr ₹40 … 2 hr) →
+  Morning/Afternoon/Evening → slot → "Add to cart". Help is booked by time, not by chore. Task notes and the
+  `house_help` replay fixtures now follow this; the agent stops once the visit is in the cart and asks the user to
+  pay in Pronto, because Saathi never pays. The checkout screen itself is not yet seen.
+- `uiautomator dump` times out on Pronto's animated screens and leaves a stale file; Saathi's accessibility reader
+  is unaffected. After testing a deep link, start Pronto with `am start --activity-clear-task` or it reopens the link.

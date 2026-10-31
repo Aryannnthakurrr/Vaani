@@ -64,6 +64,11 @@ object Permissions {
                 "Taaki main labels padh sakoon aur doctor appointments save kar sakoon.") },
             { has(it, Manifest.permission.CAMERA) && has(it, Manifest.permission.WRITE_CALENDAR) },
             runtime = listOf(Manifest.permission.CAMERA, Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)))
+        add(PermissionStep("location", "📍", { tr(it, "Your area", "आपका इलाक़ा", "Aapka area") },
+            { tr(it, "So I can find places near you when I book a cab. Only your rough area is used.",
+                "ताकि कैब बुक करते समय मैं आपके पास की जगह ढूँढ सकूँ। सिर्फ़ आपका मोटा-मोटा इलाक़ा देखा जाता है।",
+                "Taaki cab book karte waqt main aapke paas ki jagah dhoondh sakoon. Sirf aapka rough area dekha jaata hai.") },
+            { has(it, Manifest.permission.ACCESS_COARSE_LOCATION) }, runtime = listOf(Manifest.permission.ACCESS_COARSE_LOCATION)))
         add(PermissionStep("accessibility", "🤝", { tr(it, "Let Saathi help in other apps", "साथी को दूसरे ऐप्स में मदद करने दें", "Saathi ko doosre apps mein madad karne dein") },
             { tr(it, "Open Accessibility, find Saathi and turn it on. If it is grey, first allow restricted settings.",
                 "एक्सेसिबिलिटी खोलिए, साथी ढूँढिए और चालू कीजिए। अगर बटन धुंधला है, तो पहले प्रतिबंधित सेटिंग की अनुमति दीजिए।",
