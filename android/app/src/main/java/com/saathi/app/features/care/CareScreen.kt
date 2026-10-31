@@ -27,6 +27,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,6 +47,7 @@ import com.saathi.app.ui.BigButton
 import com.saathi.app.ui.Pill
 import com.saathi.app.ui.SaathiScaffold
 import com.saathi.app.ui.SecondaryButton
+import com.saathi.app.ui.riseIn
 import com.saathi.app.ui.SuccessView
 import com.saathi.app.ui.theme.Accent50
 import com.saathi.app.ui.theme.Amber
@@ -70,6 +72,7 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
     // the emergency screen (route A), which must keep running.
     DisposableEffect(Unit) { onDispose { if (c.care.ui.value.route != "A") c.care.stop() } }
     val booked = ui.booking?.takeIf { it.status == "confirmed" }
+    val speaking by c.speaker.speaking.collectAsState()
 
     SaathiScaffold(s("Doctor", "डॉक्टर", "Doctor"), { c.care.stop(); onBack() }) {
         if (booked != null) {
@@ -80,7 +83,15 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
             "Main AI assistant hoon, doctor nahi. Emergency mein 108 par call karein."), fontSize = 16.sp, lineHeight = 22.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        ui.chat.takeLast(6).forEach { Bubble(it) }
+        // Keyed by position in the whole conversation, so only a new message animates in, not the ones already shown.
+        ui.chat.withIndex().toList().takeLast(6).forEach { (i, line) -> key(i) { Bubble(line) } }
+        // The voice is always visible while Saathi talks or listens here (the booking card has its own wave).
+        if (ui.phase != CarePhase.RECOMMEND && (asking != CareFlow.Asking.NOTHING || ui.phase == CarePhase.INTAKE || speaking)) {
+            com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
+                if (asking == CareFlow.Asking.YES_NO) s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye")
+                else s("Speak freely, I'm listening", "बेझिझक बोलिए, मैं सुन रही हूँ", "Aaram se boliye, main sun rahi hoon"),
+                MaterialTheme.colorScheme.primary)
+        }
         if (ui.phase != CarePhase.RECOMMEND) Answering(asking, c, ::s)
 
         ui.note?.let { note -> NoteCard(note, ::s) }
@@ -121,7 +132,9 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
 /** Saathi on the left in white, the user on the right in soft teal, like any chat. */
 @Composable
 private fun Bubble(line: ChatLine) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = if (line.fromUser) Alignment.CenterEnd else Alignment.CenterStart) {
+    // Each message slides in from its own side, like any chat.
+    Box(Modifier.fillMaxWidth().riseIn(fromY = 8.dp, fromX = if (line.fromUser) 40.dp else (-40).dp),
+        contentAlignment = if (line.fromUser) Alignment.CenterEnd else Alignment.CenterStart) {
         Surface(
             shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp,
                 bottomStart = if (line.fromUser) 22.dp else 6.dp, bottomEnd = if (line.fromUser) 6.dp else 22.dp),
@@ -215,7 +228,7 @@ private fun RecommendationCard(rec: Recommendation, ui: CareUi, c: AppContainer,
         }
     }
     com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
-        s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye"), Muted)
+        s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye"), MaterialTheme.colorScheme.primary)
     BigButton(s("Book", "बुक करें", "Book karein"), { c.care.tap(true) }, color = Leaf)
     SecondaryButton(s("Other times", "दूसरा समय", "Doosra time"), { more = !more })
     if (more) {

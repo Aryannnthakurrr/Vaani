@@ -26,6 +26,9 @@ import com.saathi.app.ui.theme.SaathiTheme
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -42,7 +45,8 @@ class MainActivity : ComponentActivity() {
         val c = SaathiApp.container
         handle(intent)
         OverlayService.start(this)
-        val start = if (Permissions.allGranted(this)) "home" else "onboarding"
+        // Setup is shown once; permissions the user skipped are asked for when a feature needs them.
+        val start = if (c.settings.current.setupDone || Permissions.allGranted(this)) "home" else "onboarding"
         setContent {
             SaathiTheme {
                 val nav = rememberNavController()
@@ -55,8 +59,11 @@ class MainActivity : ComponentActivity() {
                 }
                 // Gentle only: a short cross-fade between screens, nothing that slides or bounces.
                 NavHost(nav, startDestination = start,
-                    enterTransition = { fadeIn(tween(220)) }, exitTransition = { fadeOut(tween(180)) },
-                    popEnterTransition = { fadeIn(tween(220)) }, popExitTransition = { fadeOut(tween(180)) }) {
+                    // A new screen rises gently into place; going back, the old one sinks away. Nothing slides sideways.
+                    enterTransition = { fadeIn(tween(280, delayMillis = 60)) + slideInVertically(tween(340, easing = FastOutSlowInEasing)) { it / 18 } },
+                    exitTransition = { fadeOut(tween(160)) },
+                    popEnterTransition = { fadeIn(tween(260)) },
+                    popExitTransition = { fadeOut(tween(200)) + slideOutVertically(tween(260, easing = FastOutSlowInEasing)) { it / 18 } }) {
                     val back: () -> Unit = { if (!nav.popBackStack()) nav.navigate("home") }
                     composable("onboarding") { OnboardingScreen(c) { nav.navigate("home") { popUpTo("onboarding") { inclusive = true } } } }
                     composable("home") { HomeScreen(c) { nav.navigate(it) { launchSingleTop = true } } }

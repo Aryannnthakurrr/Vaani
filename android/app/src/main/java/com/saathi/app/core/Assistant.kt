@@ -41,8 +41,20 @@ class Assistant(private val c: AppContainer) {
     @Volatile var liveUi: com.saathi.app.core.agent.AgentUi? = null
     private val activeUi get() = liveUi ?: ui
 
-    /** How loud the user is right now (live mic, else the turn-based mic), 0–1, for voice-wave animations. */
-    fun voiceLevel(): Float = _live.value?.micLevel?.value ?: speech.level.value
+    /**
+     * The level every voice-wave animation follows, 0–1: the user's mic while Saathi listens, and a soft speech-like
+     * wave while Saathi itself speaks (any live conversation, including the doctor intake, or the turn-based voice).
+     */
+    fun voiceLevel(): Float {
+        val live = _live.value ?: c.care.live
+        if (live != null) return if (live.state.value == LiveState.SPEAKING) speakingLevel() else live.micLevel.value
+        return if (c.speaker.speaking.value) speakingLevel() else speech.level.value
+    }
+
+    private fun speakingLevel(): Float {
+        val t = System.nanoTime() / 1e9
+        return (0.45 + 0.2 * kotlin.math.sin(t * 5) * kotlin.math.sin(t * 1.3)).toFloat()
+    }
 
     private val _state = MutableStateFlow(AssistantState.IDLE)
     val state: StateFlow<AssistantState> = _state

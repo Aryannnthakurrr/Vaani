@@ -224,7 +224,8 @@ class OverlayController(private val ctx: Context, private val container: AppCont
             val (v, input) = OverlayViews.answerCard(ctx, question,
                 hint = tr(style, "Or type your answer here", "या यहाँ लिखकर जवाब दीजिए", "Ya yahan likh kar jawab dijiye"),
                 ok = tr(style, "OK", "ठीक है", "Theek hai"), cancel = tr(style, "Cancel", "रद्द करें", "Cancel"),
-                onOk = { text -> if (text.isNotBlank()) result.complete(text.trim()) }, onCancel = { result.complete(null) })
+                onOk = { text -> if (text.isNotBlank()) result.complete(text.trim()) }, onCancel = { result.complete(null) },
+                level = { container.assistant.voiceLevel() })
             if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
                     Gravity.BOTTOM, focusable = true, type = type).apply {
                     y = OverlayViews.dp(ctx, 24)

@@ -34,6 +34,10 @@ import kotlinx.serialization.json.buildJsonObject
  */
 class CareFlow(private val c: AppContainer) {
     private val client = CareClient { c.settings.current }
+
+    /** The live intake conversation while it runs, so voice animations can follow its mic and speech. */
+    @Volatile var live: LiveVoiceSession? = null
+        private set
     private val _ui = MutableStateFlow(CareUi())
     val ui: StateFlow<CareUi> = _ui
     private var job: Job? = null
@@ -182,6 +186,7 @@ class CareFlow(private val c: AppContainer) {
                 _ui.update { ui -> ui.copy(chat = lines.takeLast(6).map { ChatLine(it.role == "user", it.text) }) }
             }
         }
+        this@CareFlow.live = live
         try {
             live.start()
             // The server reads the reply style first, so the opening cue goes only once the socket is open.
@@ -198,6 +203,7 @@ class CareFlow(private val c: AppContainer) {
         } finally {
             mirror.cancel()
             live.end()
+            this@CareFlow.live = null
         }
     }
 

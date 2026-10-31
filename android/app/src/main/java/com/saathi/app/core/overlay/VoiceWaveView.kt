@@ -25,7 +25,7 @@ class VoiceWaveView(context: Context, private val level: () -> Float, color: Int
         phase += 0.25f
         val heights = VoiceLevel.bars(smooth, phase, BARS)
         val gap = width / (BARS * 2f)
-        paint.strokeWidth = gap * 1.1f
+        paint.strokeWidth = gap * 0.55f
         val mid = height / 2f
         heights.forEachIndexed { i, h ->
             val x = gap + i * 2 * gap

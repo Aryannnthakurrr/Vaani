@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,17 +38,18 @@ fun VoiceWave(level: () -> Float, hint: String, color: Color, modifier: Modifier
         }
     }
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Canvas(Modifier.fillMaxWidth().height(56.dp).clearAndSetSemantics { }) {
+        Canvas(Modifier.fillMaxWidth(0.7f).height(44.dp).clearAndSetSemantics { }) {
             val bars = VoiceLevel.bars(smooth, phase, BARS)
             val gap = size.width / (BARS * 2f)
             val mid = size.height / 2f
             bars.forEachIndexed { i, h ->
                 val x = gap + i * 2 * gap
                 val half = h * size.height / 2f
-                drawLine(color, Offset(x, mid - half), Offset(x, mid + half), strokeWidth = gap * 1.1f, cap = StrokeCap.Round)
+                // Thin, rounded bars: light enough to sit under any card without looking heavy.
+                drawLine(color, Offset(x, mid - half), Offset(x, mid + half), strokeWidth = gap * 0.55f, cap = StrokeCap.Round)
             }
         }
-        Text(hint, fontSize = 18.sp, color = color)
+        Text(hint, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

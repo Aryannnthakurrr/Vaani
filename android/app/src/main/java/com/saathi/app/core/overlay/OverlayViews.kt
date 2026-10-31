@@ -126,7 +126,7 @@ internal object OverlayViews {
             elevation = dp(ctx, 16).toFloat()
             addView(text(ctx, summary, 26f, INK, bold = true).apply { contentDescription = summary })
             // Moves with the user's voice: say "haan" or "nahi", or tap.
-            addView(VoiceWaveView(ctx, level, MUTED), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 48))
+            addView(VoiceWaveView(ctx, level, ACCENT), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 48))
                 .apply { topMargin = dp(ctx, 10) })
             addView(bigButton(ctx, yes, GREEN, onYes), full(12))
             addView(bigButton(ctx, no, SOFT, onNo, fg = INK), full(12))
@@ -154,7 +154,7 @@ internal object OverlayViews {
     /** Question card with a text field and OK/Cancel; returns the root and the field. */
     fun answerCard(
         ctx: Context, question: String, hint: String, ok: String, cancel: String,
-        onOk: (String) -> Unit, onCancel: () -> Unit,
+        onOk: (String) -> Unit, onCancel: () -> Unit, level: () -> Float = { 0f },
     ): Pair<View, EditText> {
         val input = EditText(ctx).apply {
             this.hint = hint
@@ -180,6 +180,9 @@ internal object OverlayViews {
             setPadding(dp(ctx, 20), dp(ctx, 20), dp(ctx, 20), dp(ctx, 20))
             elevation = dp(ctx, 16).toFloat()
             addView(text(ctx, question, 22f, INK, bold = true))
+            // Saathi is listening for a spoken answer too, not only the text box.
+            addView(VoiceWaveView(ctx, level, ACCENT), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 44))
+                .apply { topMargin = dp(ctx, 8) })
             addView(input, full(14))
             addView(row, full(14))
         }

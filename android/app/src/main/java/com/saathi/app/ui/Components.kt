@@ -1,6 +1,18 @@
 package com.saathi.app.ui
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -111,14 +123,12 @@ fun BigButton(
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
     enabled: Boolean = true,
 ) {
-    val press = remember { MutableInteractionSource() }
-    val pressed by press.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "press")
+    val (press, pressMotion) = rememberPress()
     Button(
         onClick = onClick,
         enabled = enabled,
         interactionSource = press,
-        modifier = modifier.fillMaxWidth().heightIn(min = 72.dp).graphicsLayer { scaleX = scale; scaleY = scale },
+        modifier = modifier.fillMaxWidth().heightIn(min = 72.dp).then(pressMotion),
         shape = RoundedCornerShape(20.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
@@ -135,13 +145,36 @@ fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modi
 fun SuccessView(title: String, line: String, note: String? = null, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(120.dp).clip(CircleShape).background(Leaf50), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = Leaf, modifier = Modifier.size(72.dp))
-        }
+        DrawnTick(Modifier.size(120.dp))
         Text(title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading(); liveRegion = LiveRegionMode.Polite })
         Text(line, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         note?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center) }
+    }
+}
+
+/** A green circle that pops in on a soft spring, then a tick that draws itself: the "done" moment. */
+@Composable
+private fun DrawnTick(modifier: Modifier) {
+    val circle = remember { Animatable(0.6f) }
+    val stroke = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        circle.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
+    }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(180)
+        stroke.animateTo(1f, tween(420, easing = Arrive))
+    }
+    Canvas(modifier.clearAndSetSemantics { }) {
+        val r = size.minDimension / 2f * circle.value
+        drawCircle(Leaf50, radius = r)
+        val w = size.width
+        val tick = Path().apply {
+            moveTo(w * 0.30f, w * 0.52f); lineTo(w * 0.45f, w * 0.66f); lineTo(w * 0.71f, w * 0.38f)
+        }
+        val part = Path()
+        PathMeasure().apply { setPath(tick, false); getSegment(0f, length * stroke.value, part, true) }
+        drawPath(part, Leaf, style = Stroke(width = w * 0.075f, cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 
@@ -192,13 +225,14 @@ fun InfoCard(
 /** Small rounded label, e.g. a category or status. */
 @Composable
 fun Pill(text: String, color: Color, filled: Boolean = false) {
-    val fg = readable(color)
+    val shade by animateColorAsState(color, tween(400), label = "pill")
+    val fg = readable(shade)
     Text(
         text,
         style = MaterialTheme.typography.labelLarge.copy(fontSize = 17.sp),
         color = if (filled) Color.White else fg,
         modifier = Modifier.clip(RoundedCornerShape(50))
-            .background(if (filled) color else color.copy(alpha = 0.13f))
+            .background(if (filled) shade else shade.copy(alpha = 0.13f))
             .padding(horizontal = 12.dp, vertical = 4.dp),
     )
 }
@@ -221,13 +255,11 @@ fun ActionRow(
     tintBg: Color = MaterialTheme.colorScheme.primaryContainer,
     border: Color = MaterialTheme.colorScheme.outline,
 ) {
-    val press = remember { MutableInteractionSource() }
-    val pressed by press.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "press")
+    val (press, pressMotion) = rememberPress()
     Surface(
         onClick = onClick,
         interactionSource = press,
-        modifier = modifier.fillMaxWidth().heightIn(min = 96.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+        modifier = modifier.fillMaxWidth().heightIn(min = 96.dp).then(pressMotion)
             .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = label },
         shape = RoundedCornerShape(22.dp),
         color = Color.White,

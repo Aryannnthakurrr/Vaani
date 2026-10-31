@@ -81,8 +81,8 @@ object Permissions {
                 "ताकि मैं बिल और डिलीवरी के बारे में बता सकूँ। कोड और ओटीपी कभी फ़ोन से बाहर नहीं जाते।",
                 "Taaki main bills aur delivery ke baare mein bata sakoon. OTP kabhi phone se bahar nahi jaate.") },
             ::notificationListenerOn, settingsIntent = { Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }))
-        add(PermissionStep("overlay", "🟠", { tr(it, "Show the Saathi button", "साथी बटन दिखाएँ", "Saathi button dikhayein") },
-            { tr(it, "So the orange talk button stays on top of every app.", "ताकि नारंगी बटन हर ऐप के ऊपर दिखे।", "Taaki orange button har app ke upar dikhe.") },
+        add(PermissionStep("overlay", "🎙️", { tr(it, "Show the Saathi button", "साथी बटन दिखाएँ", "Saathi button dikhayein") },
+            { tr(it, "So the talk button stays on top of every app.", "ताकि बात करने वाला बटन हर ऐप के ऊपर दिखे।", "Taaki baat karne wala button har app ke upar dikhe.") },
             { Settings.canDrawOverlays(it) },
             settingsIntent = { Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${it.packageName}")) }))
         add(PermissionStep("battery", "🔋", { tr(it, "Keep Saathi running", "साथी को चालू रखें", "Saathi ko chalu rakhein") },

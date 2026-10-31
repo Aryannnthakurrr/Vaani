@@ -44,6 +44,8 @@ data class Settings(
     val lastAppointment: String? = null,
     /** Demo profile in use (fixtures/profiles), or "" for the real user. */
     val profileId: String = "",
+    /** The setup list was finished once; skipped permissions are asked for later, never by reopening setup. */
+    val setupDone: Boolean = false,
 ) {
     /** Style to speak in when we have no fresh utterance to mirror. */
     val replyStyle: ReplyStyle get() = if (language == "auto") autoStyle(ReplyStyle.from(lastStyle)) else ReplyStyle.from(language)
@@ -69,6 +71,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
         val lastStyle = stringPreferencesKey("last_style")
         val lastAppointment = stringPreferencesKey("last_appointment")
         val profileId = stringPreferencesKey("profile_id")
+        val setupDone = booleanPreferencesKey("setup_done")
     }
 
     private val contactsSer = ListSerializer(FamilyContact.serializer())
@@ -91,6 +94,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
             lastStyle = p[K.lastStyle] ?: "en",
             lastAppointment = p[K.lastAppointment],
             profileId = p[K.profileId] ?: "",
+            setupDone = p[K.setupDone] ?: false,
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -104,6 +108,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
     }
 
     suspend fun setLanguage(v: String) = context.dataStore.edit { it[K.language] = v }
+    suspend fun setSetupDone() = context.dataStore.edit { it[K.setupDone] = true }
     suspend fun setUserName(v: String) = context.dataStore.edit { it[K.userName] = v }
     suspend fun setContacts(v: List<FamilyContact>) =
         context.dataStore.edit { it[K.contacts] = SaathiJson.encodeToString(contactsSer, v) }

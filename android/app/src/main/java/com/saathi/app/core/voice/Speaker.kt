@@ -45,6 +45,20 @@ class Speaker(
     /** Last spoken line; overlays show it in large text so every spoken response is also readable. */
     val caption: StateFlow<String> = _caption
 
+    private val talking = java.util.concurrent.atomic.AtomicInteger(0)
+    private val _speaking = MutableStateFlow(false)
+    /** True while any line is being spoken, so screens can animate a voice wave for Saathi too, not only the mic. */
+    val speaking: StateFlow<Boolean> = _speaking
+
+    private suspend fun <T> speakingWhile(block: suspend () -> T): T {
+        _speaking.value = talking.incrementAndGet() > 0
+        try {
+            return block()
+        } finally {
+            _speaking.value = talking.decrementAndGet() > 0
+        }
+    }
+
     init {
         tts = TextToSpeech(context) { status -> ttsReady.complete(status == TextToSpeech.SUCCESS) }
     }
@@ -56,9 +70,11 @@ class Speaker(
      */
     suspend fun say(text: String, style: ReplyStyle) {
         if (text.isBlank()) return
-        if (PrivateSpans.TOKEN.containsMatchIn(text)) return sayWithPrivate(text, style)
-        _caption.value = text
-        sayPublic(text, style)
+        speakingWhile {
+            if (PrivateSpans.TOKEN.containsMatchIn(text)) return@speakingWhile sayWithPrivate(text, style)
+            _caption.value = text
+            sayPublic(text, style)
+        }
     }
 
     private suspend fun sayWithPrivate(text: String, style: ReplyStyle) {
@@ -97,7 +113,9 @@ class Speaker(
     }
 
     /** Speaks a safety phrase from the bundled table. Never touches the network. */
-    suspend fun sayPhrase(key: String, style: ReplyStyle, inCall: Boolean = false) {
+    suspend fun sayPhrase(key: String, style: ReplyStyle, inCall: Boolean = false) = speakingWhile { sayPhraseNow(key, style, inCall) }
+
+    private suspend fun sayPhraseNow(key: String, style: ReplyStyle, inCall: Boolean) {
         val text = phrases.text(key, style)
         _caption.value = text
         val usage = if (inCall) AudioAttributes.USAGE_VOICE_COMMUNICATION else SPEECH_USAGE

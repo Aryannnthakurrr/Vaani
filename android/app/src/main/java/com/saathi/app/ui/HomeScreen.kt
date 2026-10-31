@@ -1,5 +1,11 @@
 package com.saathi.app.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -92,7 +98,11 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
     val liveState = live?.state?.collectAsState()?.value
     val talking = live != null || state == AssistantState.LISTENING || state == AssistantState.THINKING
     Scaffold(containerColor = MaterialTheme.colorScheme.background, bottomBar = { MicBar(state, liveState, style) { c.assistant.onMicTapped() } }) { pad ->
-        if (talking) {
+        // Talking and the button list cross-fade, with a slight zoom, instead of jumping.
+        AnimatedContent(talking, label = "talk",
+            transitionSpec = { (fadeIn(tween(320)) + scaleIn(tween(320), initialScale = 0.96f)) togetherWith fadeOut(tween(180)) },
+        ) { isTalking ->
+        if (isTalking) {
             val liveLines = live?.transcripts?.collectAsState()?.value.orEmpty()
             TalkingView(
                 level = { c.assistant.voiceLevel() },
@@ -105,7 +115,7 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
                 userLine = liveLines.lastOrNull { it.role == "user" }?.text ?: heard,
                 modifier = Modifier.padding(pad).padding(horizontal = 24.dp),
             )
-            return@Scaffold
+            return@AnimatedContent
         }
         Column(
             Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -115,23 +125,23 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
 
             if (alerts > 0) {
                 ActionRow(s("$alerts warnings", "$alerts चेतावनी", "$alerts warnings"), Icons.Outlined.Shield, { navigate("alerts") },
-                    tint = Danger, tintBg = Danger50, border = Danger.copy(alpha = 0.35f))
+                    tint = Danger, tintBg = Danger50, border = Danger.copy(alpha = 0.35f), modifier = Modifier.riseIn(0))
             }
 
-            ActionRow(s("Doctor", "डॉक्टर", "Doctor"), Icons.Outlined.MedicalServices, { c.care.start(); c.assistant.openScreen("care") })
+            ActionRow(s("Doctor", "डॉक्टर", "Doctor"), Icons.Outlined.MedicalServices, { c.care.start(); c.assistant.openScreen("care") }, modifier = Modifier.riseIn(1))
             ActionRow(s("Cab", "कैब", "Cab"), Icons.Outlined.LocalTaxi, { c.assistant.startTask(Tasks.UBER) },
-                tint = Amber, tintBg = Amber50)
+                tint = Amber, tintBg = Amber50, modifier = Modifier.riseIn(2))
             ActionRow(s("House help", "घर की मदद", "House help"), Icons.Outlined.CleaningServices, { c.assistant.startTask(Tasks.HOUSE_HELP) },
-                tint = Leaf, tintBg = Leaf50)
+                tint = Leaf, tintBg = Leaf50, modifier = Modifier.riseIn(3))
             ActionRow(if (updates > 0) s("Updates ($updates)", "अपडेट ($updates)", "Updates ($updates)") else s("Updates", "अपडेट", "Updates"),
-                Icons.Outlined.MailOutline, { navigate("digest") }, tint = Sky, tintBg = Sky50)
+                Icons.Outlined.MailOutline, { navigate("digest") }, tint = Sky, tintBg = Sky50, modifier = Modifier.riseIn(4))
             ActionRow(s("Check product", "सामान जाँचें", "Saamaan jaanchein"), Icons.Outlined.PhotoCamera, { navigate("camera") },
-                tint = Coral, tintBg = Coral50)
+                tint = Coral, tintBg = Coral50, modifier = Modifier.riseIn(5))
             ActionRow(s("Teach me", "सिखाओ", "Sikhao"), Icons.AutoMirrored.Outlined.HelpOutline, { c.assistant.startGuide(null) },
-                tint = Muted, tintBg = Soft)
+                tint = Muted, tintBg = Soft, modifier = Modifier.riseIn(6))
 
             // Rarely needed (mostly by family): quiet links instead of big buttons.
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp).riseIn(7), horizontalArrangement = Arrangement.SpaceEvenly) {
                 TextButton({ navigate("alerts") }, Modifier.heightIn(min = 56.dp)) {
                     Text(s("Warnings", "चेतावनी", "Warnings"), style = MaterialTheme.typography.titleMedium)
                 }
@@ -140,6 +150,7 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
                 }
             }
             Box(Modifier.padding(bottom = 8.dp))
+        }
         }
     }
 }

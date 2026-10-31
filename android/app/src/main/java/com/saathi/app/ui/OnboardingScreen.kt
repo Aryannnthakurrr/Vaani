@@ -3,27 +3,43 @@ package com.saathi.app.ui
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,88 +47,114 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.voice.tr
 import com.saathi.app.ui.theme.Leaf
+import com.saathi.app.ui.theme.Leaf50
 import kotlinx.coroutines.launch
 
-/** One permission per screen, each explained aloud, with a ✅ re-checked on resume (SPEC §6.8). */
+/**
+ * First-run setup on one screen (SPEC §6.8): the language, then every permission as a row the user can allow or
+ * leave. "Start" always works; anything skipped is asked for later, when a feature needs it.
+ */
 @Composable
 fun OnboardingScreen(c: AppContainer, onFinished: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by c.settings.flow.collectAsState()
     val style = settings.replyStyle
-    val steps = Permissions.steps
-    var index by remember { mutableIntStateOf(-1) } // -1 = welcome/language page
+    fun s(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
+    // Bumped on resume and after a permission dialog, so the ✓ marks re-check what the user just allowed.
     var refresh by remember { mutableIntStateOf(0) }
-    var granted by remember { mutableStateOf(false) }
-
-    LifecycleResumeEffect(index) {
+    LifecycleResumeEffect(Unit) {
         refresh++
         onPauseOrDispose { }
     }
-    val step = steps.getOrNull(index)
-    LaunchedEffect(index, refresh) { granted = step?.granted?.invoke(ctx) ?: true }
-    LaunchedEffect(index) {
-        val line = step?.let { "${it.title(style)}. ${it.why(style)}" }
-            ?: tr(style, "Namaste! I am Saathi. Let's get your phone ready. Choose your language.",
-                "नमस्ते! मैं साथी हूँ। चलिए फ़ोन तैयार करते हैं। अपनी भाषा चुनिए।",
-                "Namaste! Main Saathi hoon. Chaliye phone ready karte hain. Apni bhasha chuniye.")
-        c.speaker.say(line, style)
-    }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { refresh++ }
+    LaunchedEffect(Unit) {
+        c.speaker.say(s("Namaste! I am Saathi. Choose your language, allow what you are comfortable with, then tap Start.",
+            "नमस्ते! मैं साथी हूँ। अपनी भाषा चुनिए, जो अनुमति ठीक लगे वो दीजिए, फिर शुरू करें दबाइए।",
+            "Namaste! Main Saathi hoon. Apni bhasha chuniye, jo permission theek lage woh dijiye, phir Start dabaiye."), style)
+    }
 
-    SaathiScaffold(tr(style, "Setup", "सेटअप", "Setup"), onBack = null) {
-        LinearProgressIndicator(
-            progress = { (index + 1f) / (steps.size + 1f) },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(10.dp).clip(RoundedCornerShape(50)),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.primaryContainer,
-            drawStopIndicator = {},
-        )
-        if (index >= 0) {
-            Text(tr(style, "Step ${index + 1} of ${steps.size}", "चरण ${index + 1} / ${steps.size}", "Step ${index + 1} / ${steps.size}"),
-                style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        }
-        if (step == null) {
-            Text("🙏", fontSize = 96.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Text(tr(style, "Welcome to Saathi", "साथी में आपका स्वागत है", "Saathi mein aapka swagat hai"),
-                style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    SaathiScaffold(s("Welcome to Saathi", "साथी में आपका स्वागत है", "Saathi mein swagat hai"), onBack = null) {
+        Text(s("Language", "भाषा", "Bhasha"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf("en" to "English", "hi" to "हिन्दी", "hinglish" to "Hinglish").forEach { (code, label) ->
-                BigButton(label, { scope.launch { c.settings.setLanguage(code); index = 0 } })
-            }
-            return@SaathiScaffold
-        }
-
-        Text(step.emoji, fontSize = 96.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text(step.title(style), style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text(step.why(style), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-
-        if (granted) {
-            InfoCard(title = tr(style, "Done", "हो गया", "Ho gaya"),
-                body = tr(style, "Tap Next to continue.", "आगे बढ़ने के लिए आगे दबाइए।", "Aage badhne ke liye Aage dabaiye."),
-                accent = Leaf, icon = "✅")
-        } else {
-            BigButton(tr(style, "Allow", "अनुमति दें", "Allow karein"), {
-                if (step.runtime.isNotEmpty()) launcher.launch(step.runtime.toTypedArray())
-                else step.settingsIntent?.let { ctx.startActivity(it(ctx)) }
-            })
-            if (step.id == "accessibility" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                InfoCard(
-                    title = tr(style, "Is the switch grey?", "क्या बटन धुंधला है?", "Kya button grey hai?"),
-                    body = tr(style, "Open App info, tap the three dots at the top right, then tap \"Allow restricted settings\". Then come back here.",
-                        "ऐप जानकारी खोलिए, ऊपर दाईं ओर तीन बिंदु दबाइए, फिर \"Allow restricted settings\" दबाइए। फिर यहाँ लौटिए।",
-                        "App info kholiye, upar right mein teen dots dabaiye, phir \"Allow restricted settings\" dabaiye. Phir yahan lautiye."),
+                val chosen = settings.language == code
+                Surface(
+                    onClick = { scope.launch { c.settings.setLanguage(code) } },
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (chosen) MaterialTheme.colorScheme.primary else Color.White,
+                    contentColor = if (chosen) Color.White else MaterialTheme.colorScheme.onSurface,
+                    border = if (chosen) null else BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier.weight(1f).heightIn(min = 64.dp).semantics { role = Role.RadioButton },
                 ) {
-                    BigButton(tr(style, "Open App info", "ऐप जानकारी खोलें", "App info kholein"),
-                        { ctx.startActivity(Permissions.restrictedSettingsIntent(ctx)) }, color = MaterialTheme.colorScheme.secondary)
+                    Box(contentAlignment = Alignment.Center) { Text(label, style = MaterialTheme.typography.titleMedium) }
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BigButton(tr(style, "Back", "पीछे", "Peeche"), { index-- }, Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
-            BigButton(if (index == steps.lastIndex) tr(style, "Finish", "पूरा करें", "Finish") else tr(style, "Next", "आगे", "Aage"),
-                { if (index == steps.lastIndex) onFinished() else index++ }, Modifier.weight(1f))
+
+        Text(s("Allow what you are comfortable with", "जो ठीक लगे, उसकी अनुमति दीजिए", "Jo theek lage, uski permission dijiye"),
+            style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp).semantics { heading() })
+        Text(s("You can skip any of these. Saathi will ask again only when a feature needs it.",
+            "इनमें से कोई भी छोड़ सकते हैं। ज़रूरत पड़ने पर साथी फिर पूछेगी।",
+            "Inme se koi bhi chhod sakte hain. Zaroorat padne par Saathi phir poochegi."),
+            fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        Permissions.steps.forEachIndexed { i, step ->
+            val granted = remember(refresh) { step.granted(ctx) }
+            PermissionRow(step.emoji, step.title(style), step.why(style), granted, s("Allow", "अनुमति दें", "Allow"),
+                s("Allowed", "मिल गई", "Mil gayi"), Modifier.riseIn(i)) {
+                if (step.runtime.isNotEmpty()) launcher.launch(step.runtime.toTypedArray())
+                else step.settingsIntent?.let { ctx.startActivity(it(ctx)) }
+            }
+            if (step.id == "accessibility" && !granted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                TextButton({ ctx.startActivity(Permissions.restrictedSettingsIntent(ctx)) }) {
+                    Text(s("Switch is grey? Open App info → ⋮ → Allow restricted settings",
+                        "बटन धुंधला है? ऐप जानकारी → ⋮ → Allow restricted settings",
+                        "Button grey hai? App info → ⋮ → Allow restricted settings"), fontSize = 16.sp)
+                }
+            }
         }
+
+        BigButton(s("Start using Saathi", "साथी शुरू करें", "Saathi shuru karein"), {
+            scope.launch { c.settings.setSetupDone(); onFinished() }
+        }, Modifier.padding(top = 8.dp))
     }
 }
 
+/** One permission: what it is for, and either an Allow button or a green "Allowed" tick. Tapping the row allows. */
+@Composable
+private fun PermissionRow(
+    emoji: String, title: String, why: String, granted: Boolean, allow: String, allowed: String,
+    modifier: Modifier, onAllow: () -> Unit,
+) {
+    val (press, pressMotion) = rememberPress()
+    Surface(
+        onClick = { if (!granted) onAllow() },
+        interactionSource = press,
+        shape = RoundedCornerShape(20.dp),
+        color = Color.White,
+        border = BorderStroke(1.5.dp, if (granted) Leaf.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outline),
+        modifier = modifier.fillMaxWidth().then(pressMotion).semantics(mergeDescendants = true) {
+            contentDescription = "$title. $why. ${if (granted) allowed else allow}"
+        },
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center) { Text(emoji, fontSize = 26.sp) }
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(why, fontSize = 16.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (granted) {
+                Box(Modifier.size(40.dp).clip(CircleShape).background(Leaf50), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Check, contentDescription = null, tint = Leaf)
+                }
+            } else {
+                Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primary, contentColor = Color.White) {
+                    Text(allow, style = MaterialTheme.typography.labelLarge.copy(fontSize = 18.sp), textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
+                }
+            }
+        }
+    }
+}
