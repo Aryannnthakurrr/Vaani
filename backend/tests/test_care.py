@@ -317,3 +317,12 @@ def test_combination_red_flags(text: str, flag: str) -> None:
 )
 def test_negations_and_ordinary_complaints_stay_quiet(text: str) -> None:
     assert safety_net.scan(text) == []
+
+
+def test_known_diabetes_turns_sweating_into_a_low_sugar_flag() -> None:
+    assert safety_net.scan("bahut paseena aa raha hai aur haath kaanp rahe hain") == []
+    assert safety_net.scan_with_conditions(
+        "bahut paseena aa raha hai aur haath kaanp rahe hain", ["type 2 diabetes"]
+    ) == ["low_sugar"]
+    assert safety_net.scan_with_conditions("mild cough since yesterday", ["type 2 diabetes"]) == []
+    assert safety_net.scan_with_conditions("bahut paseena aa raha hai", []) == []

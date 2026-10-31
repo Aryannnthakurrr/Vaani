@@ -107,7 +107,9 @@ class CareFlow(private val c: AppContainer) {
         val location = fix?.let {
             CareLocation(it.at.lat, it.at.lng, it.accuracyM?.toDouble(), DeviceLocation.address(c.context, it.at))
         }
-        val patient = CarePatient(name = c.settings.current.userName.ifBlank { null })
+        val profile = c.profiles.current()
+        val patient = CarePatient(name = c.settings.current.userName.ifBlank { null }, age = profile?.age, sex = profile?.sex,
+            conditions = profile?.conditions.orEmpty())
         val session = client.start(CareStart(location, patient, style.wire))
         sessionId = session
         _ui.update { it.copy(phase = CarePhase.INTAKE) }

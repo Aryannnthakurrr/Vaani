@@ -42,6 +42,8 @@ data class Settings(
     val lastStyle: String = "en",
     /** Last booked appointment (JSON of [com.saathi.app.core.net.Appointment]) for the clinic-call feature. */
     val lastAppointment: String? = null,
+    /** Demo profile in use (fixtures/profiles), or "" for the real user. */
+    val profileId: String = "",
 ) {
     /** Style to speak in when we have no fresh utterance to mirror. */
     val replyStyle: ReplyStyle get() = ReplyStyle.from(if (language == "auto") lastStyle else language)
@@ -63,6 +65,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
         val lastHeartbeat = longPreferencesKey("last_heartbeat")
         val lastStyle = stringPreferencesKey("last_style")
         val lastAppointment = stringPreferencesKey("last_appointment")
+        val profileId = stringPreferencesKey("profile_id")
     }
 
     private val contactsSer = ListSerializer(FamilyContact.serializer())
@@ -84,6 +87,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
             lastHeartbeatTs = p[K.lastHeartbeat] ?: 0,
             lastStyle = p[K.lastStyle] ?: "en",
             lastAppointment = p[K.lastAppointment],
+            profileId = p[K.profileId] ?: "",
         )
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
@@ -111,5 +115,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
     suspend fun setLastUnlock(ts: Long) = context.dataStore.edit { it[K.lastUnlock] = ts }
     suspend fun setLastHeartbeat(ts: Long) = context.dataStore.edit { it[K.lastHeartbeat] = ts }
     suspend fun setLastAppointment(json: String) = context.dataStore.edit { it[K.lastAppointment] = json }
+    suspend fun setProfileId(v: String) = context.dataStore.edit { it[K.profileId] = v }
+    suspend fun clearLastAppointment() = context.dataStore.edit { it.remove(K.lastAppointment) }
     suspend fun setLastStyle(style: ReplyStyle) = context.dataStore.edit { it[K.lastStyle] = style.wire }
 }

@@ -21,6 +21,8 @@ data class CarePatient(
     val age: Int? = null,
     val sex: String? = null,
     val phone: String? = null,
+    /** Known conditions from the profile ("type 2 diabetes"), so triage weighs them. */
+    val conditions: List<String> = emptyList(),
 )
 
 @Serializable

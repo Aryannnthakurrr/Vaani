@@ -79,11 +79,13 @@ _IS_EMERGENCY = (
 def record_answer(session: CareSession, question: str, answer: str) -> None:
     session.followups.append({"q": question, "a": answer})
     _add_flags(session, safety_net.scan_answer(question, answer))
+    _add_flags(session, safety_net.scan_with_conditions(answer, session.patient.conditions))
 
 
 def record_utterance(session: CareSession, text: str) -> None:
     session.utterances.append(text)
     _add_flags(session, safety_net.scan(text))
+    _add_flags(session, safety_net.scan_with_conditions(text, session.patient.conditions))
 
 
 def _add_flags(session: CareSession, flags: list[str]) -> None:
@@ -178,7 +180,8 @@ def _system(session: CareSession, questions_left: int | None = None) -> str:
 def _transcript(session: CareSession) -> str:
     p = session.patient
     lines = [
-        f"Patient profile: name={p.name or 'unknown'}, age={p.age or 'unknown'}, sex={p.sex or 'unknown'}"
+        f"Patient profile: name={p.name or 'unknown'}, age={p.age or 'unknown'}, sex={p.sex or 'unknown'}, "
+        f"known conditions={', '.join(p.conditions) or 'none given'}"
     ]
     lines += [f"User said: {u}" for u in session.utterances]
     lines += [f"Q: {f['q']}\nA: {f['a']}" for f in session.followups]

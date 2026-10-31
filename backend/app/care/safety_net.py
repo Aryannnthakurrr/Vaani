@@ -174,3 +174,11 @@ def scan_answer(question: str, answer: str) -> list[str]:
                 found.add(flag)
                 break
     return sorted(found, key=list(LABELS).index)
+
+
+def scan_with_conditions(text: str, conditions: list[str]) -> list[str]:
+    """Red flags that need the profile: in a known diabetic, sweating, shaking or confusion means low sugar even
+    when the word "sugar" is never said. The conditions only ever add flags, never remove one."""
+    if not conditions:
+        return []
+    return [f for f in scan(f"{text} (known: {', '.join(conditions)})") if f == "low_sugar"]

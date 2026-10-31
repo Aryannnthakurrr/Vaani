@@ -65,6 +65,24 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
     }
 
     SaathiScaffold(tr(style, "Settings", "सेटिंग्स", "Settings"), onBack) {
+        if (c.profiles.all.isNotEmpty()) SettingsCard("🧑‍🦳", tr(style, "Demo profile", "डेमो प्रोफ़ाइल", "Demo profile")) {
+            var switching by remember { mutableStateOf(false) }
+            Text(tr(style, "Switch to a demo user: their health, preferences, messages and next appointment.",
+                "डेमो उपयोगकर्ता चुनें: उनकी सेहत, पसंद, संदेश और अगला अपॉइंटमेंट।",
+                "Demo user chunein: unki health, pasand, messages aur agla appointment."), style = MaterialTheme.typography.bodyMedium)
+            c.profiles.all.forEach { p ->
+                val active = s.profileId == p.id
+                BigButton("${if (active) "✓ " else ""}${p.name}, ${p.age} · ${p.conditions.joinToString(", ")}",
+                    { if (!switching) scope.launch { switching = true; c.profiles.switchTo(p); switching = false } },
+                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    enabled = !switching)
+            }
+            if (s.profileId.isNotEmpty()) {
+                BigButton(tr(style, "Back to my own profile", "अपनी प्रोफ़ाइल पर वापस", "Apni profile par wapas"),
+                    { scope.launch { c.profiles.clear() } })
+            }
+        }
         SettingsCard("🗣️", tr(style, "Language", "भाषा", "Bhasha")) {
         listOf("auto" to "Auto", "en" to "English", "hi" to "हिन्दी", "hinglish" to "Hinglish").chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

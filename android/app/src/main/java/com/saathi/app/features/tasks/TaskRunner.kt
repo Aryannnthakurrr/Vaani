@@ -70,7 +70,8 @@ class TaskRunner(private val c: AppContainer) {
             return AgentOutcome.Failed(msg)
         }
         // Replay runs on recorded screens, so it never looks up places or opens links.
-        val (taskSlots, lookup) = if (replay) slots to places else resolvePlace(spec, slots, ui)
+        val (placeSlots, lookup) = if (replay) slots to places else resolvePlace(spec, slots, ui)
+        val taskSlots = if (spec.id == Tasks.UBER.id && !replay) adviseRide(placeSlots, ui) else placeSlots
         val link = if (replay) null else spec.deeplink?.invoke(taskSlots, lookup)
         val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link), rideClass = rideClassFor(spec, taskSlots))
         if (!replay) {
@@ -84,7 +85,8 @@ class TaskRunner(private val c: AppContainer) {
                 performer.awaitSettle()
             }
         }
-        val goal = spec.goal(taskSlots) + "\nTask notes: " + spec.addendum
+        val about = c.profiles.contextLine()?.let { "\nAbout the user (respect it): $it" }.orEmpty()
+        val goal = spec.goal(taskSlots) + "\nTask notes: " + spec.addendum + about
         val outcome = loop(screen, performer, ui).run(goal, AgentMode.ACT, task)
         if (outcome is AgentOutcome.Done && spec.id == Tasks.PRACTO.id) afterPracto(outcome, ui)
         return outcome
@@ -119,6 +121,20 @@ class TaskRunner(private val c: AppContainer) {
 
     private fun lastAppointment() = c.settings.current.lastAppointment?.let {
         runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()
+    }
+
+    /**
+     * The profile can argue for a different ride: a car for sore knees instead of an auto, an XL for a wheelchair.
+     * It is only a suggestion, asked as a yes/no; "no" keeps what they asked for.
+     */
+    private suspend fun adviseRide(slots: Slots, ui: AgentUi): Slots {
+        val advice = com.saathi.app.core.profile.Profiles.rideAdvice(c.profiles.current(), slots.vehicle) ?: return slots
+        val asked = slots.vehicle ?: tr(style, "a regular car", "सामान्य कार", "normal car")
+        val name = if (advice.vehicle == "xl") "Uber XL" else tr(style, "a car", "कार", "car")
+        val yes = ui.confirm(tr(style, "You asked for $asked, but $name might suit you better: ${advice.reason}. Book $name instead?",
+            "आपने $asked कहा, पर $name बेहतर रहेगी: ${advice.reason}। $name बुक करूँ?",
+            "Aapne $asked kaha, par $name behtar rahegi: ${advice.reason}. $name book karun?"))
+        return if (yes) slots.copy(vehicle = advice.vehicle) else slots
     }
 
     /** Cabs only: the ride type the user asked for (a car unless they said auto or bike). */

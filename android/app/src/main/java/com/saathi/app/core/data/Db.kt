@@ -80,6 +80,8 @@ interface MessageDao {
     @Query("SELECT * FROM messages ORDER BY receivedAt DESC LIMIT 200") fun recent(): Flow<List<MessageEntity>>
     @Query("SELECT * FROM messages WHERE receivedAt >= :since ORDER BY receivedAt DESC") suspend fun since(since: Long): List<MessageEntity>
     @Query("SELECT * FROM messages WHERE classified = 0 AND fromContact = 0 AND isOtp = 0") suspend fun unclassified(): List<MessageEntity>
+    /** Demo profile messages only (sourcePkg = DEMO_SOURCE); real messages are never touched. */
+    @Query("DELETE FROM messages WHERE sourcePkg = :source") suspend fun deleteFrom(source: String)
     @Query("SELECT redactedText FROM messages WHERE sender = :sender AND receivedAt >= :since")
     suspend fun recentFrom(sender: String, since: Long): List<String>
     @Query("SELECT COUNT(*) FROM messages WHERE sender = :sender AND redactedText = :text AND receivedAt >= :since")

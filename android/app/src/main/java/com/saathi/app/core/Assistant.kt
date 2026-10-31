@@ -85,7 +85,10 @@ class Assistant(private val c: AppContainer) {
                 val appt = c.settings.current.lastAppointment?.let {
                     runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()
                 }
-                com.saathi.app.features.appointments.AppointmentState.contextLine(appt, java.time.ZonedDateTime.now())
+                listOfNotNull(
+                    c.profiles.contextLine(),
+                    com.saathi.app.features.appointments.AppointmentState.contextLine(appt, java.time.ZonedDateTime.now()),
+                ).joinToString("\n").ifBlank { null }
             },
         )
         _live.value = session

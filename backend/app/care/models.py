@@ -27,6 +27,7 @@ class Patient(BaseModel):
     age: int | None = Field(default=None, ge=0, le=120)
     sex: Literal["M", "F", "O"] | None = None
     phone: str | None = Field(default=None, max_length=20)
+    conditions: list[str] = Field(default_factory=list, max_length=10)
 
 
 class Hpi(BaseModel):

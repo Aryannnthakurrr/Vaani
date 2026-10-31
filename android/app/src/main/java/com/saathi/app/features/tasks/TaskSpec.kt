@@ -62,6 +62,7 @@ object Tasks {
             when (it.vehicle) {
                 "auto" -> "Book an Uber Auto (auto-rickshaw) to ${it.destination}."
                 "bike" -> "Book an Uber Moto (bike) to ${it.destination}."
+                "xl" -> "Book an Uber XL (a big car with room for a wheelchair) to ${it.destination}."
                 else -> "Book the cheapest Uber car (not a bike or auto) to ${it.destination}."
             }
         },
