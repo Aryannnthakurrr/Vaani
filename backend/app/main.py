@@ -12,13 +12,30 @@ from fastapi import FastAPI, Request, Response
 
 from app.config import get_settings
 from app.deps import get_db
-from app.routers import agent, calls, family, health, links, live, telephony, voice, welfare
+from app.llm.base import get_llm
+from app.routers import (
+    agent,
+    calls,
+    family,
+    health,
+    links,
+    live,
+    skills,
+    telephony,
+    voice,
+    voice_live,
+    welfare,
+)
+from app.skills import get_code_skills, get_engine
 from app.speech import sarvam_tts
 from app.welfare import telegram
 from app.welfare.scheduler import start_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("saathi")
+# httpx logs full request URLs at INFO, and Telegram puts the bot token in the URL path. Keep secrets out of logs.
+for _noisy in ("httpx", "httpcore", "mcp", "google_genai"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 
 @contextlib.asynccontextmanager
@@ -34,6 +51,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Import the Sarvam SDK and open its client now, not inside the first request's deadline.
     await asyncio.to_thread(sarvam_tts.warm_up, settings)
     scheduler = start_scheduler(settings, get_db())
+    # Learning loop: compile routines from successful runs in the background (docs/LEARNING.md).
+    scheduler.add_job(get_engine().compile_pending, "interval", minutes=10, args=[get_llm(settings)],
+                      id="skill_compile", max_instances=1, coalesce=True)  # fmt: skip
+    scheduler.add_job(get_code_skills().compile, "interval", minutes=30, args=[get_llm(settings)],
+                      id="code_skill_compile", max_instances=1, coalesce=True)  # fmt: skip
+    scheduler.add_job(get_engine().store.purge_old_runs, "interval", hours=24, id="skill_purge")
     poller = (
         asyncio.create_task(telegram.poll_start_commands(settings, get_db()))
         if settings.telegram_enabled
@@ -66,5 +89,5 @@ async def access_log(request: Request, call_next: Callable[[Request], Awaitable[
     return response
 
 
-for module in (health, agent, links, welfare, voice, live, family, calls, telephony):
+for module in (health, agent, links, welfare, voice, live, voice_live, family, calls, telephony, skills):
     app.include_router(module.router)

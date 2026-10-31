@@ -14,7 +14,11 @@ classify_messages:   { model: gemini-3.5-flash-lite,  thinking: minimal, fallbac
 extract_appointment: { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.0, json: true, timeout_s: 8 }
 link_verdict:        { model: gemini-3.5-flash,       thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.0, json: true, vision: true, timeout_s: 15 }
 digest_writer:       { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.4, timeout_s: 8 }
+# Skill compiler: runs rarely (only when a task has enough new runs), so it uses the strongest model.
+skill_compiler:      { model: gemini-4-argon,         thinking: high, fallback: gemini-3.1-pro-preview, temperature: 0.1, timeout_s: 180 }
 camera_live:         { model: gemini-3.8-live }       # Live API: 16 kHz PCM + JPEG in, 24 kHz PCM out
+# The elder's spoken conversation (docs/LEARNING.md §2). Both IDs listed with bidiGenerateContent on the key, 2026-10-31.
+voice_live:          { model: gemini-3.8-live, fallback: gemini-3.1-flash-live-preview, voice: Aoede }
 clinic_call:         { model: gemini-3.5-flash-lite,  thinking: minimal, fallback: gemini-3.5-flash, temperature: 0.3, json: true, timeout_s: 8 }   # stretch: simulated call turns
 clinic_call_live:    { model: gemini-3.8-live }       # stretch: real telephony bridge (not built)
 
@@ -40,3 +44,7 @@ tts:
   # Set true if the Phase 1 script check finds Bulbul reads Hinglish better from Devanagari.
   transliterate_hinglish: false
 transliterate: { provider: sarvam }
+# Gemini speech: used when Sarvam is unset or fails (app/speech/gemini_speech.py). Sarvam stays first because it is
+# 2-3x faster for turn-based replies (measured 2026-10-31); conversations use voice_live.
+gemini_tts: { model: gemini-3.8-flash-lite-tts, voice: Aoede, timeout_s: 8 }
+gemini_stt: { model: gemini-3.5-transcribe, timeout_s: 6 }

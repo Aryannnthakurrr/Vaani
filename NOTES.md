@@ -381,3 +381,50 @@ Keys go in the repo-root `.env` (git-ignored). Status with the keys provided:
   `BackendClient.agentHttp` to 55 s, so a step that needs the fallback model still fits.
 - Left `intent_router` at 5 s on purpose: the phone waits only 4 s (`Assistant.kt`) and then answers from
   `LocalIntentRules`, so users never sit through a slow model after speaking.
+
+## Self-learning skills, Live voice and Meko memory (2026-10-31)
+
+Design and contracts: [docs/LEARNING.md](docs/LEARNING.md). The loop is modelled on the author's earlier `sorted`
+project, with the elder served by voice and the family by Telegram plus the family page.
+
+### Verified with the live Gemini key
+- Live models listed with `bidiGenerateContent`: `gemini-3.8-live`, `gemini-3.8-live-extended-thinking`,
+  `gemini-3.1-flash-live-preview`, `gemini-3.5-transcribe-live`. TTS: `gemini-3.8-flash-tts`,
+  `gemini-3.8-flash-lite-tts`. STT: `gemini-3.5-transcribe`.
+- `WS /live/voice` through the backend: "Namaste Saathi, mujhe Sector 18 jaane ke liye cab chahiye" →
+  `start_task {task: book_cab, destination: Sector 18}` and a spoken Hinglish reply. "Yaad rakhna, mera
+  cardiologist Dr. Mehta hai" → `remember`; a **new** session answered "Mere heart doctor ka naam kya hai?" with
+  Dr. Mehta (recalled into the system prompt).
+- Live latency: connect ~1.5 s, first audio ~0.9 s after a text turn (3.1-flash-live: 2.0 s / 0.7 s).
+- `gemini-3.5-transcribe` returns `audio_transcription` parts, not text parts (`response.text` is empty).
+- Meko MCP endpoint answers (405 to a plain GET, as expected for MCP). The adapter was tested with faked MCP
+  calls only: **no `MEKO_API_KEY` yet**, so the real tool argument names are unverified.
+
+### Deviations
+- Turn-based speech keeps Sarvam first and uses Gemini as the fallback: Gemini TTS measured 2.4–3.9 s against
+  0.7–1.3 s for Bulbul, and Gemini STT writes Hinglish in Devanagari. The conversation runs on Gemini Live.
+- `agent_step` stays on `gemini-3.5-flash`; `gemini-3.8-flash` was overloaded and rejects minimal thinking.
+- Code skills started with the intent recogniser, not the SMS `parser`: intent answers are short, have an exact
+  correctness check, and are the most frequent LLM call.
+
+### Server
+- `165.245.196.218` serves `https://165-245-196-218.sslip.io` (Caddy, Let's Encrypt on the ISRG Root X1 chain).
+  Docker + compose, ufw 22/80/443, `/opt/saathi`, redeploy with `bash deploy/deploy.sh`. The sandbox image blocks
+  network, writes, fork bombs and memory hogs (checked on the server). See `deploy/README.md`.
+- The backend container holds the Docker socket to start sandbox containers, which is root-equivalent on the
+  host. Compiled code never gets the socket; a broker that only allows `docker run saathi-skill-sandbox` is the
+  hardening path.
+- httpx logged Telegram request URLs (bot token in the path) at INFO; httpx/httpcore/mcp/google_genai are now at
+  WARNING. Rotate the bot token, since it reached the server logs once.
+- Only one process may poll Telegram per bot token (409 Conflict otherwise): leave `TELEGRAM_BOT_TOKEN` empty in
+  a local `.env` while the server runs.
+- This development PC's network re-signs HTTPS (FortiGate), so the emulator on it cannot reach the server over
+  HTTPS; use `http://10.0.2.2:8000` locally or a phone on mobile data.
+
+### Gaps
+- Meko: no key yet; `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Memories
+  reach only the Live prompt, not `/intent` or `/agent/step`.
+- Code skills: no SMS `parser` kind; each sandboxed call is a fresh `docker run` (latency not yet measured on the
+  server; serving gives up after 3 s and asks the LLM).
+- Live voice: no camera frames on `/live/voice` (the camera keeps `/live/camera`); not yet tried on the emulator
+  with real microphone audio, only text turns through the relay.

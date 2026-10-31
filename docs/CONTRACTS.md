@@ -84,12 +84,17 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
 ## Backend API shapes
 
 - `POST /voice/stt` multipart: `file` (WAV 16 kHz mono), `language_hint` (`en-IN|hi-IN|unknown`), `keyterms` (comma-separated)
-  → `{transcript, language_code, reply_style}`. `503` when Sarvam is unavailable.
-- `POST /voice/tts` `{text, reply_style, voice?}` → `audio/wav` bytes. `503` when unavailable.
+  → `{transcript, language_code, reply_style}`. Sarvam first, Gemini fallback; `503` when both are unavailable.
+- `POST /voice/tts` `{text, reply_style, voice?}` → `audio/wav` bytes. Sarvam first, Gemini fallback; `503` when unavailable.
 - `POST /intent` `{utterance, reply_style?}` →
   `{intent, slots: {destination?, product?, specialty?, doctor?, area?, time?, date?, service?, quantity?}, reply_style, reply_text}`.
   `intent` ∈ `book_cab | book_house_help | shop_online | book_doctor | guide | camera | digest | settings | chitchat | unknown`.
-- `POST /agent/step` `{goal, mode: ACT|GUIDE, language, screen_text, package, screenshot_b64?, history: [{action, reason}], task_hint?}` → action.
+- `POST /agent/step` `{goal, mode: ACT|GUIDE, language, screen_text, package, screenshot_b64?, history: [{action, reason}], task_hint?, run_id?}` → action.
+  `run_id` (≤ 64 chars, one per task run) lets the backend learn routines from ACT runs (docs/LEARNING.md §1).
+- `POST /agent/outcome` `{run_id, outcome: done|failed|cancelled, task_hint?, goal?, message?}` → `{ok}`. Sent once
+  when a run ends.
+- `GET /skills` → skill versions and stats. `POST /skills/compile` → `{compiled: [skill_id]}`.
+  `POST /family/{device_id}/skills/{skill_id}/approve|reject?key=…` (family page key).
 - `POST /classify/messages` `{messages: [{id, sender, text}]}` → `{results: [{id, category, amount?, due_date?, merchant?, summary}]}`.
   `category` ∈ `bill_due | subscription_renewal | appointment | delivery | payment_done | personal | promo | scam_suspected | other`.
   `amount` is a number in rupees, `due_date` is `YYYY-MM-DD`.
@@ -100,6 +105,11 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
   `{"type":"audio","pcm_b64":…}` (16 kHz s16le mono), `{"type":"end"}`.
   server → `{"type":"product_card","card":{name, mrp, quantity, expiry_iso, expiry_status: ok|soon|expired|unknown, confidence}}`,
   `{"type":"text","text":…}`, `{"type":"audio","pcm_b64":…,"sample_rate":24000}`, `{"type":"error","message":…}`.
+- `WS /live/voice?device=…` (docs/LEARNING.md §2) client → `{"type":"config","reply_style":…}` (first),
+  `{"type":"audio","pcm_b64":…}` (16 kHz s16le mono), `{"type":"text","text":…}`, `{"type":"tool_result","id":…,"result":{…}}`,
+  `{"type":"end"}`. server → `{"type":"audio","pcm_b64":…,"sample_rate":24000}`,
+  `{"type":"transcript","role":"user|saathi","text":…,"final":bool}`, `{"type":"tool","id":…,"name":…,"args":{…}}`
+  (`start_task | start_guide | open_screen | read_updates | check_link`), `{"type":"interrupted"}`, `{"type":"error","message":…}`.
 - `POST /welfare/heartbeat` `{device_id, ts}` (ts = epoch millis) → `{ok}`.
 - `POST /welfare/config` `{device_id, user_name, contacts: [{name, telegram_chat_id}], check_time}` → `{ok}`.
 - `POST /welfare/test` `{device_id}` → `{text, sent: [chat_id], logged: true}`.
