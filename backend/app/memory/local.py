@@ -1,13 +1,17 @@
-"""Local memory: SQLite facts with keyword search, and per-run agent state checkpoints."""
+"""Local memory: an elder's facts by topic, and per-run agent state checkpoints.
+
+Facts are kept in the words and script the elder used (English, Hindi or Hinglish); only `topic` and `key` are
+English labels, so nothing here depends on the language. An elder has tens of facts, not thousands, so reads
+return all of them (newest first) instead of searching, which keyword search could not do across scripts anyway.
+"""
 
 from __future__ import annotations
 
 import contextlib
 import json
-import re
 import sqlite3
 import time
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +19,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     device_id TEXT NOT NULL,
-    kind TEXT NOT NULL,
+    kind TEXT NOT NULL,           -- topic: name, home, family, doctor, health, preference, routine, other
     text TEXT NOT NULL,
     meta TEXT NOT NULL DEFAULT '{}',
     ts REAL NOT NULL
@@ -33,27 +37,11 @@ CREATE TABLE IF NOT EXISTS agent_state (
 CREATE TABLE IF NOT EXISTS memory_ids (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
-_WORD = re.compile(r"[\wऀ-ॿ]+")
-STOP = {
-    "the",
-    "a",
-    "an",
-    "to",
-    "of",
-    "and",
-    "is",
-    "my",
-    "me",
-    "i",
-    "for",
-    "in",
-    "on",
-    "ka",
-    "ki",
-    "ke",
-    "hai",
-    "ko",
-}
+MAX_FACTS = 60  # per read; far more than an elder tells Saathi, small enough for any prompt
+
+
+def norm_key(key: str | None) -> str:
+    return " ".join((key or "").lower().split())[:40]
 
 
 class LocalMemory:
@@ -63,6 +51,10 @@ class LocalMemory:
         self.path = path
         with self._conn() as c:
             c.executescript(SCHEMA)
+            cols = {r["name"] for r in c.execute("PRAGMA table_info(memories)")}
+            if "key" not in cols:  # databases from before topics and keys
+                c.execute("ALTER TABLE memories ADD COLUMN key TEXT NOT NULL DEFAULT ''")
+            c.execute("CREATE INDEX IF NOT EXISTS memories_key ON memories(device_id, kind, key)")
 
     @contextlib.contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
@@ -74,37 +66,44 @@ class LocalMemory:
         finally:
             conn.close()
 
-    async def remember(self, device: str, text: str, kind: str = "fact", **meta: Any) -> None:
-        text = text.strip()
+    async def remember(self, device: str, text: str, kind: str = "other", key: str = "", **meta: Any) -> None:
+        """Store a fact. With a key, it replaces the elder's earlier fact on the same topic and key."""
+        text, key = text.strip(), norm_key(key)
         if not text:
             return
         with self._conn() as c:
-            dup = c.execute(
+            if key:
+                c.execute("DELETE FROM memories WHERE device_id=? AND kind=? AND key=?", (device, kind, key))
+            elif c.execute(
                 "SELECT 1 FROM memories WHERE device_id=? AND lower(text)=lower(?)", (device, text)
-            )
-            if dup.fetchone():
+            ).fetchone():
                 return
             c.execute(
-                "INSERT INTO memories(device_id,kind,text,meta,ts) VALUES (?,?,?,?,?)",
-                (device, kind, text, json.dumps(meta, ensure_ascii=False), time.time()),
+                "INSERT INTO memories(device_id,kind,key,text,meta,ts) VALUES (?,?,?,?,?,?)",
+                (device, kind, key, text, json.dumps(meta, ensure_ascii=False), time.time()),
             )
 
-    async def recall(self, device: str, query: str, limit: int = 5) -> list[str]:
-        words = {w for w in _WORD.findall(query.lower()) if w not in STOP and len(w) > 1}
+    async def forget(self, device: str, kind: str, key: str = "") -> int:
+        """Delete one fact (topic + key), or every fact on a topic when no key is given. Returns how many."""
+        key = norm_key(key)
+        with self._conn() as c:
+            if key:
+                cur = c.execute(
+                    "DELETE FROM memories WHERE device_id=? AND kind=? AND key=?", (device, kind, key)
+                )
+            else:
+                cur = c.execute("DELETE FROM memories WHERE device_id=? AND kind=?", (device, kind))
+            return cur.rowcount
+
+    async def facts(self, device: str, topics: Iterable[str] | None = None) -> list[tuple[str, str]]:
+        """(topic, text) for the elder's facts, newest first, optionally only some topics."""
+        wanted = set(topics) if topics is not None else None
         with self._conn() as c:
             rows = c.execute(
-                "SELECT text, kind, ts FROM memories WHERE device_id=? ORDER BY ts DESC LIMIT 200", (device,)
+                "SELECT kind, text FROM memories WHERE device_id=? ORDER BY ts DESC, id DESC", (device,)
             ).fetchall()
-        scored = []
-        for r in rows:
-            overlap = len(words & set(_WORD.findall(r["text"].lower())))
-            pref = 1 if r["kind"] in {"fact", "preference"} else 0
-            if overlap or not words:
-                scored.append((overlap, pref, r["ts"], r["text"]))
-        scored.sort(reverse=True)
-        if not scored:  # nothing matches: still give the few most recent stable facts
-            scored = [(0, 1, r["ts"], r["text"]) for r in rows if r["kind"] in {"fact", "preference"}][:limit]
-        return [t for *_, t in scored[:limit]]
+        out = [(r["kind"], r["text"]) for r in rows if wanted is None or r["kind"] in wanted]
+        return out[:MAX_FACTS]
 
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         with self._conn() as c:
@@ -129,6 +128,16 @@ class LocalMemory:
     def set_id(self, key: str, value: str) -> None:
         with self._conn() as c:
             c.execute("INSERT OR REPLACE INTO memory_ids VALUES (?,?)", (key, value))
+
+    def take_ids(self, prefix: str) -> list[str]:
+        """Remove and return every stored id whose key starts with `prefix`."""
+        pattern = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT value FROM memory_ids WHERE key LIKE ? ESCAPE '\\'", (pattern,)
+            ).fetchall()
+            c.execute("DELETE FROM memory_ids WHERE key LIKE ? ESCAPE '\\'", (pattern,))
+        return [r[0] for r in rows]
 
     async def health(self) -> dict[str, Any]:
         with self._conn() as c:

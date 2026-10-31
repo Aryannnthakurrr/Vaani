@@ -111,6 +111,14 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
   `{"type":"end"}`. server → `{"type":"audio","pcm_b64":…,"sample_rate":24000}`,
   `{"type":"transcript","role":"user|saathi","text":…,"final":bool}`, `{"type":"tool","id":…,"name":…,"args":{…}}`
   (`start_task | start_guide | open_screen | read_updates | check_link`), `{"type":"interrupted"}`, `{"type":"error","message":…}`.
+  `remember {fact, topic, key?}` and `forget {topic, key?}` run on the server and never reach the app.
+- `POST /calls/clinic/turn` (simulated) and `POST /calls/clinic/real/start` (real) take one request shape:
+  `{patient_name?, appointment?, reply_style, purpose: confirm|book, reason?, needs?: [str], window?, place?}`,
+  plus `to?` and `user_confirmed` for real calls. `place` is `{name?, phone?, address?, facilities?: [str], notes?}`
+  (filled by the places search). A blank or "the patient" `patient_name` is replaced with the elder's stored name.
+  `purpose: book` needs `user_confirmed: true` (the elder's yes, else 409), a name and a `reason` (else 422).
+  Turns and real-call snapshots add `has_facilities` and `slot` to `confirmed` / `waiting_minutes` / `summary`;
+  snapshots also carry `purpose`. Every `summary` is in the patient's `reply_style`.
 - `POST /welfare/heartbeat` `{device_id, ts}` (ts = epoch millis) → `{ok}`.
 - `POST /welfare/config` `{device_id, user_name, contacts: [{name, telegram_chat_id}], check_time}` → `{ok}`.
 - `POST /welfare/test` `{device_id}` → `{text, sent: [chat_id], logged: true}`.

@@ -108,7 +108,7 @@ tokens spent compiling. Not built yet: USD estimates and the "handled N steps on
 
 The elder taps the mic bubble or "Talk to Saathi" and has a **natural spoken conversation**. The app streams 16 kHz
 PCM up and plays 24 kHz PCM down. The backend relays to `gemini-3.8-live` with the Saathi persona, the reply style, the
-user's memories from Meko, and these **tools**, which the app executes:
+user's remembered facts (from the local store), and these **tools**, which the app executes:
 
 | Tool | Args | App does |
 |---|---|---|
@@ -117,7 +117,8 @@ user's memories from Meko, and these **tools**, which the app executes:
 | `open_screen` | `screen` (digest, camera, alerts, settings, clinic_call) | Navigates |
 | `read_updates` | — | Returns digest items (fixed code) for the model to speak |
 | `check_link` | `url` | `/links/check` verdict |
-| `remember` | `fact` | Stores in Meko (server side, no app round trip) |
+| `remember` | `fact`, `topic`, `key` | Stores locally (replacing the same topic and key), mirrored to Meko (server side) |
+| `forget` | `topic`, `key` | Deletes one fact, or a whole topic, locally and in Meko (server side) |
 
 Client → server messages: `{"type":"config","reply_style"}`, `{"type":"audio","pcm_b64"}`, `{"type":"text","text"}`
 (typed input), `{"type":"tool_result","id","result"}`, `{"type":"end"}`.
@@ -132,11 +133,14 @@ and transcription (or on-device speech if those are slow or offline). Typing sti
 
 Meko is reached through MCP at `https://mcp.mekodata.ai/mcp` (`Authorization: Bearer mko_tkn_…`, `MEKO_API_KEY`),
 Meko's default datapack. `app/memory/` uses one interface with two backends:
-`MekoMemory` (MCP) and `LocalMemory` (SQLite, used whenever there is no key or Meko is unreachable).
+`LocalMemory` (SQLite) answers every read, and `MekoMemory` (MCP) is the durable copy, filled in the background.
+**Each elder has their own Meko datapack**: Meko's search covers a whole datapack, so the datapack is the boundary
+between people. Inside it, `agent_id` names the part of Saathi writing (`saathi-voice`, `saathi-tasks`), and all of
+them share that one elder's context. Reads stay local because a Meko search takes 15-18 s (NOTES.md).
 
 | What | Meko tool | Used for |
 |---|---|---|
-| Facts and preferences about the elder ("prefers Uber Go", "Dr. Mehta is her cardiologist") | `memory_add` / `memory_search`, `agent_id = elder-<sha256(device)[:16]>`, one profile conversation per elder | Built: the voice `remember` tool stores them; they are recalled into the Live system prompt at the start of every conversation |
+| Facts and preferences about the elder ("prefers Uber Go", "Dr. Mehta is her cardiologist"), each with a topic and key, in their own language | `memory_add` / `memory_delete_by_id` in the elder's datapack | Built: the voice `remember` / `forget` tools store and delete them; the Live prompt gets all of them plus the elder's name at the start of every conversation; clinic calls get only the name (`AUDIENCES`) |
 | Agent run state: per step the task, mode, screen size and app, action, reason, and which handler answered (skill or LLM) | `conversation_create` per run + `conversation_add_message` per step (`reasoning`, `plan`) | Built: a decision trail per run, written off the request path. Not built: resuming a run after an app restart |
 | Compiled skills, token usage, shared learnings | `artifact_put`, `track_token_usage`, `memory_promote` | Not built yet |
 

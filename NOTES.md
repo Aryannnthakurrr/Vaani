@@ -420,9 +420,18 @@ project, with the elder served by voice and the family by Telegram plus the fami
   `conversation_id`), so each elder has one profile conversation whose id is kept locally; `metadata` must be a
   JSON string and `plan` a list; errors arrive as `{"result": "{\"error\": …}"}` text; datapack tools also need a
   conversation, so Saathi uses Meko's default datapack. **Each call takes 5-16 s**, so writes go to the local
-  store at once and to Meko in the background, and recall waits 2.5 s for Meko before answering locally.
-- `agent_id` is now `elder-<sha256(device)[:16]>`: 8-character prefixes of two test device ids collided and
-  returned each other's memories.
+  store at once and to Meko in the background.
+- `agent_id` is now `elder-<sha256(device)[:16]>`: 8-character prefixes of two test device ids collided.
+- **In Meko, the datapack is the privacy boundary, not `agent_id` or `conversation_id`.** `memory_search` returns
+  everything in a datapack. With all elders in the default datapack, two new elders (distinct hashed ids, separate
+  conversations, one unique fact each) each saw the other's fact. With **one datapack per elder**, neither did, and
+  meaning-based search still worked inside each ("heart doctor" found "cardiologist"). So each elder gets a
+  datapack named `elder-<sha256(device)[:16]>`, and `agent_id` names the part of Saathi writing into it
+  (`saathi-voice` for facts, `saathi-tasks` for run trails, `saathi-setup` for the one-off conversation that
+  `datapack_create` needs). Datapack and profile ids live in the local `memory_ids` table.
+- Facts written before this change sit in the shared default datapack, where any elder could find them. New
+  writes go to per-elder datapacks; the old shared entries should be deleted (`memory_delete_by_id`).
+- A Meko search takes 15-18 s even inside a small datapack, so recall stays local on the voice path (3 s budget).
 
 ### Deviations
 - Turn-based speech keeps Sarvam first and uses Gemini as the fallback: Gemini TTS measured 2.4–3.9 s against
@@ -446,8 +455,33 @@ project, with the elder served by voice and the family by Telegram plus the fami
   HTTPS; use `http://10.0.2.2:8000` locally or a phone on mobile data.
 
 ### Gaps
-- Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Memories reach only
-  the Live prompt, not `/intent` or `/agent/step`. Meko's 5-16 s latency rules it out of any request path.
+- Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Meko reads are safe
+  now (per-elder datapacks), but 15-18 s searches keep them off the request path. The way to use them is to fetch
+  in the background after a voice call starts and pass the results to the Live session as late context.
+- Memories carry over only where they help, enforced in `app/memory` `AUDIENCES`. **Voice:** every fact.
+  **Clinic calls:** only the name. **Family alerts:** the name. **`/intent`, `/agent/step`:** nothing, because both
+  produce the training data for compiled skills, and varying prompt text would make the same request map to
+  different answers, which breaks the held-out replay tests.
+- **Facts (2026-10-31):** each has a `topic` (name, home, family, doctor, health, preference, routine, other) and
+  a short English `key`. A new fact with the same topic and key replaces the old one, and `name` / `home` always
+  replace. The text stays in the elder's own words and script (EN, HI, Hinglish); only the labels are English, so
+  nothing depends on the language. Reads return all of an elder's facts (at most 60) instead of searching: the
+  old keyword search dropped "Prefers Ola" for missing the word "preferences", and never matched Devanagari facts
+  against English query words. A new `forget` voice tool deletes one fact or a whole topic, locally and in Meko
+  (Meko's memory ids are kept per fact; one `memory_add` can return several). The voice prompt now gets the
+  elder's name, which it never had.
+- **Clinic calls can book, and say why (2026-10-31).** `purpose: book` introduces the patient by name, states the
+  reason for the visit, and first asks whether the place has what the visit needs ("kalai ki fracture ki
+  aftercare", ["X-ray"]). It stops if not, otherwise asks for a time inside the patient's window. The reason and
+  needs come with each call request, said for that call; stored health facts are never sent. The booking needs the
+  elder's yes first (`user_confirmed`), since a booking is irreversible. `place` (name, phone, facilities) is ready
+  for the places search coming in a later commit; nothing fills it yet.
+- Every call summary is now trilingual, including busy, no answer and could not hear (`clinic_call.CALL_NOTES`).
+- Bolna booking calls: Bolna returns only a transcript, so the slot is not parsed; the patient hears the clinic's
+  last words. Upgrade: pass the transcript through the clinic-call model for `has_facilities` and `slot`. Run
+  `scripts/bolna_agent.py` again (it creates a new agent, so update `BOLNA_AGENT_ID`) so the agent uses `{task}`.
+- Not built: no voice tool starts a booking call yet; it lands with the places search. Android still sends only
+  confirm calls. Its `ignoreUnknownKeys` JSON reads the new response fields without changes.
 - Code skills: no SMS `parser` kind. Each sandboxed call is a fresh `docker run`: 0.52–0.61 s on the droplet
   (measured after deploy; a memory bomb was killed in 0.7 s). Serving gives up after 3 s and asks the LLM.
 - Deployed check: `wss://165-245-196-218.sslip.io/live/voice` through Caddy → `start_task book_doctor` with the

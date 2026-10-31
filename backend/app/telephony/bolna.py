@@ -11,15 +11,19 @@ from dataclasses import dataclass
 
 import httpx
 
-from app.llm.clinic_call import CallLine, confirmed_from, summary_for_user, waiting_minutes
+from app.llm.clinic_call import (
+    CallLine,
+    call_note,
+    clinic_name,
+    confirmed_from,
+    summary_for_user,
+    waiting_minutes,
+)
 from app.telephony.calls import CallSession
 
 API = "https://api.bolna.ai"
 TERMINAL = {"completed", "no-answer", "busy", "failed", "canceled", "stopped", "error", "balance-low"}
-_NOT_CONNECTED = {
-    "busy": "The clinic's line was busy. Please try again in a few minutes.",
-    "no-answer": "Nobody at the clinic picked up. Please try again later.",
-}
+_NOT_CONNECTED = {"busy", "no-answer"}
 
 
 class BolnaError(RuntimeError):
@@ -93,9 +97,15 @@ def apply_execution(session: CallSession, execution: dict) -> None:
     if status not in TERMINAL:
         return
     session.done = True
+    style = session.request.reply_style
     if status in _NOT_CONNECTED:
-        session.summary = _NOT_CONNECTED[status]
+        session.summary = call_note(status, style)
     elif not clinic_said:
-        session.summary = "Nobody at the clinic spoke on the call. Please try again later."
+        session.summary = call_note("silent", style)
+    elif session.request.purpose == "book":
+        # ponytail: Bolna returns only the transcript, so the slot is not parsed; the patient hears the clinic's
+        # last words. Upgrade: run the transcript through clinic_call_turn's model for has_facilities and slot.
+        last = next(line.text for line in reversed(session.transcript) if line.role == "clinic")
+        session.summary = call_note("clinic_said", style, place=clinic_name(session.request), said=last)
     else:
         session.summary = summary_for_user(session.request, session.confirmed, session.waiting_minutes)

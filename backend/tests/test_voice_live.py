@@ -50,10 +50,30 @@ def test_voice_remember_goes_to_memory_and_into_the_next_prompt(client):
         while said["role"] != "saathi":
             said = _until(ws, "transcript")
         ws.send_json({"type": "end"})
-    facts = asyncio.run(get_memory().recall(DEVICE, "doctor"))
-    assert facts == ["my cardiologist is Dr. Mehta"]
+    facts = asyncio.run(get_memory().facts(DEVICE))
+    assert facts == [("other", "my cardiologist is Dr. Mehta")]
     prompt = asyncio.run(system_prompt(DEVICE, "en"))
-    assert "Dr. Mehta" in prompt and "{memories}" not in prompt
+    assert "Dr. Mehta" in prompt and "{memories}" not in prompt and "{user}" not in prompt
+    assert "You do not know their name yet." in prompt
+
+
+def test_name_topics_and_forget_reach_the_prompt(client):
+    import asyncio
+
+    from app.routers.voice_live import forget, remember, system_prompt
+
+    async def flow() -> tuple[str, str]:
+        await remember(DEVICE, {"fact": "Kamla ji", "topic": "name"})
+        await remember(DEVICE, {"fact": "मेरी बेटी प्रिया पुणे में रहती है", "topic": "family", "key": "daughter"})
+        await remember(DEVICE, {"fact": "Ghutne mein dard rehta hai", "topic": "health", "key": "knee"})
+        before = await system_prompt(DEVICE, "hi")
+        assert (await forget(DEVICE, {"topic": "health", "key": "knee"}))["forgotten"] == 1
+        return before, await system_prompt(DEVICE, "hi")
+
+    before, after = asyncio.run(flow())
+    assert "The user's name is Kamla ji" in before
+    assert "- family: मेरी बेटी प्रिया पुणे में रहती है" in before and "Ghutne" in before
+    assert "Ghutne" not in after and "प्रिया" in after
 
 
 def test_voice_requires_device(client):
@@ -72,6 +92,9 @@ def test_voice_requires_device(client):
         ("OTP 482913", False),
         ("card 4111 1111 1111 1111", False),
         ("मेरा पासवर्ड abc है", False),
+        ("मेरा यूपीआई पिन 1234 है", False),
+        ("kal mera OTP aayega", False),
+        ("मेरी बेटी प्रिया पुणे में रहती है", True),
         ("x", False),
     ],
 )
@@ -81,7 +104,15 @@ def test_safe_fact(fact, ok):
 
 def test_tool_declarations_cover_the_app_tools():
     names = {t["name"] for t in VOICE_TOOLS}
-    assert names == {"start_task", "start_guide", "open_screen", "read_updates", "check_link", "remember"}
+    assert names == {
+        "start_task",
+        "start_guide",
+        "open_screen",
+        "read_updates",
+        "check_link",
+        "remember",
+        "forget",
+    }
     from google.genai import types
 
     for t in VOICE_TOOLS:

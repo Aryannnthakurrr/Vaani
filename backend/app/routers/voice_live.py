@@ -20,7 +20,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config import Settings, get_settings
 from app.llm.prompts import render
-from app.memory import format_memories, get_memory
+from app.memory import TOPICS, fact_key, facts_for, format_memories, get_memory, name_for
 from app.speech.revoice import Revoicer
 
 log = logging.getLogger("saathi.voice_live")
@@ -54,12 +54,23 @@ VOICE_TOOLS: list[dict[str, Any]] = [
      "parameters_json_schema": _obj({})},
     {"name": "check_link", "description": "Check whether a link is safe to open.",
      "parameters_json_schema": _obj({"url": _S}, ["url"])},
-    {"name": "remember", "description": "Remember a lasting fact or preference about the user for future conversations.",
-     "parameters_json_schema": _obj({"fact": _S}, ["fact"])},
+    {"name": "remember", "description": (
+        "Remember a lasting fact or preference about the user. Write the fact in the user's own language and "
+        "script (English, Hindi or Hinglish). For topic `name`, the fact is just how they like to be addressed."),
+     "parameters_json_schema": _obj({
+         "fact": _S,
+         "topic": {"type": "string", "enum": list(TOPICS)},
+         "key": {"type": "string", "description": "Short English label, so a newer fact replaces the old one: "
+                 "daughter, son, cardiologist, cab_app, morning_walk. Not needed for name or home."},
+     }, ["fact", "topic"])},
+    {"name": "forget", "description": "Forget something the user asked you to forget: one fact (topic and key), "
+                                      "or everything on a topic (topic only).",
+     "parameters_json_schema": _obj({"topic": {"type": "string", "enum": list(TOPICS)}, "key": _S}, ["topic"])},
 ]  # fmt: skip
 
 _SECRET_WORDS = re.compile(
-    r"\b(otp|pin|m-?pin|upi|cvv|password|passcode|card number|account number|aadhaar|pan)\b|ओटीपी|पिन|पासवर्ड|आधार",
+    r"\b(otp|pin|m-?pin|upi|cvv|password|passcode|card number|account number|aadhaar|aadhar|pan)\b"
+    r"|ओटीपी|पिन|पासवर्ड|आधार|यूपीआई|सीवीवी|कार्ड नंबर|खाता नंबर|खाता संख्या|पैन कार्ड",
     re.IGNORECASE,
 )
 _LONG_NUMBER = re.compile(r"\d[\d\s-]{5,}\d")
@@ -71,26 +82,44 @@ def safe_fact(fact: str) -> bool:
     return 3 <= len(fact) <= 300 and not _SECRET_WORDS.search(fact) and not _LONG_NUMBER.search(fact)
 
 
+def _topic(args: dict[str, Any]) -> str:
+    topic = str(args.get("topic") or "other")
+    return topic if topic in TOPICS else "other"
+
+
 async def remember(device: str, args: dict[str, Any]) -> dict[str, Any]:
-    fact = str(args.get("fact", ""))
+    fact, topic = str(args.get("fact", "")), _topic(args)
     if not safe_fact(fact):
         return {"ok": False, "error": "not stored: secrets and long numbers are never remembered"}
     try:
-        await get_memory().remember(device, fact, kind="fact", source="voice")
+        await get_memory().remember(device, fact, topic, fact_key(topic, args.get("key")), source="voice")
     except Exception as exc:  # noqa: BLE001
         log.info("remember failed: %s", type(exc).__name__)
         return {"ok": False, "error": "memory unavailable"}
     return {"ok": True}
 
 
+async def forget(device: str, args: dict[str, Any]) -> dict[str, Any]:
+    topic = _topic(args)
+    try:
+        n = await get_memory().forget(device, topic, fact_key(topic, args.get("key")))
+    except Exception as exc:  # noqa: BLE001
+        log.info("forget failed: %s", type(exc).__name__)
+        return {"ok": False, "error": "memory unavailable"}
+    return {"ok": True, "forgotten": n}
+
+
 async def system_prompt(device: str, style: str) -> str:
     try:
-        facts = await asyncio.wait_for(
-            get_memory().recall(device, "family doctor home preferences health routine", limit=8), 3
-        )
+        facts, name = await asyncio.wait_for(asyncio.gather(facts_for(device, "voice"), name_for(device)), 3)
     except Exception:  # noqa: BLE001 - start talking without memories rather than wait
-        facts = []
-    return render("voice", reply_style=style, memories=format_memories(facts))
+        facts, name = [], None
+    who = (
+        f"The user's name is {name}; address them as they would like."
+        if name
+        else "You do not know their name yet."
+    )
+    return render("voice", reply_style=style, user=who, memories=format_memories(facts))
 
 
 class Relay:
@@ -115,6 +144,8 @@ class Relay:
     async def call_tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         if name == "remember":
             return await remember(self.device, args)
+        if name == "forget":
+            return await forget(self.device, args)
         if name not in APP_TOOLS:
             return {"ok": False, "error": f"unknown tool {name}"}
         call_id = uuid.uuid4().hex[:12]
@@ -176,7 +207,7 @@ async def _mock_session(ws: WebSocket, relay: Relay, style: str) -> None:
             args = {"task": "book_cab", **({"destination": dest.group(1).strip()} if dest else {})}
             asyncio.create_task(relay.call_tool("start_task", args))
         elif low.startswith("remember"):
-            await remember(relay.device, {"fact": text[len("remember") :].strip(" :,")})
+            await remember(relay.device, {"fact": text[len("remember") :].strip(" :,"), "topic": "other"})
             reply = _MOCK["noted"]
         else:
             reply = _MOCK["hello"]
