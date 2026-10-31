@@ -19,7 +19,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -70,6 +72,14 @@ class LiveVoiceSession(
     private val _state = MutableStateFlow(LiveState.CONNECTING)
     val state: StateFlow<LiveState> = _state
 
+    /** Loudness of the user's voice, 0–1, for the voice-wave animation. */
+    private val _micLevel = MutableStateFlow(0f)
+    val micLevel: StateFlow<Float> = _micLevel
+
+    /** Each finished thing the user said, as text. Yes/no decisions are read from these on the phone. */
+    private val _userTurns = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val userTurns: SharedFlow<String> = _userTurns
+
     private val _transcripts = MutableStateFlow<List<TranscriptLine>>(emptyList())
     val transcripts: StateFlow<List<TranscriptLine>> = _transcripts
 
@@ -112,8 +122,14 @@ class LiveVoiceSession(
             is LiveEvent.Transcript -> {
                 // A line from the other speaker means the previous turn is over.
                 val last = _transcripts.value.lastOrNull()
-                if (last != null && last.role != e.role) transcriptLog.closeOpen()
+                if (last != null && last.role != e.role) {
+                    transcriptLog.closeOpen()
+                    if (last.role == "user" && !last.final) _userTurns.tryEmit(last.text)
+                }
                 _transcripts.value = transcriptLog.apply(e)
+                if (e.role == "user" && e.final) {
+                    _transcripts.value.lastOrNull()?.takeIf { it.role == "user" }?.let { _userTurns.tryEmit(it.text) }
+                }
             }
             is LiveEvent.Tool -> scope.launch {
                 val result = runCatching { tools.handle(e.name, e.args) }.getOrElse { err ->
@@ -193,7 +209,10 @@ class LiveVoiceSession(
                 rec.startRecording()
                 while (isActive && !paused) {
                     val n = rec.read(chunk, 0, chunk.size)
-                    if (n > 0) ws?.send(LiveWire.audio(chunk, n))
+                    if (n > 0) {
+                        ws?.send(LiveWire.audio(chunk, n))
+                        _micLevel.value = VoiceLevel.rms16(chunk, n)
+                    }
                 }
             } finally {
                 runCatching { rec.stop() }

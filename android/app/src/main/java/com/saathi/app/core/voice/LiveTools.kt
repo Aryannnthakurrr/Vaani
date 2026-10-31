@@ -76,14 +76,14 @@ class LiveTools(
                 LiveToolArgs.ok("status" to "started", "note" to "The doctor helper is open and will talk to them now. Say nothing more.")
             } else if (spec == null) LiveToolArgs.error("unknown task") else {
                 val preferred = if (LiveToolArgs.prefersFlipkart(args)) com.saathi.app.util.Packages.FLIPKART else null
-                runInBackground(c.assistant.startTask(spec, LiveToolArgs.slots(args), preferred))
+                runInBackground { c.assistant.startTask(spec, LiveToolArgs.slots(args), preferred) }
                 LiveToolArgs.ok("status" to "started", "note" to "The phone is doing it now; you will get a [task finished] note.")
             }
         }
         "start_guide" -> {
             val goal = LiveToolArgs.goal(args)
             if (goal == null) LiveToolArgs.error("missing goal") else {
-                runInBackground(c.assistant.startGuide(goal))
+                runInBackground { c.assistant.startGuide(goal) }
                 LiveToolArgs.ok("status" to "started")
             }
         }
@@ -128,21 +128,24 @@ class LiveTools(
         else -> LiveToolArgs.error("unknown tool $name")
     }
 
-    /** Pause the conversation while the task drives the phone, then report back and resume. */
-    private fun runInBackground(job: Job) {
-        session()?.pause()
+    /**
+     * Runs a task while the conversation stays live: the task's questions and its yes/no go through this session in
+     * real time (LiveAgentUi). Without a session it falls back to the turn-based overlay. Ends with a note to Gemini.
+     */
+    private fun runInBackground(start: () -> Job) {
+        val live = session()
+        c.assistant.liveUi = live?.let { LiveAgentUi(it, c.assistant.ui) }
+        val job = start()
         c.scope.launch {
             job.join()
+            c.assistant.liveUi = null
             val note = when (val o = c.assistant.lastOutcome.value) {
                 is AgentOutcome.Done -> "[task finished: ${o.message}]"
                 is AgentOutcome.Failed -> "[task failed: ${o.message}]"
                 AgentOutcome.Cancelled -> "[task cancelled by the user]"
                 null -> "[task ended]"
             }
-            session()?.let {
-                it.resume()
-                it.sendText(note)
-            }
+            session()?.sendText(note)
         }
     }
 

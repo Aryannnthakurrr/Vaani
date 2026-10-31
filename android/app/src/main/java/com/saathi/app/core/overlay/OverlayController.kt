@@ -200,7 +200,8 @@ class OverlayController(private val ctx: Context, private val container: AppCont
             remove(sheet)
             val v = OverlayViews.confirmSheet(ctx, summary,
                 tr(style, "Yes", "हाँ", "Haan"), tr(style, "No", "नहीं", "Nahi"),
-                onYes = { result.complete(true) }, onNo = { result.complete(false) })
+                onYes = { result.complete(true) }, onNo = { result.complete(false) },
+                level = { container.assistant.voiceLevel() })
             if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
                     Gravity.BOTTOM, type = type).apply { y = OverlayViews.dp(ctx, 24) } }) sheet = v
         }

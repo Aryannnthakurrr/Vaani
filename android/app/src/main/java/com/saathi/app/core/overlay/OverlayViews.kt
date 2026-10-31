@@ -93,7 +93,10 @@ internal object OverlayViews {
     }
 
     /** Bottom confirm sheet with two huge buttons. */
-    fun confirmSheet(ctx: Context, summary: String, yes: String, no: String, onYes: () -> Unit, onNo: () -> Unit): View {
+    fun confirmSheet(
+        ctx: Context, summary: String, yes: String, no: String, onYes: () -> Unit, onNo: () -> Unit,
+        level: () -> Float = { 0f },
+    ): View {
         val lp = { LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(ctx, 6), 0, dp(ctx, 6), 0) } }
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -106,8 +109,11 @@ internal object OverlayViews {
             setPadding(dp(ctx, 20), dp(ctx, 24), dp(ctx, 20), dp(ctx, 24))
             elevation = dp(ctx, 16).toFloat()
             addView(text(ctx, summary, 26f, INK, bold = true).apply { contentDescription = summary })
+            // Moves with the user's voice: say "haan" or "nahi", or tap.
+            addView(VoiceWaveView(ctx, level, SAFFRON), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 56))
+                .apply { topMargin = dp(ctx, 12) })
             addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                .apply { topMargin = dp(ctx, 20) })
+                .apply { topMargin = dp(ctx, 12) })
         }
     }
 

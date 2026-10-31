@@ -37,6 +37,13 @@ class Assistant(private val c: AppContainer) {
     private val guide = GuideMode(c, runner)
     val ui = OverlayAgentUi({ OverlayService.controller }, c.speaker, speech, { c.settings.current.replyStyle }, ::stop)
 
+    /** Set while a task started from the live conversation runs, so it keeps talking in real time (LiveAgentUi). */
+    @Volatile var liveUi: com.saathi.app.core.agent.AgentUi? = null
+    private val activeUi get() = liveUi ?: ui
+
+    /** How loud the user is right now (live mic, else the turn-based mic), 0–1, for voice-wave animations. */
+    fun voiceLevel(): Float = _live.value?.micLevel?.value ?: speech.level.value
+
     private val _state = MutableStateFlow(AssistantState.IDLE)
     val state: StateFlow<AssistantState> = _state
 
@@ -205,17 +212,17 @@ class Assistant(private val c: AppContainer) {
         var slots = initial
         for (q in task.required) {
             if (q.isFilled(slots)) continue
-            val answer = ui.ask(q.ask(style)) ?: return
+            val answer = activeUi.ask(q.ask(style)) ?: return
             slots = q.fill(slots, answer)
         }
         _state.value = AssistantState.RUNNING
-        report(runner.run(task, slots, ui, preferredPkg))
+        report(runner.run(task, slots, activeUi, preferredPkg))
     }
 
     private suspend fun runGuide(goal: String) {
         _lastOutcome.value = null
         _state.value = AssistantState.RUNNING
-        report(guide.run(goal, ui))
+        report(guide.run(goal, activeUi))
     }
 
     private fun report(outcome: AgentOutcome) {

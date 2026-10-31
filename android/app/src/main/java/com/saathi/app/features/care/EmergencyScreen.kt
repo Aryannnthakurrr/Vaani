@@ -99,6 +99,8 @@ private fun Countdown(ui: EmergencyUi, s: (String, String, String) -> String, c:
     Text(s("Sending an ambulance in", "एम्बुलेंस भेजी जाएगी", "Ambulance bheji jayegi"), color = Color.White, fontSize = 24.sp)
     Text("${ui.secondsLeft}", color = Color.White, fontSize = 110.sp, fontWeight = FontWeight.Black,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+    com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
+        s("Say \"I'm OK\" or \"send now\"", "\"मैं ठीक हूँ\" या \"अभी भेजो\" बोलिए", "\"Main theek hoon\" ya \"abhi bhejo\" boliye"), Color.White)
     // The biggest target on the screen: someone who is fine must be able to stop this instantly.
     BigButton(s("I'M OK, CANCEL", "मैं ठीक हूँ, रोकें", "Main theek hoon, rokein"), { c.emergency.imOk() },
         Modifier.heightIn(min = 160.dp), color = Leaf, contentColor = Color.White)

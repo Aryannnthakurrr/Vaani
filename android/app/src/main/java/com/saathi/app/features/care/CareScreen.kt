@@ -161,6 +161,8 @@ private fun RecommendationCard(rec: Recommendation, c: AppContainer, s: (String,
     var more by remember { mutableStateOf(false) }
     val style = c.settings.current.replyStyle
     InfoCard(s("Best option", "सबसे अच्छा विकल्प", "Best option"), rec.spokenText, accent = Leaf, icon = "⭐")
+    com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
+        s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye"), Leaf)
     BigButton(s("Yes, book", "हाँ, बुक करें", "Haan, book karein"), { c.care.tap(true) }, color = Leaf)
     BigButton(s("Pick another slot", "दूसरा समय चुनें", "Doosra time chunein"), { more = !more })
     BigButton(s("No thanks", "नहीं, धन्यवाद", "Nahi, shukriya"), { c.care.tap(false) }, color = Danger)

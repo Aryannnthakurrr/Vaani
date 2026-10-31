@@ -632,3 +632,16 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   never hears or sees it. The digest, classify and voice prompts say to copy tokens exactly and never guess.
 - **Not covered:** email bodies (Saathi only sees notification previews) and values the user speaks aloud
   themselves (the prompt still says never to repeat them).
+
+## Batch 3: tasks stay in the live conversation, voice-wave decisions (2026-11-01)
+
+- **Real time during tasks:** a task started from the live conversation no longer pauses it and drops to turn-based
+  speech. `LiveAgentUi` sends Gemini short bracket notes (`[say exactly…]`, `[ask…]`, `[read this… yes or no]`) and
+  the user can talk over it. Safety is unchanged: yes/no is decided on the phone from the user's own transcript
+  (`LiveVoiceSession.userTurns`, the same `SpokenAnswer.yesNo` rules) or the buttons; Gemini can't confirm anything.
+  Safety phrases and private values are spoken on-device with the mic off. Tasks started from Home tiles or the
+  doctor flow still use the turn-based overlay (the doctor intake already runs on Live).
+- **Voice waves:** `VoiceWaveView` (overlay confirm sheet) and the `VoiceWave` composable (doctor booking card,
+  ambulance countdown) move with the open mic (`Assistant.voiceLevel()`: live mic RMS, else the turn-based mic),
+  with a hint that saying yes/no works as well as tapping. The bar maths is pure (`VoiceLevel`).
+- **Not yet live:** the post-intake doctor decisions and the house-help/cab flows started from Home tiles.
