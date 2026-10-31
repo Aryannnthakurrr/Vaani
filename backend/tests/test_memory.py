@@ -7,7 +7,7 @@ from typing import Any
 
 from app.memory import FallbackMemory, format_memories
 from app.memory.local import LocalMemory
-from app.memory.meko import MekoMemory, agent_for
+from app.memory.meko import TASKS, VOICE, MekoMemory, elder_for
 
 
 async def test_local_remember_recall_and_dedupe(tmp_path):
@@ -43,30 +43,46 @@ class FakeMeko(MekoMemory):
         self.calls.append((tool, args))
         if tool == "conversation_create":
             return {"id": f"conv-{len(self.calls)}"}
+        if tool == "datapack_create":
+            return {"datapack_id": f"dp-{args['name']}", "name": args["name"]}
         if tool == "memory_search":
-            return {"results": [{"memory": "Daughter Priya lives in Pune"}]}
+            return {"results": [{"memory": "Daughter Priya lives in Pune"}] * 2}
         return {"ok": True}
 
 
-async def test_meko_maps_calls_and_reuses_conversations(tmp_path):
+async def test_meko_gives_each_elder_their_own_datapack(tmp_path):
     local = LocalMemory(tmp_path / "m.db")
     meko = FakeMeko(ids=local)
     await meko.remember("abcdef123456", "Daughter Priya lives in Pune")
-    assert await meko.recall("abcdef123456", "daughter") == ["Daughter Priya lives in Pune"]
+    assert await meko.recall("abcdef123456", "daughter") == ["Daughter Priya lives in Pune"]  # deduped
     for action in ("tap", "done"):
-        await meko.log_step(
-            "abcdef123456", "run-1", "book a ride", {"action": {"action": action}, "handler": "llm"}
-        )
-    tools = [t for t, _ in meko.calls]
-    assert tools.count("conversation_create") == 2  # one profile, one run
-    assert tools.count("conversation_add_message") == 2
-    add = dict(meko.calls)["memory_add"]
-    assert add["agent_id"] == agent_for("abcdef123456") != agent_for("abcdef12-other")
-    assert add["conversation_id"] == "conv-1" and isinstance(add["metadata"], str) and "scope" not in add
-    # The profile conversation id survives a restart through the local store.
+        step = {"action": {"action": action}, "handler": "llm"}
+        await meko.log_step("abcdef123456", "run-1", "book a ride", step)
+    await meko.remember("abcdef12-other", "Son Ravi in Delhi")
+
+    mine = f"dp-{elder_for('abcdef123456')}"
+    assert elder_for("abcdef123456") != elder_for(
+        "abcdef12-other"
+    )  # hashed, so shared prefixes never collide
+    by_tool: dict[str, list[dict[str, Any]]] = {}
+    for tool, args in meko.calls:
+        by_tool.setdefault(tool, []).append(args)
+    assert [a["name"] for a in by_tool["datapack_create"]] == [
+        elder_for("abcdef123456"),
+        elder_for("abcdef12-other"),
+    ]
+    first_add, other_add = by_tool["memory_add"]
+    assert first_add["datapack_id"] == mine and first_add["agent_id"] == VOICE
+    assert other_add["datapack_id"] != mine  # the privacy boundary
+    assert by_tool["memory_search"][0]["datapack_id"] == mine
+    assert all(
+        a["datapack_id"] == mine and a["agent_id"] == TASKS for a in by_tool["conversation_add_message"]
+    )
+    assert isinstance(first_add["metadata"], str) and "scope" not in first_add
+    # The datapack and profile ids survive a restart through the local store.
     again = FakeMeko(ids=local)
     await again.remember("abcdef123456", "Likes tea")
-    assert [t for t, _ in again.calls] == ["memory_add"]
+    assert [t for t, _ in again.calls] == ["memory_add"] and again.calls[0][1]["datapack_id"] == mine
 
 
 def test_meko_unwraps_result_strings_and_errors():
@@ -101,23 +117,26 @@ async def test_fallback_hides_primary_outage(tmp_path):
     assert await mem.run_state("dev1", "r") == [{"seq": 0}]
 
 
-class LeakyMeko(LocalMemory):
-    """Meko as observed live: a fast search that returns facts written for other elders."""
+class SlowMeko(LocalMemory):
+    """Meko as measured live: 5-18 s per call, far past the voice call's 3 s budget."""
 
-    name = "leaky"
+    name = "slow"
 
     async def remember(self, *a: Any, **k: Any) -> None:
-        return None
+        await asyncio.sleep(30)
 
     async def recall(self, *a: Any, **k: Any) -> list[str]:
-        return ["Daughter Priya lives in Pune"]  # belongs to someone else
+        await asyncio.sleep(30)
+        return ["from meko"]
 
 
-async def test_recall_never_reads_meko_so_elders_cannot_see_each_others_facts(tmp_path):
-    mem = FallbackMemory(LeakyMeko(tmp_path / "k.db"), LocalMemory(tmp_path / "l.db"))
-    await mem.remember("dev1", "Home is Sector 18")
-    assert await mem.recall("dev1", "home") == ["Home is Sector 18"]
-    assert await mem.recall("dev2", "daughter") == []  # a new elder with nothing stored gets nothing
+async def test_remember_and_recall_never_wait_on_meko(tmp_path):
+    mem = FallbackMemory(SlowMeko(tmp_path / "s.db"), LocalMemory(tmp_path / "l.db"))
+    await asyncio.wait_for(mem.remember("dev1", "Home is Sector 18"), 0.5)  # the voice tool waits on this
+    assert await asyncio.wait_for(mem.recall("dev1", "home"), 0.5) == ["Home is Sector 18"]
+    assert await asyncio.wait_for(mem.recall("dev2", "home"), 0.5) == []  # a new elder with nothing stored
+    for task in list(mem._bg):
+        task.cancel()
 
 
 def test_format_memories():

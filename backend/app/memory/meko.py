@@ -2,12 +2,16 @@
 
 Endpoint `https://mcp.mekodata.ai/mcp`, `Authorization: Bearer mko_tkn_…` plus a User-Agent (Meko rejects requests
 without one). Verified against the live service on 2026-10-31:
-- memories are scoped to a conversation, so each elder has one long-lived "profile" conversation, created once and
-  its id kept in the local database (`ids`), so it survives restarts;
+- **The datapack is the privacy boundary.** `memory_search` returns everything in a datapack, whatever
+  `agent_id` / `conversation_id` it is given, so each elder gets their own datapack. Inside it, `agent_id` names
+  the part of Saathi that wrote the data (voice facts, task runs), and those all share one context. Tested with
+  two fresh elders: in a shared datapack each saw the other's fact; with one datapack each, neither did.
+- Creating a datapack needs an existing conversation, so a one-off "setup" conversation comes first.
+- Memories hang off a conversation, so each elder has one long-lived voice "profile" conversation. The datapack and
+  profile ids are kept in the local database (`ids`), so they survive restarts.
 - `metadata` must be a JSON string; a conversation only accepts messages from the agent_id that created it;
 - tool errors come back as `{"result": "{\"error\": …}"}` text rather than MCP errors;
 - each call takes 5-16 s, so callers never wait on Meko (see `FallbackMemory`).
-Datapacks are left to Meko's default (its datapack tools also require a conversation).
 """
 
 from __future__ import annotations
@@ -16,15 +20,20 @@ import asyncio
 import hashlib
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 log = logging.getLogger("saathi.memory.meko")
 TIMEOUT_S = 30.0
 
 
-def agent_for(device: str) -> str:
-    """A stable, non-reversible id per phone (prefixes of device ids can collide)."""
+def elder_for(device: str) -> str:
+    """A stable, non-reversible id per phone, used as the elder's datapack name (prefixes of device ids collide)."""
     return "elder-" + hashlib.sha256(device.encode()).hexdigest()[:16]
+
+
+# Parts of Saathi that write into an elder's datapack. They share that elder's context, nobody else's.
+SETUP, VOICE, TASKS = "saathi-setup", "saathi-voice", "saathi-tasks"
 
 
 class MekoMemory:
@@ -55,50 +64,74 @@ class MekoMemory:
             raise RuntimeError(f"meko {tool} error: {payload['error']}")
         return payload
 
-    async def _conversation(self, key: str, device: str, title: str, meta: dict[str, str]) -> str:
-        """Create a conversation once per key (profile or run) and remember its id."""
+    async def _once(self, key: str, make: Callable[[], Awaitable[str]]) -> str:
+        """Create a Meko object once per key (datapack, profile, run) and remember its id."""
         if key in self._cache:
             return self._cache[key]
         lock = self._locks.setdefault(key, asyncio.Lock())
         async with lock:
             cached = self._cache.get(key) or (self.ids.get_id(key) if self.ids else None)
             if not cached:
-                made = await self._call("conversation_create", {
-                    "agent_id": agent_for(device), "title": title[:80], "metadata": json.dumps(meta),
-                })  # fmt: skip
-                cached = str(_get(made, "id", "conversation_id"))
+                cached = await make()
                 if self.ids:
                     self.ids.set_id(key, cached)
             self._cache[key] = cached
             return cached
 
+    async def _new_conversation(
+        self, agent: str, title: str, meta: dict[str, str], datapack: str | None
+    ) -> str:
+        args = {"agent_id": agent, "title": title[:80], "metadata": json.dumps(meta)}
+        made = await self._call(
+            "conversation_create", {**args, **({"datapack_id": datapack} if datapack else {})}
+        )
+        return str(_get(made, "conversation_id", "id"))
+
+    async def datapack(self, device: str) -> str:
+        """The elder's own datapack: everything Saathi stores about them, and nothing about anyone else."""
+
+        async def make() -> str:
+            setup = await self._new_conversation(SETUP, "setup", {"kind": "setup"}, None)
+            made = await self._call("datapack_create", {"name": elder_for(device), "conversation_id": setup})
+            log.info("created Meko datapack for %s", elder_for(device))
+            return str(_get(made, "datapack_id", "id"))
+
+        return await self._once(f"meko:datapack:{device}", make)
+
     async def profile(self, device: str) -> str:
-        return await self._conversation(f"meko:profile:{device}", device, "profile", {"kind": "profile"})
+        """The voice agent's long-lived conversation in the elder's datapack, which facts hang off."""
+        datapack = await self.datapack(device)
+        return await self._once(
+            f"meko:voice:{device}",
+            lambda: self._new_conversation(VOICE, "profile", {"kind": "profile"}, datapack),
+        )
 
     async def remember(self, device: str, text: str, kind: str = "fact", **meta: Any) -> None:
         await self._call("memory_add", {
-            "conversation_id": await self.profile(device), "text": text, "agent_id": agent_for(device),
+            "datapack_id": await self.datapack(device), "conversation_id": await self.profile(device),
+            "agent_id": VOICE, "text": text,
             "metadata": json.dumps({"kind": kind, **{k: str(v) for k, v in meta.items()}}),
         })  # fmt: skip
 
     async def recall(self, device: str, query: str, limit: int = 5) -> list[str]:
         found = await self._call("memory_search", {
-            "conversation_id": await self.profile(device), "query": query, "agent_id": agent_for(device),
-            "limit": limit,
+            "datapack_id": await self.datapack(device), "conversation_id": await self.profile(device),
+            "query": query, "limit": limit,
         })  # fmt: skip
-        out: list[str] = []
-        for m in _items(found, "memories", "results"):
-            text = m.get("memory") or m.get("text") or m.get("content")
-            if text:
-                out.append(str(text))
-        return out[:limit]
+        texts = (
+            m.get("memory") or m.get("text") or m.get("content") for m in _items(found, "memories", "results")
+        )
+        return list(dict.fromkeys(str(t) for t in texts if t))[:limit]  # the live search repeats hits
 
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         """One Meko conversation per agent run; each step is a message with the action and the reasoning."""
-        conv = await self._conversation(f"meko:run:{run_id}", device, goal,
-                                        {"kind": "agent_run", "task": str(step.get("task", ""))})  # fmt: skip
+        datapack = await self.datapack(device)
+        meta = {"kind": "agent_run", "task": str(step.get("task", ""))}
+        conv = await self._once(
+            f"meko:run:{run_id}", lambda: self._new_conversation(TASKS, goal, meta, datapack)
+        )
         await self._call("conversation_add_message", {
-            "conversation_id": conv, "agent_id": agent_for(device),
+            "conversation_id": conv, "agent_id": TASKS, "datapack_id": datapack,
             "input": f"screen ({step.get('screen_chars', 0)} chars, {step.get('package', '')})",
             "output": json.dumps(step.get("action", {}), ensure_ascii=False),
             "reasoning": str(step.get("reason", "")), "plan": [str(step.get("handler", ""))],
@@ -110,7 +143,8 @@ class MekoMemory:
         if not conv:
             return []
         got = await self._call("conversation_get", {
-            "conversation_id": conv, "agent_id": agent_for(device), "include_messages": True,
+            "conversation_id": conv, "agent_id": TASKS, "include_messages": True,
+            "datapack_id": await self.datapack(device),
         })  # fmt: skip
         return list(_items(got, "messages"))
 

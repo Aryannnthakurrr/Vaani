@@ -76,8 +76,9 @@ checks from that PC fail even when the server is fine. Details in `deploy/README
 
 ## Open items
 
-- Meko is live (key in the server `.env`) but **write-only**: its search returns other elders' facts, and each call
-  takes 5-21 s. The local copy answers every read. Re-verify isolation (NOTES.md) before reading from Meko.
+- Meko is live (key in the server `.env`). **Each elder has their own datapack**: that is Meko's privacy boundary,
+  and `agent_id` only names the part of Saathi writing (`saathi-voice`, `saathi-tasks`). Never put two elders in
+  one datapack. Calls take 5-18 s, so Meko is written in the background and every read is local.
 - Memory carries over only into the Live voice prompt. Keep it out of `/intent` and `/agent/step` (they train the
   compiled skills) and out of the clinic call (its prompt forbids sharing medical history).
 - Live voice is tested with typed turns and on the deployed server, not yet with microphone audio on a device.

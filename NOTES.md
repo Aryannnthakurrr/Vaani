@@ -422,11 +422,16 @@ project, with the elder served by voice and the family by Telegram plus the fami
   conversation, so Saathi uses Meko's default datapack. **Each call takes 5-16 s**, so writes go to the local
   store at once and to Meko in the background.
 - `agent_id` is now `elder-<sha256(device)[:16]>`: 8-character prefixes of two test device ids collided.
-- **Meko's `memory_search` does not isolate elders, even with distinct ids.** Test (2026-10-31): two new random
-  devices with hashed agent ids, each in its own profile conversation, one unique fact each. Searching as either
-  one returned both facts. The id collision above was real, but it was not the cause. So **Meko is write-only**:
-  a durable copy of facts and the per-run agent trail. `FallbackMemory.recall` reads only the local store, which
-  holds every fact because it is always written first. Re-run that two-elder test before ever reading from Meko.
+- **In Meko, the datapack is the privacy boundary, not `agent_id` or `conversation_id`.** `memory_search` returns
+  everything in a datapack. With all elders in the default datapack, two new elders (distinct hashed ids, separate
+  conversations, one unique fact each) each saw the other's fact. With **one datapack per elder**, neither did, and
+  meaning-based search still worked inside each ("heart doctor" found "cardiologist"). So each elder gets a
+  datapack named `elder-<sha256(device)[:16]>`, and `agent_id` names the part of Saathi writing into it
+  (`saathi-voice` for facts, `saathi-tasks` for run trails, `saathi-setup` for the one-off conversation that
+  `datapack_create` needs). Datapack and profile ids live in the local `memory_ids` table.
+- Facts written before this change sit in the shared default datapack, where any elder could find them. New
+  writes go to per-elder datapacks; the old shared entries should be deleted (`memory_delete_by_id`).
+- A Meko search takes 15-18 s even inside a small datapack, so recall stays local on the voice path (3 s budget).
 
 ### Deviations
 - Turn-based speech keeps Sarvam first and uses Gemini as the fallback: Gemini TTS measured 2.4–3.9 s against
@@ -450,8 +455,9 @@ project, with the elder served by voice and the family by Telegram plus the fami
   HTTPS; use `http://10.0.2.2:8000` locally or a phone on mobile data.
 
 ### Gaps
-- Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Meko is never read
-  (no isolation, above) and its 5-21 s latency rules it out of any request path anyway.
+- Meko: `artifact_put`, `track_token_usage`, `memory_promote` and run resume are not built. Meko reads are safe
+  now (per-elder datapacks), but 15-18 s searches keep them off the request path. The way to use them is to fetch
+  in the background after a voice call starts and pass the results to the Live session as late context.
 - Memories carry over only into the Live voice prompt, by design. Not `/intent` or `/agent/step`: both produce
   the training data for compiled skills, and varying prompt text would make the same request map to different
   answers, which breaks the held-out replay tests. Not the clinic call: its prompt forbids sharing medical history.

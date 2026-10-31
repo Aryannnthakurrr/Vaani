@@ -33,13 +33,13 @@ class Memory(Protocol):
 
 
 class FallbackMemory:
-    """Local answers every read; Meko is a write-only mirror, written in the background.
+    """Local answers every read; Meko is the durable, per-elder copy, written in the background.
 
-    Meko answers in 5-21 s, so nobody waits on it: writes land locally at once and reach Meko later. It is never
-    read back, because its `memory_search` does not isolate elders: on 2026-10-31 a brand-new elder holding one
-    fact got back two facts written for other elders, despite our `conversation_id` and `agent_id`. Reading it could
-    tell one elder about another's family. Every fact is written locally first, so the local copy holds them all.
-    Re-check isolation with a fresh elder before ever reading from Meko.
+    Meko writes take 5-16 s and a search 15-18 s (measured 2026-10-31), while the voice call gives recall 3 s and
+    the `remember` tool's answer holds up the conversation. So nobody waits on Meko: writes land locally at once
+    and reach Meko later, and reads come from the local copy, which holds every fact because it is written first.
+    Meko reads are safe now that each elder has their own datapack (see meko.py); only their speed keeps them off
+    the request path.
     """
 
     def __init__(self, primary: Memory, local: Memory) -> None:
@@ -63,7 +63,7 @@ class FallbackMemory:
         self._later("remember", self.primary.remember(device, text, kind, **meta))
 
     async def recall(self, device: str, query: str, limit: int = 5) -> list[str]:
-        return await self.local.recall(device, query, limit)  # never Meko: see the class docstring
+        return await self.local.recall(device, query, limit)  # Meko is too slow here: see the class docstring
 
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         await self.local.log_step(device, run_id, goal, step)

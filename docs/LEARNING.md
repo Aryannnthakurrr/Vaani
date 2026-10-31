@@ -132,8 +132,10 @@ and transcription (or on-device speech if those are slow or offline). Typing sti
 
 Meko is reached through MCP at `https://mcp.mekodata.ai/mcp` (`Authorization: Bearer mko_tkn_…`, `MEKO_API_KEY`),
 Meko's default datapack. `app/memory/` uses one interface with two backends:
-`LocalMemory` (SQLite) answers every read, and `MekoMemory` (MCP) is a **write-only** mirror filled in the background.
-Meko is never read: its search returned other elders' facts, and each call takes 5-21 s (NOTES.md).
+`LocalMemory` (SQLite) answers every read, and `MekoMemory` (MCP) is the durable copy, filled in the background.
+**Each elder has their own Meko datapack**: Meko's search covers a whole datapack, so the datapack is the boundary
+between people. Inside it, `agent_id` names the part of Saathi writing (`saathi-voice`, `saathi-tasks`), and all of
+them share that one elder's context. Reads stay local because a Meko search takes 15-18 s (NOTES.md).
 
 | What | Meko tool | Used for |
 |---|---|---|
