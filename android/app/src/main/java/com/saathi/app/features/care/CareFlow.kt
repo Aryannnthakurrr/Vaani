@@ -398,12 +398,22 @@ class CareFlow(private val c: AppContainer) {
             say(s("Is this appointment for you, $own?", "क्या यह अपॉइंटमेंट आपके लिए है, $own?", "Kya yeh appointment aapke liye hai, $own?"))
             yesNo()
         }
-        val name = if (forSelf) own else run {
-            say(s("What is the patient's name?", "मरीज़ का नाम क्या है?", "Patient ka naam kya hai?"))
-            listen()
+        // Name and age in one question; only a part that wasn't heard is asked again.
+        val reply = if (forSelf) {
+            say(s("And your age?", "और आपकी उम्र?", "Aur aapki umar?"))
+            PatientReply.parse(listen()).copy(name = own)
+        } else {
+            say(s("What is the patient's name and age?", "मरीज़ का नाम और उम्र क्या है?", "Patient ka naam aur umar kya hai?"))
+            PatientReply.parse(listen())
         }
-        say(s("And the patient's age?", "और मरीज़ की उम्र?", "Aur patient ki umar?"))
-        val age = listen()?.let { Regex("\\d{1,3}").find(it)?.value?.toIntOrNull() }
+        val name = reply.name ?: run {
+            say(s("And the patient's name?", "और मरीज़ का नाम?", "Aur patient ka naam?"))
+            PatientReply.parse(listen()).name
+        }
+        val age = reply.age ?: run {
+            say(s("And the age?", "और उम्र?", "Aur umar?"))
+            PatientReply.parse(listen()).age
+        }
         // This phone's own number when the SIM has it; asked only when it doesn't.
         val phone = DevicePhone.number(c.context)?.also {
             val last = it.takeLast(4)
