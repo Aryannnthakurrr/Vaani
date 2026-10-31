@@ -34,6 +34,7 @@ from app.schemas import (
     dump_action,
     parse_action,
 )
+from app.usage import METER
 
 log = logging.getLogger("saathi.gemini")
 
@@ -98,6 +99,7 @@ class GeminiClient:
                     self.client.aio.models.generate_content(model=model, contents=contents, config=config),
                     timeout,
                 )
+                METER.llm(model, getattr(resp, "usage_metadata", None))
                 return resp.text or ""
             except Exception as exc:
                 # Overloaded (503/429) or slow: try the fallback model once; anything else is a real error.

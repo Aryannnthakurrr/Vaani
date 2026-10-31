@@ -23,7 +23,7 @@ class BackendClient(
     base: OkHttpClient = OkHttpClient(),
 ) : BackendApi {
 
-    private val http = base.newBuilder().connectTimeout(4, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
+    private val http = base.newBuilder().addInterceptor(UsageMeter.interceptor).connectTimeout(4, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
     private val sttHttp = http.newBuilder().callTimeout(4, TimeUnit.SECONDS).build()
     // Upper bound only; Speaker applies a length-scaled deadline (4–12 s) per sentence.
     private val ttsHttp = http.newBuilder().callTimeout(13, TimeUnit.SECONDS).build()

@@ -46,6 +46,7 @@ class LiveSocket(private val url: String, private val replyStyle: String, privat
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                com.saathi.app.core.net.UsageMeter.record("live_camera", 0, text.length.toLong(), request = false)
                 val obj = runCatching { SaathiJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
                 parse(obj)?.let(onEvent)
             }
@@ -82,7 +83,9 @@ class LiveSocket(private val url: String, private val replyStyle: String, privat
     }
 
     private fun send(obj: JsonObject) {
-        ws?.send(obj.toString())
+        val msg = obj.toString()
+        com.saathi.app.core.net.UsageMeter.record("live_camera", msg.length.toLong(), 0, request = false)
+        ws?.send(msg)
     }
 
     companion object {

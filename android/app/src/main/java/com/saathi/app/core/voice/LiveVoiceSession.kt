@@ -99,6 +99,7 @@ class LiveVoiceSession(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                com.saathi.app.core.net.UsageMeter.record("live_voice", 0, text.length.toLong(), request = false)
                 LiveWire.parse(text)?.let(::onEvent)
             }
 
@@ -210,7 +211,7 @@ class LiveVoiceSession(
                 while (isActive && !paused) {
                     val n = rec.read(chunk, 0, chunk.size)
                     if (n > 0) {
-                        ws?.send(LiveWire.audio(chunk, n))
+                        ws?.send(LiveWire.audio(chunk, n).also { com.saathi.app.core.net.UsageMeter.record("live_voice", it.length.toLong(), 0, request = false) })
                         _micLevel.value = VoiceLevel.rms16(chunk, n)
                     }
                 }

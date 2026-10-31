@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 
+from app import usage
 from app.config import get_settings
 from app.deps import get_db
 from app.llm.base import get_llm
@@ -26,6 +27,9 @@ from app.routers import (
     voice,
     voice_live,
     welfare,
+)
+from app.routers import (
+    usage as usage_router,
 )
 from app.skills import get_code_skills, get_engine
 from app.speech import sarvam_tts
@@ -76,9 +80,24 @@ app = FastAPI(title="Saathi backend", version="0.1.0", lifespan=lifespan)
 
 @app.middleware("http")
 async def access_log(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-    """Logs route, status, size and latency only — never request bodies."""
+    """Logs route, status, size and latency only — never request bodies. Also meters usage per device."""
     started = time.perf_counter()
-    response = await call_next(request)
+    device = request.headers.get("X-Saathi-Device", "")
+    token = usage.current_device.set(device)
+    try:
+        response = await call_next(request)
+    finally:
+        usage.current_device.reset(token)
+    route = getattr(
+        request.scope.get("route"), "path", request.url.path
+    )  # template, e.g. /care/{session_id}/events
+    usage.METER.request(
+        device,
+        f"{request.method} {route}",
+        int(request.headers.get("content-length", "0") or 0),
+        int(response.headers.get("content-length", "0") or 0),
+        (time.perf_counter() - started) * 1000,
+    )
     log.info(
         "%s %s status=%d req_bytes=%s latency_ms=%d",
         request.method,
@@ -103,5 +122,6 @@ for module in (
     telephony,
     skills,
     care,
+    usage_router,
 ):
     app.include_router(module.router)

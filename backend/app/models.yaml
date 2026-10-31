@@ -61,3 +61,11 @@ transliterate: { provider: sarvam }
 # 2-3x faster for turn-based replies (measured 2026-10-31); conversations use voice_live.
 gemini_tts: { model: gemini-3.8-flash-lite-tts, voice: Aoede, timeout_s: 8 }
 gemini_stt: { model: gemini-3.5-transcribe, timeout_s: 6 }
+
+# Prices for usage reports (app/usage.py, scripts/simulate_profiles.py), USD per million tokens. Left empty on purpose:
+# copy them from your Google AI Studio / Cloud billing page. Unpriced models are reported by tokens, never guessed.
+pricing:
+  gemini-3.5-flash-lite:   { input_per_m: null, output_per_m: null }
+  gemini-3.5-flash:        { input_per_m: null, output_per_m: null }
+  gemini-3.1-pro-preview:  { input_per_m: null, output_per_m: null }
+  gemini-4-argon:          { input_per_m: null, output_per_m: null }

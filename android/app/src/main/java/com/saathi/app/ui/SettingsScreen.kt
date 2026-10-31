@@ -198,6 +198,16 @@ private fun DebugSection(c: AppContainer, style: com.saathi.app.core.net.ReplySt
             c.phrases.text("scam_red_ussd", style), "scam_red_ussd"))
         scope.launch { c.speaker.sayPhrase("scam_red_ussd", style) }
     }, color = Danger)
+    // Data used since the app started, per feature (app side; the server's view is GET /usage).
+    var tick by remember { mutableStateOf(0) }
+    val usage = remember(tick) { com.saathi.app.core.net.UsageMeter.snapshot() }
+    val total = remember(tick) { com.saathi.app.core.net.UsageMeter.total() }
+    fun kb(b: Long) = "%.1f KB".format(b / 1024.0)
+    Text("Data used: ${kb(total.bytesUp)} up · ${kb(total.bytesDown)} down · ${total.requests} requests",
+        style = MaterialTheme.typography.titleMedium)
+    usage.forEach { (k, v) -> Text("$k: ${kb(v.bytesUp)} up · ${kb(v.bytesDown)} down · ${v.requests} req", style = MaterialTheme.typography.bodyMedium) }
+    BigButton("Refresh data used", { tick++ })
+    BigButton("Reset data counter", { com.saathi.app.core.net.UsageMeter.reset(); tick++ })
     }
 }
 

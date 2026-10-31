@@ -20,7 +20,7 @@ class CareUnavailable(message: String) : Exception(message)
 
 /** The backend's symptom-to-care routes (backend `routers/care.py`). Triage can take ~20 s when Gemini is slow. */
 class CareClient(private val settings: () -> Settings) {
-    private val http = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS)
+    private val http = OkHttpClient.Builder().addInterceptor(com.saathi.app.core.net.UsageMeter.interceptor).connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS).callTimeout(50, TimeUnit.SECONDS).build()
     private val json = "application/json".toMediaType()
 
