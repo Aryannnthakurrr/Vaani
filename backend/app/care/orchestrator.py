@@ -90,7 +90,11 @@ async def _find_and_call(session: CareSession, llm: LLMClient) -> None:
     if len({h.call_phone for h in to_call}) < len(to_call):
         # One phone plays several hospitals (the demo channel): it can only take one call at a time, and backups
         # would ring the same phone again, so call one after another with no backups.
-        results = [await _inquire_with_backup(session, llm, h, backup_queue) for h in to_call]
+        results = []
+        for h in to_call:
+            if session.live_booked:
+                break  # already booked during an earlier call
+            results.append(await _inquire_with_backup(session, llm, h, backup_queue))
     else:
         for h in backups:
             backup_queue.put_nowait(h)
@@ -124,9 +128,17 @@ async def _inquire(session: CareSession, llm: LLMClient, hospital: Hospital) -> 
         "patient_brief": note.patient_brief or note.chief_complaint,
         "needs": ", ".join([f"{note.specialty} consultation", *note.required_facilities]),
         "language": session.style,
+        # References the agent passes back to check_with_patient, so the answer reaches the right phone and hospital.
+        "session_ref": session.id,
+        "hospital_ref": hospital.id,
     }
     try:
         run = await calls.run_call(session, hospital.id, hospital.call_phone, "inquiry", user_data)
+        if hospital.id in session.live_booked and await _booked_on_the_call(
+            session, llm, hospital, run.transcript
+        ):
+            return CallResult(hospital_id=hospital.id, hospital_name=hospital.name, call_sid=run.execution_id,
+                              call_outcome="COMPLETED", eta_minutes=hospital.eta_minutes, address=hospital.address)  # fmt: skip
     except CallsUnavailable as exc:
         session.emit("error", stage="B3", message=str(exc))
         return CallResult(hospital_id=hospital.id, hospital_name=hospital.name, call_outcome="NO_ANSWER")
@@ -139,6 +151,8 @@ async def _inquire(session: CareSession, llm: LLMClient, hospital: Hospital) -> 
 
 
 def _recommend(session: CareSession, results: list[CallResult]) -> None:
+    if session.live_booked:
+        return  # the user said yes while a hospital was on the line; that call booked it
     by_id = {h.id: h for h in session.hospitals}
     ordered = ranking.rerank(results, by_id)
     if not ordered:
@@ -234,6 +248,28 @@ async def _book(session: CareSession, llm: LLMClient, hospital_id: str, slot: Sl
     elif booking.status == "failed" and session.booking_attempts >= 2:
         details["call_yourself"] = hospital.phone  # §10: two failed booking calls → the user calls
     session.emit("booking_status", hospital_id=hospital_id, **details)
+
+
+async def _booked_on_the_call(
+    session: CareSession, llm: LLMClient, hospital: Hospital, transcript: list[dict[str, str]]
+) -> bool:
+    """The user said yes mid-call: read the booking from that call's transcript and finish like a booking call.
+
+    Only a booking the transcript confirms counts. Otherwise the yes is dropped and the usual recommendation follows,
+    so the user is never told "booked" on a guess.
+    """
+    slot = session.live_booked[hospital.id]
+    booking = await extract.booking_result(llm, transcript, slot)
+    if booking.status != "confirmed":
+        session.live_booked.pop(hospital.id, None)
+        session.emit("live_confirm_unclear", hospital_id=hospital.id)
+        return False
+    session.chosen = (hospital.id, slot)
+    session.booking = booking
+    details = booking.model_dump()
+    details["calendar"] = _calendar_event(session, hospital, booking, slot)
+    session.emit("booking_status", hospital_id=hospital.id, during_inquiry=True, **details)
+    return True
 
 
 def _calendar_event(

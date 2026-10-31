@@ -77,6 +77,15 @@ up and drives to a stand-in hospital 3–6 km away: `PATIENT_ON_BOARD`, `EN_ROUT
    allowed → that call's slot moves on to a backup.
 4. Each finished transcript is turned into a `CallResult` (a model with a strict schema, or the rule reader: slots
    such as "kal 11 baje", doctor name, fee).
+4a. **Booking while the hospital is on the line.** Before the calls start the phone collects the patient's name, age
+   and phone and sends them with `search`. When a hospital offers a concrete slot, the inquiry agent says "one
+   moment" and calls its `check_with_patient` tool (`POST /care/tools/check_with_patient`, bearer
+   `BOLNA_TOOL_SECRET`). The backend pushes `live_confirm` to the phone, which asks "I'm on the phone with City Care
+   now… shall I book it?" and answers `POST /care/{id}/live_confirm` within 20 s (the hospital is held up to 25 s).
+   Yes → the agent books on that call with the patient's details, the transcript is checked, and `booking_status`
+   (`during_inquiry: true`) finishes like a booking call; the other calls are skipped. No, silence or a booking the
+   transcript does not confirm (`live_confirm_unclear`) → the agent says it will call back and steps 5–6 follow.
+   Without a secret or an https `PUBLIC_BASE_URL` the agent is built without the tool and never books on an inquiry.
 5. Re-rank: specialty confirmed, then the earliest slot, ETA, fee and rating. The recommendation is spoken and
    shown with **Yes, book · Pick another slot · No thanks**, and a spoken yes/no works as well.
 6. `POST /care/{id}/book` places the Bolna booking call. Results: `confirmed` (with a booking reference and calendar
@@ -86,7 +95,7 @@ up and drives to a stand-in hospital 3–6 km away: `PATIENT_ON_BOARD`, `EN_ROUT
    before. The final card has **Navigate** (Google Maps directions) and **Share** (`wa.me`).
 
 Every call goes through Bolna agents created with `scripts/bolna_agent.py --mode inquiry` / `--mode booking`. The
-agents open by saying they are an AI assistant, share only what each call needs, never book on the inquiry call and
+agents open by saying they are an AI assistant, share only what each call needs, book on the inquiry call only after the user's yes (4a) and
 never accept a different time without the user. **Only numbers in `CALL_ALLOWED_NUMBERS` are ever dialled.**
 
 **Masking.** `MASK_HOSPITAL_NUMBERS=1` (the default) makes every hospital call ring a test number: the first in
@@ -96,7 +105,7 @@ and backups are skipped.
 
 ## API and events
 
-All routes need `X-Saathi-Device`; a session belongs to the device that created it.
+All routes except the Bolna tool need `X-Saathi-Device`; a session belongs to the device that created it.
 
 | Route | Purpose |
 |---|---|
@@ -104,14 +113,17 @@ All routes need `X-Saathi-Device`; a session belongs to the device that created 
 | `POST /care/{id}/location` | Update location or landmark |
 | `POST /care/{id}/intake` `{text}` | → `{done:false, question}` or `{done:true, route, note, safety_flags}` |
 | `GET /care/{id}/events?after=N` | Events after sequence N (the phone polls every 1–1.5 s) |
-| `POST /care/{id}/search` | Path B, in the background |
+| `POST /care/{id}/search` `{patient?}` | Path B, in the background |
+| `POST /care/{id}/live_confirm` `{ask_id, yes}` | The user's answer to a slot offered mid-call → `{accepted}` |
+| `POST /care/tools/check_with_patient` | Bolna tool only (bearer `BOLNA_TOOL_SECRET`, no device header) |
 | `POST /care/{id}/book` `{hospital_id, slot, patient?}` | Booking call, in the background |
 | `POST /care/{id}/emergency/alert` | → `{countdown_sec}` |
 | `POST /care/{id}/emergency/dispatch` `{trigger: countdown\|send_now, landmark?}` | Create the dispatch |
 | `POST /care/{id}/emergency/cancel` | "I'm OK" |
 
 Events: `session_started`, `intake_question`, `intake_note`, `care_status`, `hospitals_found`, `call_status`,
-`call_transcript`, `call_result`, `recommendation`, `no_options`, `care_fallback`, `booking_status`,
+`call_transcript`, `call_result`, `live_confirm`, `live_confirm_done`, `live_confirm_unclear`, `recommendation`,
+`no_options`, `care_fallback`, `booking_status`,
 `emergency_alert`, `dispatch_created`, `dispatch_status`, `ambulance_location`, `dispatch_failed`,
 `emergency_cancelled`, `error`. The server logs only event types, never symptoms or transcripts.
 

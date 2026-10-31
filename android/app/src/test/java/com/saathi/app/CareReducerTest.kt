@@ -50,4 +50,30 @@ class CareReducerTest {
         assertEquals("Hospital calls are not set up", failed.message)
         assertEquals("+91 1", failed.fallback.single().phone)
     }
+
+    @Test
+    fun aSlotOfferedOnTheCallIsAskedThenBooked() {
+        val asked = fold(
+            ev(1, "live_confirm", """{"ask_id":"k1","hospital_id":"a","hospital_name":"City Care","doctor":"Dr. Meera","slot":"kal 11 baje","fee":"600"}"""),
+        )
+        assertEquals("k1", asked.liveAsk?.askId)
+        assertEquals("kal 11 baje", asked.liveAsk?.slot)
+        val stale = CareReducer.apply(asked, ev(2, "live_confirm_done", """{"ask_id":"other","decision":"no"}"""))
+        assertEquals("k1", stale.liveAsk?.askId) // only its own answer clears it
+        val done = CareReducer.apply(stale, ev(3, "live_confirm_done", """{"ask_id":"k1","decision":"yes"}"""))
+        assertEquals(null, done.liveAsk)
+        val booked = CareReducer.apply(done, ev(4, "booking_status", """{"status":"confirmed","hospital_id":"a","during_inquiry":true,"booking_ref":"CC-1"}"""))
+        assertEquals(CarePhase.BOOKED, booked.phase)
+        assertEquals("CC-1", booked.booking?.bookingRef)
+    }
+
+    @Test
+    fun anUnconfirmedYesFallsBackQuietly() {
+        val ui = fold(
+            ev(1, "live_confirm", """{"ask_id":"k1","hospital_name":"City Care","slot":"kal 11 baje"}"""),
+            ev(2, "live_confirm_unclear", """{"hospital_id":"a"}"""),
+        )
+        assertEquals(null, ui.liveAsk)
+        assertTrue(ui.liveUnclear)
+    }
 }

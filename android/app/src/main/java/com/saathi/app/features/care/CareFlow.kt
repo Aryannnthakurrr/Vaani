@@ -250,11 +250,28 @@ class CareFlow(private val c: AppContainer) {
                 "Yeh emergency nahi lagti. Kya main paas ke teen hospitals mein ${note.specialty} doctor ke baare mein call karke poochun?"))
             if (!yesNo()) return say(s("Okay. If it gets worse, call 108.", "ठीक है। अगर तबीयत बिगड़े तो 108 पर फ़ोन कीजिए।", "Theek hai. Agar tabiyat bigde to 108 par call kijiye."))
         }
-        client.search(session)
+        // Details first, so that if a hospital offers a slot while we are on the line, a yes books it on that call.
+        say(s("So I can book while I'm on the phone with them, a few quick details.", "ताकि फ़ोन पर ही बुक कर सकूँ, बस कुछ जानकारी।",
+            "Taaki phone par hi book kar sakun, bas kuch details."))
+        client.search(session, patientDetails())
         _ui.update { it.copy(phase = CarePhase.SEARCHING) }
         var announcedCalls = false
+        var askedLive: String? = null
         while (true) {
             val ui = poll(session)
+            val ask = ui.liveAsk
+            if (ask != null && ask.askId != askedLive) {
+                askedLive = ask.askId
+                askWhileOnTheCall(session, ask)
+                continue
+            }
+            if (ui.liveUnclear) {
+                _ui.update { it.copy(liveUnclear = false) }
+                say(s("I couldn't confirm that booking on the call. I'll tell you what the hospitals said.",
+                    "उस कॉल पर बुकिंग पक्की नहीं हो पाई। मैं बताता हूँ अस्पतालों ने क्या कहा।",
+                    "Us call par booking pakki nahi ho payi. Main batata hoon hospitals ne kya kaha."))
+            }
+            ui.booking?.takeIf { it.status == "confirmed" }?.let { return booked(it) }
             if (!announcedCalls && ui.phase == CarePhase.CALLING) {
                 announcedCalls = true
                 val calling = ui.hospitals.filter { it.calling }.joinToString(", ") { it.hospital.name }
@@ -267,6 +284,31 @@ class CareFlow(private val c: AppContainer) {
                 else -> delay(POLL_MS)
             }
         }
+    }
+
+    /**
+     * A hospital is holding the line with a concrete slot. One spoken or tapped yes books it on that call; silence or
+     * a late answer leaves the call to say "we'll call back", and the usual recommendation follows.
+     */
+    private suspend fun askWhileOnTheCall(session: String, ask: LiveAsk) {
+        val who = listOf(ask.doctor, ask.hospitalName).filter { it.isNotBlank() }.joinToString(", ")
+        val fee = ask.fee.takeIf { it.isNotBlank() }?.let { s(", fee $it", ", फ़ीस $it", ", fee $it") }.orEmpty()
+        say(s("I'm on the phone with ${ask.hospitalName} now. They can see you: $who, ${ask.slot}$fee. Shall I book it?",
+            "मैं अभी ${ask.hospitalName} से फ़ोन पर बात कर रहा हूँ। $who, ${ask.slot}$fee मिल सकता है। क्या बुक कर दूँ?",
+            "Main abhi ${ask.hospitalName} se phone par baat kar raha hoon. $who, ${ask.slot}$fee mil sakta hai. Kya book kar doon?"))
+        val yes = withTimeoutOrNull(LIVE_ANSWER_MS) { yesNo() }
+        if (yes == null) {
+            tapped = null; typed = null  // yesNo() was cancelled before its own clean-up
+            _asking.value = Asking.NOTHING
+            c.speaker.stop()
+            return say(s("I'll tell them we'll call back.", "मैं उन्हें बोल देता हूँ कि हम वापस फ़ोन करेंगे।", "Main unhe bol deta hoon ki hum wapas call karenge."))
+        }
+        val accepted = runCatching { client.liveConfirm(session, ask.askId, yes) }.getOrDefault(false)
+        say(when {
+            !accepted -> s("They couldn't wait, so I'll call them back.", "वे रुक नहीं पाए, मैं उन्हें वापस फ़ोन करूँगा।", "Woh ruk nahi paaye, main unhe wapas call karunga.")
+            yes -> s("Booking it now, while they're on the line.", "अभी फ़ोन पर ही बुक कर रहा हूँ।", "Abhi phone par hi book kar raha hoon.")
+            else -> s("Okay, not this one.", "ठीक है, यह नहीं।", "Theek hai, yeh nahi.")
+        })
     }
 
     private suspend fun poll(session: String): CareUi {
@@ -365,6 +407,8 @@ class CareFlow(private val c: AppContainer) {
     private companion object {
         const val POLL_MS = 1_500L
         const val SLOW_MS = 4_000L
+        /** A little under the backend's 25 s hold (care/live_confirm.py WAIT_S), so a yes still reaches the call. */
+        const val LIVE_ANSWER_MS = 20_000L
     }
 }
 

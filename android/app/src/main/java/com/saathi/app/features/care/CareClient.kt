@@ -33,8 +33,16 @@ class CareClient(private val settings: () -> Settings) {
     suspend fun events(session: String, after: Int): List<CareEvent> =
         send("/care/$session/events?after=$after", null, EventsReply.serializer()).events
 
-    suspend fun search(session: String) {
-        send("/care/$session/search", "{}", JsonObject.serializer())
+    /** @param patient sent up front so a yes during a hospital call can book there and then. */
+    suspend fun search(session: String, patient: CarePatient? = null) {
+        val body = patient?.let { JsonObject(mapOf("patient" to SaathiJson.encodeToJsonElement(CarePatient.serializer(), it))).toString() } ?: "{}"
+        send("/care/$session/search", body, JsonObject.serializer())
+    }
+
+    /** The user's yes or no to a slot offered on a call that is still going on. False when it came too late. */
+    suspend fun liveConfirm(session: String, askId: String, yes: Boolean): Boolean {
+        val body = JsonObject(mapOf("ask_id" to JsonPrimitive(askId), "yes" to JsonPrimitive(yes))).toString()
+        return (send("/care/$session/live_confirm", body, JsonObject.serializer())["accepted"] as? JsonPrimitive)?.content == "true"
     }
 
     suspend fun book(session: String, body: BookRequest) {

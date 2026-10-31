@@ -684,3 +684,20 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   is right there"). It never lectures or refuses, and with no health info it says nothing about health.
 - The context reaches the camera in its first WebSocket message, never the URL (URLs are logged).
 - The live voice prompt has the same once-only nudge rule for food ordered online.
+
+## Batch 7: confirming an appointment while the hospital is still on the call (2026-11-01)
+
+- Verified against Bolna: custom function tools live at `agent_config.tasks[0].tools_config.api_tools` as
+  `{"tools": [{name, key: "custom_task", description, pre_call_message, parameters}], "tools_params": {name: {method,
+  url, api_token, param}}}`, with `param` a JSON string of `%(arg)s` templates. Created with
+  `scripts/bolna_agent.py --mode inquiry` and read back from `GET /v2/agent/{id}`: tool, parameters, URL, token and
+  prompt rule all stored. New inquiry agent is in `.env`; the old one is kept there as a comment.
+- Not verified yet: a real call where the agent invokes the tool. The tool URL is `PUBLIC_BASE_URL`, currently a
+  temporary trycloudflare tunnel, so **re-run `scripts/bolna_agent.py --mode inquiry` whenever the tunnel or
+  server URL changes**, and update `BOLNA_INQUIRY_AGENT_ID`.
+- Whether Bolna sends `api_token` as-is or adds its own "Bearer " is undocumented; the backend accepts both.
+- The phone now asks the patient's name, age and phone before the inquiry calls (not after the recommendation), so
+  a mid-call yes can book at once. It costs two or three questions up front.
+- "Booked" is only said when the call's transcript confirms it; an unclear yes falls back to the normal
+  recommendation and booking call. Answers after 20 s on the phone (25 s on the server) become "we'll call back".
+

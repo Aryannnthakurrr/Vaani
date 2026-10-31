@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.care import dispatch, orchestrator, places, triage
-from app.care.models import BookRequest, CareStart, IntakeTurn, Location
+from app.care import dispatch, live_confirm, orchestrator, places, triage
+from app.care.models import BookRequest, CareStart, IntakeTurn, Location, Patient
 from app.care.session import CARE, CareSession
 from app.config import Settings
 from app.db import Database
@@ -77,12 +77,21 @@ def events(
     return {"events": _session(session_id, device).events_after(after)}
 
 
+class SearchBody(BaseModel):
+    patient: Patient | None = None
+
+
 @router.post("/{session_id}/search")
 async def search(
-    session_id: str, device: str = Depends(require_device), llm: LLMClient = Depends(llm_dep)
+    session_id: str,
+    body: SearchBody | None = None,
+    device: str = Depends(require_device),
+    llm: LLMClient = Depends(llm_dep),
 ) -> dict[str, object]:
     """Path B: find, rank and call hospitals in the background."""
     session = _session(session_id, device)
+    if body is not None and body.patient is not None:
+        session.patient = body.patient  # so a yes during an inquiry call can book at once
     if session.note is None:
         raise HTTPException(409, "Finish the intake first.")
     if session.location is None and not places.demo_mode():
@@ -104,6 +113,42 @@ async def book(
     patient = body.patient or session.patient
     orchestrator.spawn(orchestrator.book(session, llm, body.hospital_id, body.slot, patient))
     return {"started": True}
+
+
+class CheckWithPatient(BaseModel):
+    """What the Bolna inquiry agent sends mid-call (scripts/bolna_agent.py, tool check_with_patient)."""
+
+    session_ref: str = Field(max_length=40)
+    hospital_ref: str = Field(max_length=80)
+    doctor: str = Field(default="", max_length=200)
+    slot: str = Field(default="", max_length=200)
+    fee: str = Field(default="", max_length=40)
+
+
+class LiveAnswer(BaseModel):
+    ask_id: str = Field(max_length=20)
+    yes: bool
+
+
+@router.post("/tools/check_with_patient")
+async def check_with_patient(
+    body: CheckWithPatient, authorization: str | None = Header(default=None)
+) -> dict[str, object]:
+    """Called by the hospital-call agent while the hospital waits; answers once the user says yes or no."""
+    if not live_confirm.authorised(authorization):
+        raise HTTPException(401, "Unknown caller.")
+    session = CARE.get_any(body.session_ref)
+    if session is None:
+        return {"decision": "no_answer", "say": "Say you will confirm with the patient and call back."}
+    return await live_confirm.ask(session, body.hospital_ref, body.doctor, body.slot, body.fee)
+
+
+@router.post("/{session_id}/live_confirm")
+def live_answer(
+    session_id: str, body: LiveAnswer, device: str = Depends(require_device)
+) -> dict[str, object]:
+    """The user's yes or no to a slot offered on a call that is still going on."""
+    return {"accepted": live_confirm.answer(_session(session_id, device), body.ask_id, body.yes)}
 
 
 # ------------------------------------------------------------------------------------------------ path A

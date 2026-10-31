@@ -31,8 +31,15 @@ data class CareUi(
     val booking: BookingStatus? = null,
     val fallback: List<Hospital> = emptyList(),
     val message: String? = null,
+    /** A slot a hospital is offering on a call that is still going on; the user's yes books it on that call. */
+    val liveAsk: LiveAsk? = null,
+    /** The last yes on a call could not be confirmed from that call; the usual recommendation follows. */
+    val liveUnclear: Boolean = false,
     val lastSeq: Int = 0,
 )
+
+/** One "book it now?" question while a hospital waits on the line (backend care/live_confirm.py). */
+data class LiveAsk(val askId: String, val hospitalName: String, val doctor: String, val slot: String, val fee: String)
 
 /**
  * Folds backend events (docs/CARE.md) into [CareUi]. Pure, so it is JVM-tested. Intake events are ignored here:
@@ -67,6 +74,12 @@ object CareReducer {
             "booking_status" -> e.data.decode(BookingStatus.serializer())?.let {
                 ui.copy(booking = it, phase = if (it.status == "confirmed") CarePhase.BOOKED else CarePhase.BOOKING)
             } ?: ui
+            "live_confirm" -> e.data.str("ask_id")?.let {
+                ui.copy(liveAsk = LiveAsk(it, e.data.str("hospital_name").orEmpty(), e.data.str("doctor").orEmpty(),
+                    e.data.str("slot").orEmpty(), e.data.str("fee").orEmpty()))
+            } ?: ui
+            "live_confirm_done" -> if (ui.liveAsk?.askId == e.data.str("ask_id")) ui.copy(liveAsk = null) else ui
+            "live_confirm_unclear" -> ui.copy(liveAsk = null, liveUnclear = true)
             "error" -> ui.copy(message = e.data.str("message"), phase = if (ui.phase == CarePhase.BOOKING) ui.phase else CarePhase.ERROR)
             else -> ui
         }
