@@ -17,6 +17,9 @@ if ! "$EMULATOR" -list-avds 2>/dev/null | tr -d '\r' | grep -qx "$AVD"; then
   echo "Creating AVD $AVD..."
   echo no | "$AVDMANAGER" create avd -n "$AVD" -k "$IMAGE" -d pixel_7 --force
 fi
+# Let the PC keyboard type into the emulator (needed to log in to Uber, Practo, etc.).
+CFG="$HOME/.android/avd/$AVD.avd/config.ini"
+if [ -f "$CFG" ]; then sed -i 's/^hw.keyboard=no/hw.keyboard=yes/' "$CFG"; grep -q '^hw.keyboard=' "$CFG" || echo "hw.keyboard=yes" >> "$CFG"; fi
 
 if "$ADB" devices | tr -d '\r' | grep -q "^emulator-.*device$"; then
   echo "An emulator is already running."
