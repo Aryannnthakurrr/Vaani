@@ -40,7 +40,7 @@ BRANDS: dict[str, tuple[str, ...]] = {
 }
 SHORTENERS = frozenset(
     "bit.ly tinyurl.com t.co goo.gl is.gd cutt.ly rb.gy ow.ly shorturl.at t.ly rebrand.ly tiny.cc "
-    "s.id v.gd bitly.ws".split()
+    "s.id v.gd bitly.ws shorturl.asia surl.li u.to buff.ly lnkd.in tinyurl.co qr.ae is.gy clck.ru".split()
 )
 MULTI_PART_SUFFIXES = ("co.in", "gov.in", "org.in", "net.in", "ac.in", "bank.in", "co.uk", "com.au")
 # Visually confusable characters folded to their ASCII lookalike before comparing to brands.
