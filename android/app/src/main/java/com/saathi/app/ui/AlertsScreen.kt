@@ -15,6 +15,7 @@ import java.util.Date
 /** Alerts history: every scam/safety event, newest first, explained in plain language. */
 @Composable
 fun AlertsScreen(container: AppContainer, onBack: () -> Unit) {
+    SecureWindow() // private data: no screenshots or screen recording
     val settings by container.settings.flow.collectAsState()
     val style = settings.replyStyle
     val events by container.db.events().recent().collectAsState(initial = emptyList())

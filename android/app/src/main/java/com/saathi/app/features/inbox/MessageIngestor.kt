@@ -41,6 +41,7 @@ class MessageIngestor(private val container: AppContainer) {
                 db.privateValues().insert(PrivateValueEntity(kind = it.kind.name, value = it.value, sender = sender, createdAt = ts))
             }
             db.privateValues().purgeBefore(ts - VAULT_KEEP_MS)
+            db.messages().purgeBefore(ts - VAULT_KEEP_MS)
             prepared = InboxPipeline.prepareTokenized("pending", sender, PrivateSpans.bind(extracted.text, ids), isOtp, fromContact)
             db.messages().insert(MessageEntity(
                 sourcePkg = sourcePkg, sender = sender, redactedText = prepared.redactedText,

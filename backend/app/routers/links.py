@@ -12,7 +12,7 @@ from app.db import Database
 from app.deps import db_dep, llm_dep, require_device, settings_dep
 from app.llm.base import LLMClient
 from app.sandbox import browser
-from app.sandbox.url_checks import analyse, rule_verdict, url_hash
+from app.sandbox.url_checks import analyse, privacy_url, rule_verdict, url_hash
 from app.schemas import LinkCheckRequest, LinkCheckResponse
 
 log = logging.getLogger("saathi.links")
@@ -22,6 +22,7 @@ YOUNG_DOMAIN_DAYS = 30
 
 
 async def check_url(url: str, settings: Settings, llm: LLMClient) -> LinkCheckResponse:
+    url = privacy_url(url)  # second safety net: the phone strips links too; the sandbox opens only this
     first = analyse(url)
     chain = [first.url]
     if first.shortener:
@@ -67,7 +68,7 @@ async def links_check(
     db: Database = Depends(db_dep),
     llm: LLMClient = Depends(llm_dep),
 ) -> LinkCheckResponse:
-    key = url_hash(req.url)
+    key = url_hash(privacy_url(req.url))
     cached = db.cache_get(key, CACHE_SECONDS)
     if cached:
         return LinkCheckResponse(**{**cached, "cached": True})

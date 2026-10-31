@@ -1,5 +1,6 @@
 package com.saathi.app.features.care
 
+import com.saathi.app.ui.SecureWindow
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
@@ -62,6 +63,7 @@ import com.saathi.app.ui.theme.Muted
  */
 @Composable
 fun CareScreen(c: AppContainer, onBack: () -> Unit) {
+    SecureWindow() // private data: no screenshots or screen recording
     val ui by c.care.ui.collectAsState()
     val asking by c.care.asking.collectAsState()
     val style = c.settings.current.replyStyle

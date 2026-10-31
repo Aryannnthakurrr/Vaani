@@ -50,7 +50,7 @@ class LiveSocket(
     @Volatile private var closedByUs = false
 
     fun connect() {
-        ws = client.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
+        ws = client.newWebSocket(com.saathi.app.core.net.DeviceAuth.sign(Request.Builder().url(url)).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 send(buildJsonObject {
                     put("type", JsonPrimitive("config"))

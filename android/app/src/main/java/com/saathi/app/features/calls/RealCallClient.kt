@@ -44,7 +44,7 @@ class RealCallUnavailable(message: String) : Exception(message)
  * and runs the conversation; the app starts the call, polls the transcript and can hang up.
  */
 class RealCallClient(private val settings: () -> Settings) {
-    private val http = OkHttpClient.Builder().addInterceptor(com.saathi.app.core.net.UsageMeter.interceptor).connectTimeout(5, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS).build()
+    private val http = OkHttpClient.Builder().addInterceptor(com.saathi.app.core.net.UsageMeter.interceptor).addInterceptor(com.saathi.app.core.net.DeviceAuth.interceptor).connectTimeout(5, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS).build()
     private val json = "application/json".toMediaType()
 
     suspend fun start(body: RealCallStart): RealCallState =

@@ -21,6 +21,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.care import triage
 from app.care.session import CARE, CareSession
 from app.config import Settings, get_settings
+from app.deps import device_ok
 from app.llm.base import get_llm
 from app.llm.prompts import render
 from app.memory import TOPICS, fact_key, facts_for, format_memories, get_memory, name_for
@@ -427,7 +428,9 @@ async def _pump(
 @router.websocket("/live/voice")
 async def live_voice(ws: WebSocket) -> None:
     device = ws.query_params.get("device", "")
-    if len(device) < 8:
+    if not device_ok(
+        device, ws.headers.get("x-saathi-key")
+    ):  # the key rides in a header, never the logged URL
         await ws.close(code=4401)
         return
     await ws.accept()

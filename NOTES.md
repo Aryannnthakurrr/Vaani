@@ -723,3 +723,32 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
 - After a booking the phone asks before adding the calendar event and the two reminders (a day and 2 h before,
   `ReminderPlanner`); the appointment itself is always saved for "cab to my appointment".
 - Not reproduced: "the recommendation isn't spoken". The code speaks it (`CareFlow.recommend`); needs a phone log.
+
+## Privacy fixes and the privacy audit (2026-11-01)
+
+- `scripts/privacy_audit.py` → `docs/PRIVACY_AUDIT.md` + `docs/privacy_audit.json`. Measured: 0 of 26 personal values
+  in server logs after 25 requests carrying them raw through 9 routes; 16 of 16 forged/cross-device requests
+  blocked; 0 of 22 secrets leave the phone (`PrivacyAuditTest`, corpus `fixtures/privacy/messages.json`); 10 of 10
+  links stripped as expected. The same checks run in `backend/tests/test_privacy.py`, `PrivacyTest.kt`,
+  `PrivacyAuditTest.kt`.
+- Found by the audit and fixed in `Redactor`: UPI IDs followed by a full stop were not masked; an account number
+  repeated away from "a/c" (e.g. `?acc=` in a link) was not masked. Before: 3 of 22 secrets would leave the phone.
+  Also new: any 11–18 digit run is masked (account/reference numbers; 10-digit phone numbers stay). This changes
+  the old `nonLuhnLongNumberIsNotTreatedAsCard` expectation on purpose.
+- Install secret `X-Saathi-Key` (core/net/DeviceAuth.kt, backend deps.device_ok): trust on first use, SHA-256 hash
+  stored in `device_keys`. A device that never sent a key still works on its id (older builds); once it sends one,
+  it must always. Found while doing this: `/welfare/*` and `/scam/notify_family` acted on the body's `device_id`, so
+  any device could change another's family contacts; now `403` unless it is the caller.
+- Links: `LinkPrivacy.strip` (phone) and `privacy_url` (server) share `fixtures/link_privacy/cases.json`. Short-link
+  codes are kept so redirects still resolve; query-string scam signals (e.g. `?redirect=`) are no longer seen.
+- Settings: `SafetyPolicy` stops on restricted Settings page titles and blocks taps on restricted rows; the
+  `settings_dark_mode` / `settings_font_size` replays still pass.
+- `SecureWindow()` (FLAG_SECURE) on digest, alerts, care, activity log and settings screens.
+- Retention: `MessageDao.purgeBefore` (30 days); `agent_state` purged after 7 days; call transcripts dropped from a care
+  session once booked or cancelled; `DELETE /memory`. Not done: a phone "Delete all my data" button.
+- Family alerts: emergency text has no symptoms; scam summaries lose numbers (`welfare.family_safe`). Inquiry calls
+  get `age_band` ("70s, F"); the booking call still gets the exact age.
+- Not done from the list: on-phone-only switch (6), screen-step masking of typed fields (8), notification pre-scan
+  narrowing (9), processors page (12), debug-hook release check (13), short-lived family link tokens (15b), Bolna
+  recording settings (11b, not verified).
+

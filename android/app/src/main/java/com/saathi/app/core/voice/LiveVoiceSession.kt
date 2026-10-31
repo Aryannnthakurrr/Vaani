@@ -88,7 +88,7 @@ class LiveVoiceSession(
             fail("no microphone permission")
             return
         }
-        ws = client.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
+        ws = client.newWebSocket(com.saathi.app.core.net.DeviceAuth.sign(Request.Builder().url(url)).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 connected = true
                 webSocket.send(LiveWire.config(replyStyle(), sharedContext()))

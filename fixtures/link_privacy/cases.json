@@ -1,0 +1,12 @@
+[
+  {"in": "https://x.in/reset?token=abc123", "out": "https://x.in/reset"},
+  {"in": "https://bank-kyc.co/verify?acc=1234567890&otp=4455#step2", "out": "https://bank-kyc.co/verify"},
+  {"in": "https://bit.ly/3xYz9Ab", "out": "https://bit.ly/3xYz9Ab"},
+  {"in": "https://pay.example.com/p/8f14e45fceea167a5a36dedd4bea2543/confirm", "out": "https://pay.example.com/p/…/confirm"},
+  {"in": "https://drive.example.com/file/d/1aB2cD3eF4gH5iJ6kL7mN8oP9qR0sT/view?usp=sharing", "out": "https://drive.example.com/file/d/…/view"},
+  {"in": "https://x.in/u/550e8400-e29b-41d4-a716-446655440000", "out": "https://x.in/u/…"},
+  {"in": "http://sbi-kyc-update.in/login", "out": "http://sbi-kyc-update.in/login"},
+  {"in": "HTTPS://Amazon.IN/gp/your-account/order-details", "out": "https://amazon.in/gp/your-account/order-details"},
+  {"in": "https://user:pass@evil.com/a", "out": "https://evil.com/a"},
+  {"in": "wa.me/919812345678?text=hi", "out": "http://wa.me/…"}
+]

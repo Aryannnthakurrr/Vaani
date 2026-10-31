@@ -1,0 +1,14 @@
+[
+  {"id": "sms_debit", "source": "sms", "sender": "VM-HDFCBK", "text": "Rs.25,000.00 debited from A/c XX1234567890 on 01-11-26 to VPA ramesh.k@okaxis. Not you? Call 18002586161", "secrets": ["1234567890", "25,000", "ramesh.k@okaxis"]},
+  {"id": "sms_otp", "source": "sms", "sender": "AX-SBIOTP", "text": "483920 is your OTP for txn of Rs 4,999 at AMAZON. Valid 10 mins. Do not share with anyone.", "secrets": ["483920"], "otp": true},
+  {"id": "sms_card", "source": "sms", "sender": "VK-ICICIB", "text": "Your ICICI Credit Card 4111 1111 1111 1111 was used for Rs 12,450 at FLIPKART.", "secrets": ["4111 1111 1111 1111", "12,450"]},
+  {"id": "sms_aadhaar", "source": "sms", "sender": "UIDAI", "text": "Your Aadhaar 2345 6789 0123 has been linked to mobile. If not done by you, contact 1947.", "secrets": ["2345 6789 0123"]},
+  {"id": "sms_pan", "source": "sms", "sender": "ITDEPT", "text": "PAN ABCPK1234F linked with Aadhaar successfully. Refund of Rs 3,200 processed to account 50100234567812.", "secrets": ["ABCPK1234F", "50100234567812", "3,200"]},
+  {"id": "sms_credit", "source": "sms", "sender": "JD-SBIINB", "text": "Dear Customer, INR 1,50,000 credited to your a/c no. 30987654321 by NEFT. Avl bal INR 2,10,450.", "secrets": ["30987654321", "1,50,000", "2,10,450"]},
+  {"id": "email_statement", "source": "email", "sender": "alerts@hdfcbank.example", "text": "Dear customer, your account no. 50100987654321 has been debited by Rs. 8,750.00 towards EMI. Card XXXX1234.", "secrets": ["50100987654321", "8,750"]},
+  {"id": "email_otp", "source": "email", "sender": "no-reply@irctc.example", "text": "Your one time password for IRCTC login is 772031. Never share it.", "secrets": ["772031"], "otp": true},
+  {"id": "email_refund", "source": "email", "sender": "refunds@amazon.example", "text": "Refund of Rs 1,299 for order 404-1234567-1234567 has been credited to your UPI id sunita.devi@ybl.", "secrets": ["sunita.devi@ybl", "1,299"]},
+  {"id": "wa_contact", "source": "whatsapp", "sender": "Beta Ravi", "contact": true, "text": "Mummy I sent 5000 to your account 1234509876, check karo", "secrets": ["1234509876", "5000"]},
+  {"id": "wa_scam", "source": "whatsapp", "sender": "+91 98123 45678", "text": "Nani main Rohan, phone kho gaya. Hospital mein hoon, jaldi 15000 is UPI pe bhej do rohan.help@paytm", "secrets": ["rohan.help@paytm"]},
+  {"id": "sms_kyc_scam", "source": "sms", "sender": "VM-ALERTX", "text": "Your SBI a/c 20123456789 will be BLOCKED today. Update KYC at http://sbi-kyc-update.in/x?acc=20123456789", "secrets": ["20123456789"]}
+]

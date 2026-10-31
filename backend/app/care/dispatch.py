@@ -138,8 +138,8 @@ async def dispatch(
     session.emit("dispatch_created", dispatch_id=created["dispatch_id"], trigger=trigger, priority=body["priority"],
                  service_level=body["service_level"],
                  driver_url=f"{base_url()}/driver/{created['dispatch_id']}?key={api_key()}")  # fmt: skip
-    await notify(f"Saathi emergency: an ambulance has been requested ({body['priority']}). "
-                 f"{body['clinical']['atmist']['injuries_or_illness']}. Please call them now.")  # fmt: skip
+    # No symptoms in the message: Telegram is a third party and family phones get lost. The crew has the details.
+    await notify(f"Saathi emergency: an ambulance has been requested ({body['priority']}). Please call them now.")
     await track(session, created["dispatch_id"])
 
 

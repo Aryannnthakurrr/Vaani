@@ -42,7 +42,9 @@ class RedactorTest {
     }
 
     @Test fun nonLuhnLongNumberIsNotTreatedAsCard() {
-        assertTrue(Redactor.redact("Ref 1234567890123").text.contains("1234567890123"))
+        // Not a card (fails Luhn), but 11+ digits is no phone number either: masked as a long reference number.
+        assertEquals("Ref XX0123", Redactor.redact("Ref 1234567890123").text)
+        assertTrue(Redactor.redact("Call 9812345678").text.contains("9812345678")) // ordinary phone numbers stay
     }
 
     @Test fun aadhaarIsMasked() {

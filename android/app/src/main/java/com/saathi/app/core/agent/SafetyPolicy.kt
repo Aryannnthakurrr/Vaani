@@ -5,7 +5,7 @@ import com.saathi.app.core.net.AgentMode
 import com.saathi.app.util.Packages
 
 /** Why the agent must pause before reading or acting on a screen. */
-enum class ScreenStop { SECRET_ENTRY, LOGIN, FOREIGN_APP }
+enum class ScreenStop { SECRET_ENTRY, LOGIN, FOREIGN_APP, SETTINGS_RESTRICTED }
 
 sealed interface Verdict {
     data object Allow : Verdict
@@ -42,8 +42,29 @@ object SafetyPolicy {
         if (isSecretScreen(s)) return ScreenStop.SECRET_ENTRY
         if (mode == AgentMode.ACT && isLoginScreen(s)) return ScreenStop.LOGIN
         if (mode == AgentMode.ACT && s.pkg !in allowedPackages && s.pkg !in SYSTEM_PACKAGES) return ScreenStop.FOREIGN_APP
+        if (mode == AgentMode.ACT && s.pkg == Packages.SETTINGS && isRestrictedSettingsPage(s)) return ScreenStop.SETTINGS_RESTRICTED
         return null
     }
+
+    /**
+     * Settings is allowed only for look-and-sound changes (text size, display, dark mode, volume, brightness). A page
+     * whose title names anything else (security, accounts, apps, developer options, location, reset…) stops the agent,
+     * and on the Settings home list it may not tap those rows.
+     */
+    private val RESTRICTED_SETTINGS = Regex(
+        "(?i)\\b(security|privacy|accounts?|passwords?|passkeys?|apps|applications|developer|accessibility|location|reset|" +
+            "backup|biometrics?|fingerprints?|face unlock|lock screen|screen lock|device admin|install unknown|permissions?|" +
+            "users|google|payments?|sim|connections|wi-?fi|bluetooth|nfc|mobile networks?|about phone|software update)\\b" +
+            "|सुरक्षा|गोपनीयता|खाता|खाते|पासवर्ड|ऐप्स|डेवलपर|सुलभता|लोकेशन|स्थान|रीसेट|बैकअप|अनुमति",
+    )
+
+    fun isRestrictedSettingsPage(s: ScreenSnapshot): Boolean {
+        val heading = s.title?.takeIf { it.isNotBlank() && !it.equals("Settings", ignoreCase = true) && it != "सेटिंग्स" }
+            ?: return false
+        return RESTRICTED_SETTINGS.containsMatchIn(heading)
+    }
+
+    fun isRestrictedSettingsRow(node: ScreenNode?): Boolean = node != null && RESTRICTED_SETTINGS.containsMatchIn(node.allText())
 
     /** PIN / CVV / OTP entry screens and FLAG_SECURE windows: the user types, never the agent. */
     fun isSecretScreen(s: ScreenSnapshot): Boolean {
@@ -78,6 +99,7 @@ object SafetyPolicy {
         return when (action.action) {
             AgentAction.TAP -> {
                 val node = s.node(action.id) ?: return Verdict.Block("no element ${action.id}")
+                if (s.pkg == Packages.SETTINGS && isRestrictedSettingsRow(node)) return Verdict.Block("Settings: only text size, sound and display")
                 if (isConfirmTarget(node) && !confirmed) Verdict.NeedsConfirm(node.label) else Verdict.Allow
             }
             AgentAction.TAP_XY -> {
@@ -85,6 +107,7 @@ object SafetyPolicy {
                 val y = action.y ?: return Verdict.Block("missing y")
                 if (s.screenshotB64 == null && !s.needsScreenshot) return Verdict.Block("coordinates only with a screenshot")
                 val node = s.nodeAt(x, y)
+                if (s.pkg == Packages.SETTINGS && isRestrictedSettingsRow(node)) return Verdict.Block("Settings: only text size, sound and display")
                 if (isConfirmTarget(node) && !confirmed) Verdict.NeedsConfirm(node!!.label) else Verdict.Allow
             }
             AgentAction.TYPE -> {

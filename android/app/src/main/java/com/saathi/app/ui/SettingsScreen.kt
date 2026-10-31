@@ -47,6 +47,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
+    SecureWindow() // private data: no screenshots or screen recording
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val s by c.settings.flow.collectAsState()

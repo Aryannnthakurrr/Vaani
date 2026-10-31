@@ -133,6 +133,12 @@ class AgentLoop(
                         "Main ${Packages.displayName(snap.pkg)} ke andar kaam nahi kar sakti. Maine rok diya hai.")
                     return fail(goal, snap, msg)
                 }
+                ScreenStop.SETTINGS_RESTRICTED -> {
+                    val msg = s("I only change text size, volume and brightness in Settings. I have stopped here.",
+                        "सेटिंग्स में मैं सिर्फ़ अक्षर का आकार, आवाज़ और चमक बदलती हूँ। मैंने यहीं रोक दिया है।",
+                        "Settings mein main sirf text size, volume aur brightness badalti hoon. Maine yahin rok diya hai.")
+                    return fail(goal, snap, msg)
+                }
                 null -> Unit
             }
 
