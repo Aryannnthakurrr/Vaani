@@ -215,9 +215,8 @@ async def _forward(
                 product = (card.name or "").lower()
                 if card.health_warning and product not in warned:
                     warned.add(product)
-                    answer["health_warning"] = (
-                        card.health_warning
-                    )  # camera.md: say it once, in your own words
+                    # Facts for the model's own gentle nudge (camera.md), not a line to read out.
+                    answer["health_check"] = {"level": card.health_level, "finding": card.health_warning}
             responses.append(types.FunctionResponse(id=call.id, name=call.name, response=answer))
         await session.send_tool_response(function_responses=responses)
 

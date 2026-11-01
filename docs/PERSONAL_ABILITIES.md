@@ -7,13 +7,17 @@ there for anyone who wants to check a claim.
 
 ## 1. The idea in one slide
 
-Most voice assistants send every request to a large AI model, every time. Saathi uses the AI to **learn**, then
-hands repeated work to **small, tested pieces of code** that it compiled for that one person.
+The AI stays the voice of Saathi: it listens, understands and talks. What changes is the **small moving parts**
+underneath a conversation: logging a reading, keeping a running total, counting tablets, checking a number against
+a threshold. When those repeat for one person, Saathi compiles them into **small, tested pieces of code** for that
+person, and the AI uses their result instead of redoing the arithmetic from memory every time.
 
-- **Faster:** an ability answers in a fraction of a second, with no model call.
-- **Cheaper:** a request an ability handles costs no tokens.
-- **More private:** a sugar reading or a BP number handled by an ability never reaches an AI provider.
-- **Personal:** each person's abilities come from *their own* habits, in *their own* language.
+- **Reliable numbers:** a 7-day BP average or a tablet count comes from code, not from a model's recollection.
+- **Remembers properly:** each ability keeps that person's state (readings, totals, stock) between conversations.
+- **The conversation stays natural:** the AI phrases every reply from the code's result, in the person's style.
+- **Safe when it matters:** an urgent result (sugar below 70, BP 180/120) is said exactly as the code wrote it,
+  without waiting on a model.
+- **Personal:** each person's abilities come from *their own* habits.
 - **Checkable:** every ability is plain Python with its own tests, some kept back as an exam the code never saw.
 
 The learning loop comes from our project **Sorted**, which does this for household admin over Telegram (bills,
@@ -30,7 +34,7 @@ non-technical people.
 3. Code is compiled          a strong model writes a small Python function from those traces
 4. Code is tested            static safety check + sandbox run on the traces it saw AND held-out ones it didn't
 5. Family approves           nothing goes live on its own
-6. Code takes over           the next request goes to the code first; the AI only handles what the code doesn't
+6. Code does the bookkeeping the code stores and computes; the AI turns its result into the reply
 7. Self-repair               if the code ever gives a bad answer, it is switched off and the AI takes over again
 ```
 
@@ -88,15 +92,24 @@ Each person has two abilities.
 **The point for the audience:** the same assistant ended up with six different abilities, in three languages, for
 three different lives. Nobody programmed "a diabetes feature"; it came from Ramesh's mornings.
 
+**What a turn looks like.** Sunita says "aaj BP 146 by 92 aaya":
+1. **The code** stores the reading, grades it as stage 2, works out the weekly average (141 by 90) and notes
+   Dr. Gupta's 130/80 target.
+2. **The AI** gets that result plus what it knows about her, and answers in her own style, for example: "Sunita ji,
+   146 by 92 thoda high hai, Dr. Gupta ka target 130 by 80 hai. Is hafte ka average 141 by 90 raha."
+
+If the AI is slow or down, the code's own sentence is spoken instead.
+
 ---
 
 ## 4. The camera: sugar and salt warnings that depend on who is holding the phone
 
-The shopping camera reads a pack live: name, MRP, quantity and expiry, plus the nutrition panel when it can see it.
-**Fixed code**, not the AI's judgement, then decides whether the pack matters for *this* person
-(`backend/app/abilities/food.py`):
+The shopping camera AI reads a pack live (name, MRP, quantity, expiry, and the nutrition panel when visible) and
+talks the shopper through it, as before. A small piece of code adds one thing: it **measures** the sugar or salt in
+that pack against *this* person's conditions (`backend/app/abilities/food.py`) and hands the AI the result. The AI
+decides how to say it in its gentle nudge, so the conversation stays its own, with the right numbers in it:
 
-| Who | Points the camera at | Hears |
+| Who | Points the camera at | The measured finding (the AI phrases it) |
 |---|---|---|
 | Ramesh (diabetes) | Frooti 200 ml | "ध्यान दीजिए, इसमें बहुत चीनी है: आम तौर पर इस पैक में लगभग 7 चम्मच…" (careful, very sugary, about 7 teaspoons in this pack; pick something sugar-free or ask the doctor) |
 | Sunita (BP) | Lay's Classic 52 g | "Dhyaan dijiye, ismein bahut namak hai: … 0.9 gram namak, din ki limit ka 18%. … bhuna makhana ya chana…" |
@@ -110,8 +123,8 @@ The shopping camera reads a pack live: name, MRP, quantity and expiry, plus the 
   WHO's 5 g of salt a day.
 - **If the panel can't be read,** typical printed values for common Indian packs (Frooti, Maaza, colas, Lay's,
   Kurkure, bhujia, Maggi, biscuits, sweets, pickles) fill in, and the warning says "typically".
-- **Shown and spoken.** The warning appears in red or amber on the product card and is said once per product.
-  "Read again" repeats it.
+- **Shown, and spoken by the AI.** The finding appears in red or amber on the product card. The AI gets it once
+  per product for its nudge. "Read again" repeats it.
 - **The person's own facts decide it.** Their conditions come from their profile and from what they told Saathi
   (stored in Meko), so the same Frooti is fine for Arjun and a warning for Ramesh.
 
@@ -168,6 +181,9 @@ curl -s -X POST localhost:8000/abilities/sunita/run -H "X-Saathi-Device: demo-la
 
 ## 7. Honest scope (say this before someone asks)
 
+- **Abilities don't run conversations.** They do the small parts (store, add up, count down, compare to a
+  threshold). The AI still understands the request and words the reply, so call and conversation quality don't
+  depend on the code.
 - **The three people's abilities are seeded for the demo,** shown as the output of the learning loop after a few
   weeks. The loop itself (traces → compile → sandbox test → approval → takeover → self-repair) runs for real in
   Saathi's app-wide skills (`backend/app/skills`) and in Sorted. Compiling *personal* abilities from voice traces

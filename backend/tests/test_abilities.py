@@ -107,3 +107,26 @@ def test_intent_uses_the_profile_ability_first(client, monkeypatch) -> None:
     listing = client.get("/abilities/sunita").json()
     assert {a["name"] for a in listing["abilities"]} == {"bp_log", "salt_budget"}
     assert get_settings().fixtures_dir.exists()
+
+
+def test_the_llm_does_the_talking_around_the_code_result(client, monkeypatch) -> None:
+    from app.abilities import get_abilities
+    from app.routers import agent
+
+    class Talker:
+        async def structured(self, route, system, prompt, schema):
+            assert route == "ability_reply" and "Sunita" in system and "146 by 92" in prompt
+            return schema(reply_text="Sunita ji, 146 by 92 thoda high hai; walk ke baad phir check karein?")
+
+    get_abilities.cache_clear()
+    done = {"ability": "bp_log", "say": "BP 146 by 92 high hai. Likh liya.", "urgent": False}
+    reply = asyncio.run(agent.ability_reply(Talker(), "sunita", "BP 146 by 92", done, "hinglish"))
+    assert reply.startswith("Sunita ji")
+
+    class Silent:
+        async def structured(self, *a):
+            return None
+
+    assert (
+        asyncio.run(agent.ability_reply(Silent(), "sunita", "BP 146 by 92", done, "hinglish")) == done["say"]
+    )

@@ -783,4 +783,6 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
 - Gaps: the personal abilities are seeded, not yet compiled from live voice traces; keyword triggers can catch a
   request that only sounds like an ability; Meko mirroring is unverified here (no `MEKO_API_KEY` on this laptop) and
   `datapack_list` (used when a teammate's backend already made the persona datapack) is assumed, not verified.
+- Abilities do the small parts only: the LLM (`ability_reply` route) words every reply from the ability's result,
+  and the camera model gets the food finding as facts for its own nudge. Only urgent results skip the model.
 - Write-up: docs/PERSONAL_ABILITIES.md.

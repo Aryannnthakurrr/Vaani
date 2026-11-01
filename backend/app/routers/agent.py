@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from collections.abc import Coroutine
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header
+from pydantic import BaseModel
 
-from app.abilities import get_abilities
+from app.abilities import get_abilities, user_key
 from app.deps import llm_dep, require_device
 from app.llm.base import LLMClient
-from app.memory import TOPICS, get_memory
+from app.llm.prompts import render
+from app.memory import TOPICS, facts_for, get_memory
 from app.schemas import (
     GUIDE_ACTIONS,
     AgentStepRequest,
@@ -103,6 +106,28 @@ def _checked(req: AgentStepRequest, raw: dict[str, Any]) -> dict[str, Any]:
         }
 
 
+class _AbilityReply(BaseModel):
+    reply_text: str
+
+
+async def ability_reply(
+    llm: LLMClient, profile: str, utterance: str, done: dict[str, Any], style: str
+) -> str:
+    """The LLM's spoken answer around a compiled ability's result; the code's own sentence if the LLM fails."""
+    persona = get_abilities().persona(profile)
+    facts = await facts_for(user_key(profile), "voice")
+    lines = [text for _, text in facts[:12]] + (persona.quirks if persona else [])
+    about = "\n".join(f"- {line}" for line in lines)
+    system = render(
+        "ability_reply", person=persona.name if persona else "the user", about=about, reply_style=style
+    )
+    prompt = json.dumps({"they_said": utterance, "helper": done["ability"], "helper_result": done["say"]},
+                        ensure_ascii=False)  # fmt: skip
+    out = await llm.structured("ability_reply", system, prompt, _AbilityReply)
+    text = out.reply_text.strip() if isinstance(out, _AbilityReply) else ""
+    return text or done["say"]
+
+
 @router.post("/intent", response_model=IntentResponse)
 async def intent(
     req: IntentRequest,
@@ -111,15 +136,24 @@ async def intent(
 ) -> IntentResponse:
     style = req.reply_style or classify_style(req.utterance)
     started = time.perf_counter()
-    # The user's own compiled abilities come first: work the LLM used to do for them, now done by tested code.
+    # One of the user's own compiled abilities may do the bookkeeping (store a reading, add up, count down); the LLM
+    # still does the talking, with that result. An urgent result is said as the code wrote it: safety advice never
+    # waits on a model.
     abilities = get_abilities()
     if (ability := abilities.match(x_saathi_profile, req.utterance)) is not None:
         done = await abilities.run(ability.user, ability, req.utterance)
         if done is not None:
-            log.info("intent=ability name=%s latency_ms=%d", ability.name, (time.perf_counter() - started) * 1000)
             persona = abilities.persona(ability.user)
             spoken = persona.language if persona and persona.language in {"en", "hi", "hinglish"} else style
-            return IntentResponse(intent="ability", reply_style=spoken, reply_text=done["say"])  # type: ignore[arg-type]
+            reply = (
+                done["say"]
+                if done["urgent"]
+                else await ability_reply(llm, ability.user, req.utterance, done, spoken)
+            )
+            log.info(
+                "intent=ability name=%s latency_ms=%d", ability.name, (time.perf_counter() - started) * 1000
+            )
+            return IntentResponse(intent="ability", reply_style=spoken, reply_text=reply)  # type: ignore[arg-type]
 
     async def ask_llm() -> IntentResponse:
         return await llm.intent(req.utterance, style)
