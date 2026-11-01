@@ -244,11 +244,12 @@ class OverlayController(private val ctx: Context, private val container: AppCont
                     hint = s("Or type your answer here", "या यहाँ लिखकर जवाब दीजिए", "Ya yahan likh kar jawab dijiye"),
                     ok = s("OK", "ठीक है", "Theek hai"), cancel = s("Cancel", "रद्द करें", "Cancel"),
                     onOk = { text -> if (text.isNotBlank()) p.answer.complete(text.trim()) }, onCancel = { p.answer.complete(null) },
-                    level = { container.assistant.voiceLevel() })
-                // Focusable so the keyboard can open for people who can't or don't want to speak.
+                    level = { container.assistant.voiceLevel() },
+                    waveHint = s("Speak, or type below", "बोलिए, या नीचे लिखिए", "Boliye, ya neeche likhiye"))
+                // Focusable so the keyboard can open for people who can't or don't want to speak. Sits on the bottom
+                // edge like the app's own sheet.
                 if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
                         Gravity.BOTTOM, focusable = true, type = type).apply {
-                        y = OverlayViews.dp(ctx, 24)
                         softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
                     } }) {
                     promptView = v
@@ -260,9 +261,10 @@ class OverlayController(private val ctx: Context, private val container: AppCont
                 // "It always asks first": a green Yes and a soft grey No. Saying "no" is never dangerous, so it is not red.
                 val v = OverlayViews.confirmSheet(ctx, p.summary, s("Yes", "हाँ", "Haan"), s("No", "नहीं", "Nahi"),
                     onYes = { p.answer.complete(true) }, onNo = { p.answer.complete(false) },
-                    level = { container.assistant.voiceLevel() })
+                    level = { container.assistant.voiceLevel() },
+                    hint = s("Say \"yes\" or \"no\", or tap", "\"हाँ\" या \"नहीं\" बोलिए, या दबाइए", "\"Haan\" ya \"nahi\" boliye, ya dabaiye"))
                 if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
-                        Gravity.BOTTOM, type = type).apply { y = OverlayViews.dp(ctx, 24) } }) {
+                        Gravity.BOTTOM, type = type) }) {
                     promptView = v
                     shownPrompt = p
                 }
@@ -277,10 +279,9 @@ class OverlayController(private val ctx: Context, private val container: AppCont
         shownResult = r
         r ?: return
         val v = OverlayViews.resultCard(ctx, r.message, r.ok)
-        val margin = OverlayViews.dp(ctx, 16)
+        // On the bottom edge like the app's own result sheet; touches pass through to the app.
         if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER, touchable = false, type = type).apply { horizontalMargin = 0f; x = 0 } }) {
-            v.setPadding(v.paddingLeft + margin, v.paddingTop, v.paddingRight + margin, v.paddingBottom)
+                Gravity.BOTTOM, touchable = false, type = type) }) {
             resultView = v
         }
     }

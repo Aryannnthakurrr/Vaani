@@ -57,25 +57,76 @@ internal object OverlayViews {
         if (stroke != null) setStroke(strokePx, stroke)
     }
 
-    fun text(ctx: Context, s: String, sp: Float, color: Int = INK, bold: Boolean = false) = TextView(ctx).apply {
-        text = s
-        setTextColor(color)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
-        typeface = font(ctx, bold)
-        setLineSpacing(0f, 1.15f)
+    /**
+     * Text set like the app's type scale (ui/theme/Theme.kt): an exact line height (28sp on 34sp, 22 on 30…) and no
+     * font padding. Mukta's own padding plus a line multiplier used to leave big gaps between lines.
+     */
+    fun text(ctx: Context, s: String, sp: Float, color: Int = INK, bold: Boolean = false, lineSp: Float = lineFor(sp)) =
+        TextView(ctx).apply {
+            text = s
+            setTextColor(color)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
+            typeface = font(ctx, bold)
+            includeFontPadding = false
+            lineHeight = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, lineSp, ctx.resources.displayMetrics).toInt()
+        }
+
+    /** The app's line heights: 28→34, 26→32, 24→30, 22→30, 18→25; others about 1.25×. */
+    private fun lineFor(sp: Float): Float = when (sp.toInt()) {
+        28 -> 34f; 26 -> 32f; 24 -> 30f; 22 -> 30f; 21 -> 26f; 18 -> 25f
+        else -> (sp * 1.25f).let { kotlin.math.round(it) }
     }
 
+    // The app's type roles, for overlays: a question or summary, a title, body text, small helper text.
+    const val HEADLINE_SP = 28f
+    const val TITLE_SP = 26f
+    const val BODY_SP = 22f
+    const val SMALL_SP = 18f
+
+    /** The app's BigButton: 64dp tall, 4dp corners, bold 26sp label. */
     fun bigButton(ctx: Context, label: String, bg: Int, onClick: () -> Unit, fg: Int = Color.WHITE) = Button(ctx).apply {
         text = label
         isAllCaps = false
         stateListAnimator = null
         setTextColor(fg)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, TITLE_SP)
         typeface = font(ctx, bold = true)
+        includeFontPadding = false
         background = rounded(bg, dp(ctx, CORNER_DP).toFloat())
-        minHeight = dp(ctx, 80)
+        minHeight = dp(ctx, 64)
+        setPadding(dp(ctx, 20), dp(ctx, 16), dp(ctx, 20), dp(ctx, 16))
         contentDescription = label
         setOnClickListener { onClick() }
+    }
+
+    /**
+     * The app's assistant sheet (ui/AssistantSheet.kt): white, full width at the bottom of the screen, 28dp top corners,
+     * a hairline outline and its shadow. Questions, yes/no and results use it, so they look the same over Uber as in
+     * Vaani. The bottom padding clears the navigation bar.
+     */
+    private fun sheet(ctx: Context, content: LinearLayout): LinearLayout = content.apply {
+        orientation = LinearLayout.VERTICAL
+        val r = dp(ctx, 28).toFloat()
+        background = GradientDrawable().apply {
+            setColor(PAPER)
+            cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+            setStroke(maxOf(1, dp(ctx, 1)), EDGE)
+        }
+        elevation = dp(ctx, 16).toFloat()
+        setPadding(dp(ctx, 20), dp(ctx, 24), dp(ctx, 20), dp(ctx, 24) + navBarPx(ctx))
+    }
+
+    private fun navBarPx(ctx: Context): Int {
+        val id = ctx.resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (id > 0) ctx.resources.getDimensionPixelSize(id) else dp(ctx, 24)
+    }
+
+    /** The app's VoiceWave: thin black bars that move with the voice, and a small grey hint under them. */
+    private fun voiceWave(ctx: Context, level: () -> Float, hint: String?): View = LinearLayout(ctx).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        addView(VoiceWaveView(ctx, level, ACCENT), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 44)))
+        if (hint != null) addView(text(ctx, hint, SMALL_SP, MUTED).apply { gravity = Gravity.CENTER })
     }
 
     fun stopChip(ctx: Context, label: String, onStop: () -> Unit) = Button(ctx).apply {
@@ -114,87 +165,83 @@ internal object OverlayViews {
      */
     fun confirmSheet(
         ctx: Context, summary: String, yes: String, no: String, onYes: () -> Unit, onNo: () -> Unit,
-        level: () -> Float = { 0f },
+        level: () -> Float = { 0f }, hint: String? = null,
     ): View {
         val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
-        return LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            background = card(ctx)
-            setPadding(dp(ctx, 22), dp(ctx, 24), dp(ctx, 22), dp(ctx, 22))
-            addView(text(ctx, summary, 26f, INK, bold = true).apply { contentDescription = summary })
-            // Moves with the user's voice: say "haan" or "nahi", or tap.
-            addView(VoiceWaveView(ctx, level, ACCENT), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 48))
-                .apply { topMargin = dp(ctx, 10) })
-            addView(bigButton(ctx, yes, GREEN, onYes), full(12))
-            addView(bigButton(ctx, no, SOFT, onNo, fg = INK), full(12))
+        // As the app's ConfirmCard: the summary, the voice wave with its hint, a green Yes and a grey No.
+        return sheet(ctx, LinearLayout(ctx)).apply {
+            addView(text(ctx, summary, HEADLINE_SP, INK, bold = true).apply {
+                contentDescription = summary
+                accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            })
+            addView(voiceWave(ctx, level, hint), full(16))
+            addView(bigButton(ctx, yes, GREEN, onYes), full(16))
+            addView(bigButton(ctx, no, SOFT, onNo, fg = INK), full(16))
         }
     }
 
     /**
-     * The end of a task: a large green tick and one sentence ("Uber Go booked, arriving in 4 min"), or, when it
-     * could not be done, an amber "!" with the reason.
+     * The end of a task, as the app's ResultCard: a 64dp green tick (or amber "!" when it could not be done) beside
+     * one sentence ("Uber Go booked, arriving in 4 min").
      */
-    fun resultCard(ctx: Context, message: String, ok: Boolean): View = LinearLayout(ctx).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        background = card(ctx)
-        setPadding(dp(ctx, 24), dp(ctx, 28), dp(ctx, 24), dp(ctx, 28))
-        addView(text(ctx, if (ok) "✓" else "!", 56f, if (ok) GREEN else AMBER, bold = true).apply {
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(if (ok) GREEN50 else AMBER50) }
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(dp(ctx, 112), dp(ctx, 112)))
-        addView(text(ctx, message, 24f, INK, bold = true).apply {
-            gravity = Gravity.CENTER
+    fun resultCard(ctx: Context, message: String, ok: Boolean): View = sheet(ctx, LinearLayout(ctx)).apply {
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, 16) })
+            addView(text(ctx, if (ok) "✓" else "!", 32f, if (ok) GREEN else AMBER, bold = true).apply {
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(if (ok) GREEN50 else AMBER50) }
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LinearLayout.LayoutParams(dp(ctx, 64), dp(ctx, 64)))
+            addView(text(ctx, message, TITLE_SP, INK, bold = true),
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(ctx, 16) })
+        }
+        addView(row)
     }
 
     /** Question card with a text field and OK/Cancel; returns the root and the field. */
     fun answerCard(
         ctx: Context, question: String, hint: String, ok: String, cancel: String,
-        onOk: (String) -> Unit, onCancel: () -> Unit, level: () -> Float = { 0f },
+        onOk: (String) -> Unit, onCancel: () -> Unit, level: () -> Float = { 0f }, waveHint: String? = null,
     ): Pair<View, EditText> {
         val input = EditText(ctx).apply {
             this.hint = hint
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, BODY_SP)
+            typeface = font(ctx, bold = false)
             setTextColor(INK)
-            minHeight = dp(ctx, 72)
+            setHintTextColor(MUTED)
+            minHeight = dp(ctx, 64)
             background = rounded(Color.WHITE, dp(ctx, CORNER_DP).toFloat(), EDGE, outline(ctx))
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             imeOptions = EditorInfo.IME_ACTION_DONE
             isSingleLine = true
             setOnEditorActionListener { v, _, _ -> onOk(v.text.toString()); true }
         }
-        val lp = { LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(ctx, 6), 0, dp(ctx, 6), 0) } }
+        // As the app's AskCard: OK (black, the primary) and Cancel (grey) side by side, 12dp apart.
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(bigButton(ctx, ok, ACCENT, { onOk(input.text.toString()) }), lp())
-            addView(bigButton(ctx, cancel, SOFT, onCancel, fg = INK), lp())
+            addView(bigButton(ctx, ok, ACCENT, { onOk(input.text.toString()) }),
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = dp(ctx, 6) })
+            addView(bigButton(ctx, cancel, SOFT, onCancel, fg = INK),
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(ctx, 6) })
         }
         val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            background = card(ctx)
-            setPadding(dp(ctx, 20), dp(ctx, 20), dp(ctx, 20), dp(ctx, 20))
-            addView(text(ctx, question, 22f, INK, bold = true))
+        val root = sheet(ctx, LinearLayout(ctx)).apply {
+            addView(text(ctx, question, HEADLINE_SP, INK, bold = true).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE })
             // Saathi is listening for a spoken answer too, not only the text box.
-            addView(VoiceWaveView(ctx, level, ACCENT), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 44))
-                .apply { topMargin = dp(ctx, 8) })
-            addView(input, full(14))
-            addView(row, full(14))
+            addView(voiceWave(ctx, level, waveHint), full(16))
+            addView(input, full(16))
+            addView(row, full(16))
         }
         return root to input
     }
 
     private val SOFT_WHITE = Color.argb(225, 255, 255, 255)
 
-    /** Alert text on red: Mukta's default font padding leaves huge gaps between lines, so it is switched off. */
+    /** Alert text: white by default, on the red or amber card. */
     private fun alertText(ctx: Context, s: String, sp: Float, color: Int = Color.WHITE, bold: Boolean = false) =
-        text(ctx, s, sp, color, bold).apply {
-            includeFontPadding = false
-            setLineSpacing(dp(ctx, 4).toFloat(), 1f)
-        }
+        text(ctx, s, sp, color, bold)
 
     /**
      * Scam alert for a message: a red card at the bottom, so the app (and the message in it) stays visible above.

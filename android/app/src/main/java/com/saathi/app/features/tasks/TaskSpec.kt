@@ -97,8 +97,9 @@ object Tasks {
             "Pick only the ride type the goal names. For a car: Uber Go, Go Sedan, Premier, UberXL or similar; ignore Moto, " +
             "Bike and Auto rows completely (don't read them out, compare them or tap them), and if the selected row is a " +
             "bike or auto, tap the cheapest car row straight away. For an auto: the Auto row. For a bike: the Moto row. " +
-            "The ride list is a sheet over the map: if the row you need isn't visible, scroll down on the ride list " +
-            "(pass its id); the first scroll pulls the sheet up, the next ones move the list. " +
+            "The ride list is a sheet over the map, cheapest first (Bike, Auto) with the cars BELOW them: if the row you " +
+            "need isn't visible, scroll DOWN on the ride list (pass its id), never up; the first scroll pulls the sheet " +
+            "up, the next ones move the list. Rows may be missing from the element list: read them from the screenshot. " +
             "If the asked type isn't offered, say so with ask_user instead of picking another. " +
             "Stop after the ride is requested and a driver/vehicle/'arriving' line is visible; read driver, car and ETA.",
         deeplink = { slots, places ->

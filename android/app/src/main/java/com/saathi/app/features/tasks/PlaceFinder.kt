@@ -44,17 +44,26 @@ object NearbyBox {
  */
 class AndroidPlaceFinder(private val context: Context) : PlaceLookup {
     private companion object {
-        const val TIMEOUT_MS = 3_000L
+        /** The platform geocoder is a network call; 3 s often wasn't enough, and then the cab opened on Uber's home. */
+        const val TIMEOUT_MS = 7_000L
         const val MAX_RESULTS = 5
+        /** Roughly India, for when the phone has no position at all: still finds "India Gate", not one abroad. */
+        val INDIA = doubleArrayOf(6.0, 68.0, 36.0, 98.0)
     }
 
     override suspend fun find(name: String): LatLng? = candidates(name).firstOrNull()?.at
 
+    /**
+     * Nearby matches first. Without a last-known position (common when no app asked for one recently) a fresh fix is
+     * requested; with none at all, the search covers India. Nearby finding nothing (an odd spelling) also widens to
+     * India, so the deep link still lands on Uber's ride list instead of its home screen.
+     */
     override suspend fun candidates(name: String): List<PlaceCandidate> {
         if (!Geocoder.isPresent()) return emptyList()
         return withTimeoutOrNull(TIMEOUT_MS) {
-            val here = DeviceLocation.lastKnown(context)?.at ?: return@withTimeoutOrNull emptyList()
-            geocode(name, NearbyBox.around(here))
+            val here = (DeviceLocation.lastKnown(context) ?: DeviceLocation.current(context, timeoutMs = 2_500L))?.at
+            val near = here?.let { geocode(name, NearbyBox.around(it)) }.orEmpty()
+            near.ifEmpty { geocode(name, INDIA) }
         }.orEmpty()
     }
 
