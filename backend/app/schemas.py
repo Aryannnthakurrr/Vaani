@@ -224,6 +224,7 @@ Intent = Literal[
     "digest",
     "settings",
     "chitchat",
+    "ability",  # answered by one of the user's own compiled abilities (app/abilities), no LLM
     "unknown",
 ]
 
@@ -386,3 +387,9 @@ class ProductCard(BaseModel):
     expiry_iso: str | None = None
     expiry_status: Literal["ok", "soon", "expired", "unknown"] = "unknown"
     confidence: float = 0.0
+    # Read from the nutrition panel when visible; app/abilities/food.py decides the warning, not the model.
+    sugar_g_per_100: float | None = None
+    sodium_mg_per_100: float | None = None
+    per: Literal["g", "ml"] | None = None
+    health_warning: str | None = None
+    health_level: Literal["high", "medium"] | None = None

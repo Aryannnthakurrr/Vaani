@@ -197,6 +197,12 @@ private fun ProductCardView(card: ProductCard, style: com.saathi.app.core.net.Re
                 }
                 card.expiryIso?.let { Text(tr(style, "Expiry: $it", "एक्सपायरी: $it", "Expiry: $it"), style = MaterialTheme.typography.bodyLarge) }
             }
+            card.healthWarning?.let { warning ->
+                Surface(color = if (card.healthLevel == "high") Danger else Amber, shape = RoundedCornerShape(16.dp)) {
+                    Text("⚠ $warning", color = Color.White, style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CamButton(tr(style, "🔊 Read again", "🔊 फिर से सुनें", "🔊 Phir se sunein"), MaterialTheme.colorScheme.primary, Modifier.weight(1f), onReadAgain)
                 CamButton(tr(style, "🛒 Order online", "🛒 ऑनलाइन मंगाएँ", "🛒 Order karein"), Leaf, Modifier.weight(1f), onOrder)

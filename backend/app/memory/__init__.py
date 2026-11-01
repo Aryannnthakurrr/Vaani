@@ -103,6 +103,10 @@ class FallbackMemory:
     async def run_state(self, device: str, run_id: str) -> list[dict[str, Any]]:
         return await self.local.run_state(device, run_id)
 
+    def mirror_state(self, device: str, name: str, state: dict[str, Any]) -> None:
+        """A compiled ability's new state to Meko; the local copy is app/abilities' own table."""
+        self._later("save_state", self.primary.save_state(device, name, state))
+
     async def health(self) -> dict[str, Any]:
         return {"backend": self.name, "meko": await self.primary.health(), "local": await self.local.health()}
 

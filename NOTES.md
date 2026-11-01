@@ -767,3 +767,20 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   a facility, over the fee limit or refusing the insurance (`CallResult.facilities_available`, `insurance_accepted`).
 - Gap: preferences come only from the AI intake; the rule fallback doesn't capture them.
 - Write-up for presenting: docs/HEALTHCARE_KT.md.
+
+## Personal compiled abilities, three demo users, camera sugar/salt warnings (2026-11-01)
+
+- `app/abilities`: per-user compiled abilities (code in `fixtures/personas/abilities/<user>/`, users, facts, cases and
+  learning history in `fixtures/personas/personas.json`). Seeded and sandbox-tested on every backend start; only an
+  ability that passes every case (held-out included) is active. `/intent` with `X-Saathi-Profile` tries them first.
+- Users are the existing demo profiles Ramesh (diabetes), Sunita (BP) and Arjun (blind), keyed by plain profile id so
+  all three laptops show the same people. Facts go through `get_memory()` under `persona:<id>`; ability state is a
+  local table mirrored to Meko (`MekoMemory.save_state`, datapack `saathi-persona-<id>`).
+- Fixed: the skill sandbox runner read stdin in the Windows locale, so any compiled code with Hindi text failed on
+  Windows laptops. It now reads UTF-8.
+- Camera: `food.py` decides sugar (diabetes) and sodium (BP) warnings from the label or a typical-values table (FSA
+  thresholds); the mock camera shows Frooti to a diabetic user and Lay's to a BP user.
+- Gaps: the personal abilities are seeded, not yet compiled from live voice traces; keyword triggers can catch a
+  request that only sounds like an ability; Meko mirroring is unverified here (no `MEKO_API_KEY` on this laptop) and
+  `datapack_list` (used when a teammate's backend already made the persona datapack) is assumed, not verified.
+- Write-up: docs/PERSONAL_ABILITIES.md.

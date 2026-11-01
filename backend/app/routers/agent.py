@@ -8,8 +8,9 @@ import time
 from collections.abc import Coroutine
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 
+from app.abilities import get_abilities
 from app.deps import llm_dep, require_device
 from app.llm.base import LLMClient
 from app.memory import TOPICS, get_memory
@@ -103,9 +104,22 @@ def _checked(req: AgentStepRequest, raw: dict[str, Any]) -> dict[str, Any]:
 
 
 @router.post("/intent", response_model=IntentResponse)
-async def intent(req: IntentRequest, llm: LLMClient = Depends(llm_dep)) -> IntentResponse:
+async def intent(
+    req: IntentRequest,
+    llm: LLMClient = Depends(llm_dep),
+    x_saathi_profile: str | None = Header(default=None),
+) -> IntentResponse:
     style = req.reply_style or classify_style(req.utterance)
     started = time.perf_counter()
+    # The user's own compiled abilities come first: work the LLM used to do for them, now done by tested code.
+    abilities = get_abilities()
+    if (ability := abilities.match(x_saathi_profile, req.utterance)) is not None:
+        done = await abilities.run(ability.user, ability, req.utterance)
+        if done is not None:
+            log.info("intent=ability name=%s latency_ms=%d", ability.name, (time.perf_counter() - started) * 1000)
+            persona = abilities.persona(ability.user)
+            spoken = persona.language if persona and persona.language in {"en", "hi", "hinglish"} else style
+            return IntentResponse(intent="ability", reply_style=spoken, reply_text=done["say"])  # type: ignore[arg-type]
 
     async def ask_llm() -> IntentResponse:
         return await llm.intent(req.utterance, style)

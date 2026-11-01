@@ -211,7 +211,7 @@ class CameraSession(private val c: AppContainer) {
             else -> tr(style, "I could not read the expiry. Please turn the pack over.", "मैं एक्सपायरी नहीं पढ़ पाई। पैकेट पलटिए।",
                 "Main expiry nahi padh payi. Packet palatiye.")
         }
-        val line = listOfNotNull(card.name, card.quantity, card.mrpText?.let { tr(style, "Printed MRP $it.", "छपा एमआरपी $it।", "Printed MRP $it.") }, status)
+        val line = listOfNotNull(card.name, card.quantity, card.mrpText?.let { tr(style, "Printed MRP $it.", "छपा एमआरपी $it।", "Printed MRP $it.") }, status, card.healthWarning)
             .joinToString(". ")
         player?.flush() // "read again" replaces whatever the model was saying
         speak(line)

@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.deps import get_db
 from app.llm.base import get_llm
 from app.routers import (
+    abilities,
     agent,
     calls,
     care,
@@ -43,6 +44,16 @@ for _noisy in ("httpx", "httpx2", "httpcore", "mcp", "google_genai"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 
+async def _load_personas() -> None:
+    from app.abilities import get_abilities
+
+    try:
+        await get_abilities().seed()
+        await get_abilities().verify()
+    except Exception as exc:  # noqa: BLE001 - a broken fixture never stops the backend
+        log.warning("personas not loaded: %s", type(exc).__name__)
+
+
 @contextlib.asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -62,6 +73,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     scheduler.add_job(get_code_skills().compile, "interval", minutes=30, args=[get_llm(settings)],
                       id="code_skill_compile", max_instances=1, coalesce=True)  # fmt: skip
     scheduler.add_job(get_engine().store.purge_old_runs, "interval", hours=24, id="skill_purge")
+    # The demo users and their compiled abilities: seeded on every backend, then tested in the sandbox.
+    personas = asyncio.create_task(_load_personas())
     poller = (
         asyncio.create_task(telegram.poll_start_commands(settings, get_db()))
         if settings.telegram_enabled
@@ -70,6 +83,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        personas.cancel()
         scheduler.shutdown(wait=False)
         if poller:
             poller.cancel()
@@ -121,6 +135,7 @@ for module in (
     calls,
     telephony,
     skills,
+    abilities,
     care,
     usage_router,
 ):

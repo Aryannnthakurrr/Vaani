@@ -30,12 +30,15 @@ TIMEOUT_S = 30.0
 
 
 def elder_for(device: str) -> str:
-    """A stable, non-reversible id per phone, used as the elder's datapack name (prefixes of device ids collide)."""
+    """A stable, non-reversible id per phone, used as the elder's datapack name (prefixes of device ids collide).
+    Demo personas ("persona:ramesh") get a readable name instead, the same from every backend."""
+    if device.startswith("persona:"):
+        return "saathi-persona-" + device.removeprefix("persona:")
     return "elder-" + hashlib.sha256(device.encode()).hexdigest()[:16]
 
 
 # Parts of Saathi that write into an elder's datapack. They share that elder's context, nobody else's.
-SETUP, VOICE, TASKS = "saathi-setup", "saathi-voice", "saathi-tasks"
+SETUP, VOICE, TASKS, ABILITIES = "saathi-setup", "saathi-voice", "saathi-tasks", "saathi-abilities"
 
 
 class MekoMemory:
@@ -93,9 +96,18 @@ class MekoMemory:
         """The elder's own datapack: everything Saathi stores about them, and nothing about anyone else."""
 
         async def make() -> str:
+            name = elder_for(device)
             setup = await self._new_conversation(SETUP, "setup", {"kind": "setup"}, None)
-            made = await self._call("datapack_create", {"name": elder_for(device), "conversation_id": setup})
-            log.info("created Meko datapack for %s", elder_for(device))
+            try:
+                made = await self._call("datapack_create", {"name": name, "conversation_id": setup})
+            except RuntimeError:
+                # A persona's datapack may already exist, made by a teammate's backend on the same Meko account.
+                found = next((d for d in _items(await self._call("datapack_list", {}), "datapacks")
+                              if d.get("name") == name), None)  # fmt: skip
+                if not found:
+                    raise
+                made = found
+            log.info("using Meko datapack %s", name if device.startswith("persona:") else "for an elder")
             return str(_get(made, "datapack_id", "id"))
 
         return await self._once(f"meko:datapack:{device}", make)
@@ -177,6 +189,17 @@ class MekoMemory:
             "datapack_id": await self.datapack(device),
         })  # fmt: skip
         return list(_items(got, "messages"))
+
+    async def save_state(self, device: str, name: str, state: dict[str, Any]) -> None:
+        """A compiled ability's state after a run: one conversation per ability, one message per change."""
+        datapack = await self.datapack(device)
+        conv = await self._once(f"meko:ability:{device}:{name}", lambda: self._new_conversation(
+            ABILITIES, f"ability {name}", {"kind": "ability_state", "ability": name}, datapack))  # fmt: skip
+        await self._call("conversation_add_message", {
+            "conversation_id": conv, "agent_id": ABILITIES, "datapack_id": datapack,
+            "input": f"state of {name}", "output": json.dumps(state, ensure_ascii=False)[:8000],
+            "metadata": json.dumps({"ability": name}),
+        })  # fmt: skip
 
     async def health(self) -> dict[str, Any]:
         return {"ok": True}

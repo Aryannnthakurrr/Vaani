@@ -19,7 +19,15 @@ object DeviceAuth {
     fun newKey(): String = ByteArray(32).also { SecureRandom().nextBytes(it) }
         .let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
-    fun sign(builder: Request.Builder): Request.Builder = key().let { if (it.isEmpty()) builder else builder.header(HEADER, it) }
+    /** The demo user (Settings → Profile) whose compiled abilities and health the backend should use: a plain id. */
+    const val PROFILE_HEADER = "X-Saathi-Profile"
+    @Volatile var profile: () -> String? = { null }
+
+    fun sign(builder: Request.Builder): Request.Builder {
+        key().takeIf { it.isNotEmpty() }?.let { builder.header(HEADER, it) }
+        profile()?.takeIf { it.isNotEmpty() }?.let { builder.header(PROFILE_HEADER, it) }
+        return builder
+    }
 
     val interceptor = Interceptor { chain ->
         val req = chain.request()

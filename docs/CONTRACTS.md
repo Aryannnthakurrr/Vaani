@@ -141,3 +141,15 @@ Wire models: `backend/app/care/models.py` ↔ `android/.../features/care/CareMod
 `{ "<key>": {"en": "…", "hi": "…", "hinglish": "…"} }`. `scripts/render_alert_clips.py` renders each entry to
 `android/app/src/main/res/raw/<key>_<style>.wav`. The app plays the clip if it exists, otherwise speaks the text
 with on-device TTS. Keys are lowercase `[a-z0-9_]`.
+
+## Demo profiles and personal abilities (2026-11-01)
+
+- Every request and WebSocket handshake may carry `X-Saathi-Profile: <profile id>` (Settings → Profile; `ramesh`,
+  `sunita`, `arjun`). Plain ids, never device ids or hashes, so every backend shows the same users.
+- `POST /intent` with a profile: if one of that user's active compiled abilities matches, the response is
+  `{"intent": "ability", "reply_style": <the user's language>, "reply_text": <the answer>}` and no LLM is called.
+  The app speaks `reply_text` (its default branch).
+- `GET /abilities`, `GET /abilities/{profile}`: users, quirks and abilities (status, tests, learned_from, local_runs).
+  `POST /abilities/{profile}/run {"text"}` and `POST /abilities/{profile}/reset` need `X-Saathi-Device`.
+- Camera `product_card` gains `sugar_g_per_100`, `sodium_mg_per_100`, `per` ("g" | "ml"), `health_warning` and
+  `health_level` ("high" | "medium"); the warning comes from `app/abilities/food.py`, never from the model.
