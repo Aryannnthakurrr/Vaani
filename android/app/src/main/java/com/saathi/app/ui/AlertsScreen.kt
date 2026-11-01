@@ -74,6 +74,9 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.data.EventEntity
+import com.saathi.app.core.data.MessageEntity
+import com.saathi.app.features.profile.ProfileManager
+import com.saathi.app.util.Packages
 import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.voice.tr
 import com.saathi.app.features.scam.ReasonText
@@ -271,8 +274,13 @@ private fun AlertCard(e: EventEntity, c: AppContainer, style: ReplyStyle, family
     val reason = ReasonText.join(reasons, style)
     val reasonAlt = ReasonText.join(reasons, if (style == ReplyStyle.HI) ReplyStyle.EN else ReplyStyle.HI)
     // The message the alert is about, already redacted when it was stored (no OTPs or account numbers).
-    val message by produceState<String?>(null, e.sourceMsgId) {
-        value = e.sourceMsgId?.let { c.db.messages().byId(it)?.redactedText }
+    val row by produceState<MessageEntity?>(null, e.sourceMsgId) {
+        value = e.sourceMsgId?.let { c.db.messages().byId(it) }
+    }
+    val message = row?.redactedText
+    val app = row?.sourcePkg?.takeIf { it != ProfileManager.DEMO_SOURCE }?.let { Packages.label(ctx, it) }
+    val from = row?.sender?.takeIf { it.isNotBlank() }?.let { who ->
+        if (app != null && app != who) s("From $who on $app", "$app पर $who से", "$app par $who se") else s("From $who", "$who से", "$who se")
     }
 
     Surface(shape = MaterialTheme.shapes.medium, color = Paper, border = BorderStroke(Border.control, color.copy(alpha = 0.45f)),
@@ -287,6 +295,7 @@ private fun AlertCard(e: EventEntity, c: AppContainer, style: ReplyStyle, family
                 TwoLine(kindTitle(e.type, style), second, Modifier.weight(1f), mainStyle = MaterialTheme.typography.titleLarge,
                     secondColor = color)
             }
+            from?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = Ink) }
             if (reason.isNotBlank()) Surface(shape = MaterialTheme.shapes.medium, color = tint.copy(alpha = 0.6f)) {
                 TwoLine(reason, reasonAlt, Modifier.fillMaxWidth().padding(Space.lg), mainStyle = MaterialTheme.typography.bodyLarge,
                     mainColor = Ink)
@@ -306,8 +315,12 @@ private fun AlertCard(e: EventEntity, c: AppContainer, style: ReplyStyle, family
                     IconButtonBig(s("View call log", "कॉल की सूची देखें", "Call list dekhiye"), Icons.Filled.Call, { openCallLog(ctx) },
                         color = Paper, contentColor = Ink, border = Edge, height = 56.dp)
                 }
-                "message", "link" -> IconButtonBig(s("Open Messages", "संदेश खोलें", "Messages kholiye"), Icons.AutoMirrored.Filled.Message,
-                    { openMessages(ctx) }, color = Paper, contentColor = Ink, border = Edge, height = 56.dp)
+                // Opens the app the message came in (WhatsApp, Gmail...), or the SMS app.
+                "message", "link" -> IconButtonBig(
+                    if (app != null && row?.sourcePkg != "sms") s("Open $app", "$app खोलें", "$app kholiye")
+                    else s("Open Messages", "संदेश खोलें", "Messages kholiye"),
+                    Icons.AutoMirrored.Filled.Message,
+                    { openMessages(ctx, row?.sourcePkg) }, color = Paper, contentColor = Ink, border = Edge, height = 56.dp)
             }
             // A red call is reported to family on Telegram when they are set up (CallGuard).
             if (e.type == "call" && e.level == "red" && familyOn && family.isNotEmpty()) {
@@ -338,6 +351,7 @@ private fun openCallLog(ctx: Context) {
     runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW).setType(CallLog.Calls.CONTENT_TYPE)) }
 }
 
-private fun openMessages(ctx: Context) {
-    runCatching { ctx.startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING)) }
+private fun openMessages(ctx: Context, pkg: String?) {
+    val launch = pkg?.let { ctx.packageManager.getLaunchIntentForPackage(it) }
+    runCatching { ctx.startActivity(launch ?: Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MESSAGING)) }
 }

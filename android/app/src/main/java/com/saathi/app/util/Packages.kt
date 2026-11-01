@@ -58,6 +58,15 @@ object Packages {
         GOOGLE_CALENDAR -> "Google Calendar"
         SETTINGS -> "Settings"
         WHATSAPP -> "WhatsApp"
+        GOOGLE_MESSAGES -> "Messages"
+        GMAIL -> "Gmail"
+        "sms" -> "SMS"
         else -> pkg.substringAfterLast('.')
     }
+
+    /** The name the phone shows for [pkg] ("PhonePe", "Google Pay"), or [displayName] when it can't be read. */
+    fun label(ctx: android.content.Context, pkg: String): String = runCatching {
+        val pm = ctx.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+    }.getOrNull()?.takeIf { it.isNotBlank() } ?: displayName(pkg)
 }

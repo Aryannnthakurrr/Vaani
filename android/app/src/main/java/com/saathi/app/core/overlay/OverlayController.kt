@@ -294,25 +294,35 @@ class OverlayController(private val ctx: Context, private val container: AppCont
 
     // ---------------------------------------------------------------- scam alert
 
-    /** Full-screen alert. "I'm safe" needs two taps so it can't be dismissed by accident. */
+    /**
+     * Call alerts cover the screen; message alerts are a card at the bottom so the app and the message stay in view.
+     * "I'm safe" needs two taps so it can't be dismissed by accident.
+     */
     fun showAlert(alert: ScamAlert): Boolean {
         if (!canDraw()) return false
         ui {
             remove(alertView)
             var safeTaps = 0
-            val v = OverlayViews.alertScreen(ctx, alert,
-                hangUpLabel = if (alert.inCall) s("Hang up", "फ़ोन काटें", "Phone kaatein") else null,
-                safeLabel = s("I'm safe, continue", "मैं सुरक्षित हूँ", "Main safe hoon"),
+            val safeLabel = s("I'm safe, continue", "मैं सुरक्षित हूँ", "Main safe hoon")
+            val onSafe = { button: android.widget.TextView ->
+                if (++safeTaps >= 2) { remove(alertView); alertView = null }
+                else button.text = s("Tap again to confirm", "पक्का करने के लिए फिर दबाएँ", "Pakka karne ke liye phir dabaiye")
+            }
+            val v = if (alert.inCall) OverlayViews.alertScreen(ctx, alert,
+                hangUpLabel = s("Hang up", "फ़ोन काटें", "Phone kaatein"),
+                safeLabel = safeLabel,
                 onHangUp = {
                     container.scope.launch { container.callGuard.endCall() }
                     remove(alertView); alertView = null
                 },
-                onSafe = { button ->
-                    if (++safeTaps >= 2) { remove(alertView); alertView = null }
-                    else button.text = s("Tap again to confirm", "पक्का करने के लिए फिर दबाएँ", "Pakka karne ke liye phir dabaiye")
-                })
-            if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
-                    Gravity.TOP, type = type) }) alertView = v
+                onSafe = onSafe)
+            else OverlayViews.alertCard(ctx, alert, safeLabel, onSafe)
+            val ok = add(v) { type ->
+                if (alert.inCall) params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, Gravity.TOP, type = type)
+                else params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM, type = type)
+                    .apply { y = OverlayViews.dp(ctx, 24) }
+            }
+            if (ok) alertView = v
             vibrate()
         }
         return true

@@ -62,7 +62,7 @@ class MessageIngestor(private val container: AppContainer) {
                     category = if (scan.level >= ScamLevel.AMBER) "scam_suspected" else row.category))
             }
         }
-        reactor.react(id, scan)
+        reactor.react(id, scan, sourcePkg, sender)
 
         if (prepared.cloudItem != null) classifyPending()
     }

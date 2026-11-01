@@ -180,7 +180,40 @@ internal object OverlayViews {
         return root to input
     }
 
-    /** Full-screen red scam alert. */
+    /** "From Ramesh on WhatsApp" as a white pill, so who sent it is the first thing read under the title. */
+    private fun fromPill(ctx: Context, from: String, color: Int) = text(ctx, from, 22f, color, bold = true).apply {
+        gravity = Gravity.CENTER
+        background = rounded(Color.WHITE, dp(ctx, 18).toFloat())
+        setPadding(dp(ctx, 16), dp(ctx, 6), dp(ctx, 16), dp(ctx, 6))
+    }
+
+    /**
+     * Scam alert for a message: a red card at the bottom, so the app (and the message in it) stays visible above.
+     * Touches outside the card reach the app.
+     */
+    fun alertCard(ctx: Context, alert: ScamAlert, safeLabel: String, onSafe: (TextView) -> Unit): View {
+        val bg = if (alert.level == AlertLevel.RED) RED else Color.rgb(176, 110, 0)
+        val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
+        val card = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            background = rounded(bg, dp(ctx, 28).toFloat())
+            elevation = dp(ctx, 16).toFloat()
+            setPadding(dp(ctx, 22), dp(ctx, 20), dp(ctx, 22), dp(ctx, 20))
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
+            addView(text(ctx, "⚠️  ${alert.title}", 28f, Color.WHITE, bold = true))
+            alert.from?.let { addView(fromPill(ctx, it, bg), full(10)) }
+            addView(text(ctx, alert.body, 21f, Color.WHITE), full(10))
+            val safe = bigButton(ctx, safeLabel, Color.WHITE, {}, fg = bg).apply { minHeight = dp(ctx, 68) }
+            safe.setOnClickListener { onSafe(safe) }
+            addView(safe, full(16))
+        }
+        return android.widget.FrameLayout(ctx).apply {
+            setPadding(dp(ctx, 12), 0, dp(ctx, 12), 0)
+            addView(card)
+        }
+    }
+
+    /** Full-screen red scam alert, for calls: the person has to look away from the call screen and act. */
     fun alertScreen(
         ctx: Context, alert: ScamAlert, hangUpLabel: String?, safeLabel: String,
         onHangUp: () -> Unit, onSafe: (TextView) -> Unit,
@@ -193,6 +226,10 @@ internal object OverlayViews {
             setPadding(dp(ctx, 24), dp(ctx, 48), dp(ctx, 24), dp(ctx, 48))
             addView(text(ctx, "⚠️", 72f, Color.WHITE).apply { gravity = Gravity.CENTER })
             addView(text(ctx, alert.title, 34f, Color.WHITE, bold = true).apply { gravity = Gravity.CENTER })
+            alert.from?.let {
+                addView(fromPill(ctx, it, bg), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, 12) })
+            }
             addView(text(ctx, alert.body, 24f, Color.WHITE).apply {
                 gravity = Gravity.CENTER
                 setPadding(0, dp(ctx, 16), 0, dp(ctx, 32))

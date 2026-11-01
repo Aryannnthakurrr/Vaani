@@ -6,7 +6,8 @@ enum class AlertLevel { INFO, AMBER, RED }
 
 /**
  * A safety alert. [phraseKey] names the bundled phrase that is spoken (never fetched from the network).
- * [inCall] routes speech to the earpiece and offers the "Hang up" button.
+ * [inCall] routes speech to the earpiece and offers the "Hang up" button (and covers the whole screen; a message
+ * alert is a card that leaves the app visible). [from] says who it came from and where ("From Ramesh on WhatsApp").
  */
 data class ScamAlert(
     val level: AlertLevel,
@@ -14,6 +15,7 @@ data class ScamAlert(
     val body: String,
     val phraseKey: String,
     val inCall: Boolean = false,
+    val from: String? = null,
 )
 
 /**
@@ -27,7 +29,7 @@ class AlertRouter(private val notifier: Notifier) {
         val shownAsOverlay = alert.level == AlertLevel.RED && OverlayService.controller?.showAlert(alert) == true
         if (!shownAsOverlay) {
             notifier.post(
-                Notifier.CH_ALERTS, alert.title.hashCode(), alert.title, alert.body,
+                Notifier.CH_ALERTS, alert.title.hashCode(), alert.title, listOfNotNull(alert.from, alert.body).joinToString("\n"),
                 tap = notifier.openAppIntent("alerts"), fullScreen = alert.level == AlertLevel.RED,
             )
         }

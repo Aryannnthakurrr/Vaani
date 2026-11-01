@@ -123,7 +123,8 @@ class CallGuard(private val container: AppContainer) {
         } else {
             tr(style, "Be careful on this call", "इस कॉल पर सावधान रहें", "Is call par savdhaan rahein")
         }
-        val alert = ScamAlert(risk.level.toAlertLevel(), title, ReasonText.join(risk.reasons, style), phraseKey, inCall = true)
+        val from = number?.takeIf { it.isNotBlank() }?.let { tr(style, "Call from $it", "$it से कॉल", "$it se call") }
+        val alert = ScamAlert(risk.level.toAlertLevel(), title, ReasonText.join(risk.reasons, style), phraseKey, inCall = true, from = from)
         withContext(Dispatchers.Main) { container.alerts.show(alert) }
         container.speaker.speakInCall(phraseKey, style)
         if (risk.level == ScamLevel.RED && settings.notifyFamilyOnScam) {
