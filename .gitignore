@@ -40,3 +40,6 @@ local.properties
 captures/
 *.apk
 *.aab
+
+# Unedited phone recording: shows personal contacts, kept local
+docs/media/real_run.mp4

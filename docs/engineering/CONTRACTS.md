@@ -96,7 +96,7 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
   `intent` ∈ `book_cab | book_house_help | shop_online | book_doctor | care | guide | camera | digest | settings | chitchat | unknown`.
   `care` (symptoms, feeling unwell, ambulance) is checked first and starts the symptom-to-care flow.
 - `POST /agent/step` `{goal, mode: ACT|GUIDE, language, screen_text, package, screenshot_b64?, history: [{action, reason}], task_hint?, run_id?}` → action.
-  `run_id` (≤ 64 chars, one per task run) lets the backend learn routines from ACT runs (docs/LEARNING.md §1).
+  `run_id` (≤ 64 chars, one per task run) lets the backend learn routines from ACT runs (docs/features/LEARNING.md §1).
 - `POST /agent/outcome` `{run_id, outcome: done|failed|cancelled, task_hint?, goal?, message?}` → `{ok}`. Sent once
   when a run ends.
 - `GET /skills` → skill versions and stats. `POST /skills/compile` → `{compiled: [skill_id]}`.
@@ -111,7 +111,7 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
   `{"type":"audio","pcm_b64":…}` (16 kHz s16le mono), `{"type":"end"}`.
   server → `{"type":"product_card","card":{name, mrp, quantity, expiry_iso, expiry_status: ok|soon|expired|unknown, confidence}}`,
   `{"type":"text","text":…}`, `{"type":"audio","pcm_b64":…,"sample_rate":24000}`, `{"type":"error","message":…}`.
-- `WS /live/voice?device=…` (docs/LEARNING.md §2) client → `{"type":"config","reply_style":…}` (first),
+- `WS /live/voice?device=…` (docs/features/LEARNING.md §2) client → `{"type":"config","reply_style":…}` (first),
   `{"type":"audio","pcm_b64":…}` (16 kHz s16le mono), `{"type":"text","text":…}`, `{"type":"tool_result","id":…,"result":{…}}`,
   `{"type":"end"}`. server → `{"type":"audio","pcm_b64":…,"sample_rate":24000}`,
   `{"type":"transcript","role":"user|saathi","text":…,"final":bool}`, `{"type":"tool","id":…,"name":…,"args":{…}}`
@@ -132,7 +132,7 @@ otherwise `steps[min(len(history), last)]`. No script → `fail`.
 
 ## Symptom-to-care — `/care/...`
 
-Routes, request bodies and the event list are in [CARE.md](CARE.md) ("API and events"); both sides follow that table.
+Routes, request bodies and the event list are in [CARE.md](../features/CARE.md) ("API and events"); both sides follow that table.
 Wire models: `backend/app/care/models.py` ↔ `android/.../features/care/CareModels.kt`. The phone polls
 `GET /care/{id}/events?after=N`; events are `{seq, type, at, data}` and `seq` only grows.
 
@@ -162,4 +162,4 @@ with on-device TTS. Keys are lowercase `[a-z0-9_]`.
   lat, lng, doctor, specialty, start_iso, booking_ref, phone, agent, learned_from} | null}`: the next booking the
   doctor feature made, if still ahead. The phone uses it for "cab to my doctor's appointment" when it has no copy.
 - `GET /memory/learned`: `{"agents": {id: description}, "facts": [{topic, text, agent, learned_from}]}`.
-- Every remembered fact carries `agent` and `learned_from` in its metadata, locally and in Meko (docs/MEKO_STATE.md).
+- Every remembered fact carries `agent` and `learned_from` in its metadata, locally and in Meko (docs/features/MEKO_STATE.md).

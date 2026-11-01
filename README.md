@@ -1,187 +1,271 @@
-# Saathi — an AI companion that operates Android for people who find phones hard
+<div align="center">
 
-Saathi is an Android app and a small Python backend. You talk to it in **English, Hindi or Hinglish**, and it:
+# Vaani · वाणी
 
-| | Feature | What it does |
-|---|---|---|
-| 🚕 | **Acts for you** | Books an Uber, house help (Pronto) or a Practo doctor, or adds an item to your Amazon cart, by reading the screen and tapping through the app with an AccessibilityService. **Every booking or payment waits for your spoken "haan".** |
-| ❓ | **Shows you how** | Guide mode puts a pulsing ring around the next button and speaks the instruction. You do the tapping, and Saathi never taps in this mode. |
-| 🛒 | **Shopping camera** | Point the camera at a pack: it reads the product name, printed MRP and expiry, warns if the pack is expired or close to expiry, and can hand the product to the Amazon task. |
-| 📬 | **Morning digest** | Reads bank, bill and delivery messages, masks OTPs, card numbers and Aadhaar numbers on the phone, then speaks a digest and sets reminders. |
-| 💛 | **Welfare check** | If the phone hasn't been unlocked by noon, family get a Telegram message. |
-| 🛡️ | **Scam Shield** | Flags call-forwarding USSD codes (`*401*`), APK links and lookalike bank sites. If an OTP arrives, or a payment or screen-sharing app opens, **during a call with a stranger**, it plays a loud warning through the earpiece. |
+**A voice companion that uses Android for people who find phones hard.**
 
-Every feature also works **without API keys**: mock mode replays recorded screens and scripted agent steps.
+Speak in Hindi, English or Hinglish. Vaani books the cab, finds and books the doctor by phoning hospitals for you, and
+stops scammers. Nothing irreversible happens until you say **“haan”**.
 
-## Screenshots
+<a href="docs/media/showcase.mp4"><img src="docs/media/showcase_poster.jpg" alt="Vaani showcase video (1:36)" width="760"></a>
 
-These were taken on the Android 15 emulator in mock mode.
+[▶ Showcase video (1:36)](docs/media/showcase.mp4) ·
+[Slide deck](docs/presentation/Vaani_presentation.pptx) · [All documentation](docs/README.md)
 
-| Home | Booking needs your "haan" | Guide mode |
-|---|---|---|
-| <img src="docs/screenshots/home.jpg" width="240"> | <img src="docs/screenshots/confirm_sheet.jpg" width="240"> | <img src="docs/screenshots/guide_highlight.jpg" width="240"> |
-| **Scam call + OTP** | **Forwarding-code SMS** | **Shopping camera** |
-| <img src="docs/screenshots/scam_in_call.jpg" width="240"> | <img src="docs/screenshots/scam_message.jpg" width="240"> | <img src="docs/screenshots/camera.jpg" width="240"> |
-| **My updates (digest)** | **Safety alerts** | **Activity log for family** |
-| <img src="docs/screenshots/digest.jpg" width="240"> | <img src="docs/screenshots/alerts.jpg" width="240"> | <img src="docs/screenshots/activity_log.jpg" width="240"> |
-| **Answer by typing** | **Welfare test** | **AI call to the clinic (simulated)** |
-| <img src="docs/screenshots/answer_box.jpg" width="240"> | <img src="docs/screenshots/welfare_test.jpg" width="240"> | <img src="docs/screenshots/clinic_call.jpg" width="240"> |
-| **हिन्दी Home** | **हिन्दी digest** | **Settings** |
-| <img src="docs/screenshots/hindi_home.jpg" width="240"> | <img src="docs/screenshots/hindi_digest.jpg" width="240"> | <img src="docs/screenshots/settings.jpg" width="240"> |
-| **Dark mode** | **Dark digest** | **Flipkart ("Flipkart se mangao")** |
-| <img src="docs/screenshots/dark_home.jpg" width="240"> | <img src="docs/screenshots/dark_digest.jpg" width="240"> | <img src="docs/screenshots/flipkart_confirm.jpg" width="240"> |
-
-**Backup demo videos** (SPEC §15) are in [`docs/demo/`](docs/demo):
-- `cab_booking.mp4`
-- `guide_mode.mp4`
-- `shopping_camera.mp4`
-- `scam_shield.mp4`
-
-To re-record them, run `bash scripts/record_demos.sh all`.
+</div>
 
 ---
 
-## Quick start (no keys needed)
+## Contents
 
-```bash
-# 1. Backend in mock mode
-bash scripts/backend_dev.sh            # http://localhost:8000/health → {"mock": true}
-```
+- [The problem](#the-problem)
+- [What Vaani does](#what-vaani-does)
+- [Real screens](#real-screens)
+- [How it works](#how-it-works)
+- [Safety rules enforced in code](#safety-rules-enforced-in-code)
+- [How we tested it](#how-we-tested-it)
+- [Run it yourself](#run-it-yourself)
+- [Configuration](#configuration)
+- [Repository layout](#repository-layout)
+- [Documentation](#documentation)
+- [Known limits](#known-limits)
 
-```bash
-# 2. Emulator (API 35, Google Play image)
-bash scripts/emu_setup.sh
-```
+> The app is called **Vaani** everywhere a person sees or hears it. The code, package (`com.saathi.app`) and some
+> documents still use its working name, **Saathi**.
 
-```bash
-# 3. Build, install and grant every permission through adb
-bash scripts/dev_install.sh
-```
+## The problem
 
-```bash
-# 4. Demo data
-bash scripts/seed_inbox.sh             # ~13 demo SMS: bills, renewal, appointment, OTP, scams
-bash scripts/scam_demo.sh              # the four Scam Shield scenarios
-```
+Cabs, doctors, bills and bank OTPs now arrive through apps built for young, literate, sighted users. Older people,
+blind and low-vision people, and anyone who doesn't read English menus are left to hand their phone, and their OTP, to
+whoever is nearby, to go without, or to get scammed.
 
-**Toolchain used to build this repo:** JDK 17 (Temurin), Gradle 8.11.1 through the wrapper, AGP 8.7.3, Kotlin 2.1.0, compileSdk/targetSdk 35, minSdk 29. The backend uses Python 3.12.
+- 149 million Indians were aged 60+ in 2022 (10.5%); they will be 20.8% of India by 2050 (India Ageing Report 2023,
+  UNFPA & IIPS).
+- Only 42% of people aged 70+ have smartphone access, and about two in five people over 60 can use the internet (NSS
+  telecom survey 2025, analysed by LEAD at Krea University).
+- “Digital arrest” scams hit 1,23,672 cases and ₹1,935.51 crore in 2024 (Ministry of Home Affairs, Rajya Sabha,
+  March 2025).
 
-Android unit tests:
+## What Vaani does
 
-```bash
-cd android && ./gradlew :app:testDebugUnitTest
-```
+| | Feature | What it does | Read more |
+|---|---|---|---|
+| 🚕 | **Uses apps for you** | Books an Uber cab or Pronto house help, or fills an Amazon/Flipkart cart, by reading the screen through Android's accessibility service. It stops for your “haan” before anything final. | [App case studies](docs/features/APP_CASE_STUDIES.md) |
+| 👆 | **Shows you how** | Guide mode rings the next button and speaks the step. You tap; Vaani never does. | [App case studies](docs/features/APP_CASE_STUDIES.md) |
+| 🩺 | **Doctor and emergency** | A rule-based check catches emergencies on every sentence (siren, countdown, ambulance with live tracking). Otherwise it ranks nearby hospitals on your whole need, phones the top three at once, and books on the same call after your yes. | [Healthcare](docs/features/HEALTHCARE_KT.md) |
+| 🧠 | **Remembers you** | One memory per person in Meko, written by seven agents that each record where they learnt a fact. A booked appointment later becomes the destination of “cab to my doctor's appointment”. | [Meko memory](docs/features/MEKO_STATE.md) |
+| 🧩 | **Grows personal skills** | Repeated work becomes small, tested code: app routines, request recognisers and per-person abilities (a sugar diary, a BP log, a salt budget, an expense log). The AI still words every reply. | [Compiled code](docs/features/COMPILED_CODE.md) · [Personal abilities](docs/features/PERSONAL_ABILITIES.md) |
+| 🛒 | **Shopping camera** | Reads name, MRP and expiry, and warns about sugar or salt for the person holding the phone. | [Personal abilities §4](docs/features/PERSONAL_ABILITIES.md) |
+| 🛡️ | **Scam Shield** | Flags call-forwarding codes, APK links and lookalike bank sites. A loud in-call warning plays if an OTP arrives or a payment or screen-sharing app opens during a call with a stranger. | [Privacy pitch](docs/privacy/PRIVACY_PITCH.md) |
+| 📬 | **Digest and welfare** | Reads bills, renewals and appointments aloud each morning. If the phone isn't unlocked by noon, family get a Telegram message and can open a read-only family page. | [Spec §7.4–7.5](docs/engineering/SPEC.md) |
 
-Backend tests:
+Three demo users show how the same app becomes three different assistants: **Ramesh** (74, Hindi, diabetes),
+**Sunita** (67, Hinglish, high blood pressure) and **Arjun** (41, English, blind). See
+[Personal abilities](docs/features/PERSONAL_ABILITIES.md).
 
-```bash
-cd backend && .venv/Scripts/python -m pytest -q      # (bin/python on macOS/Linux)
-```
+## Real screens
 
-### Try it without real apps (replay mode)
+Captured on a phone running the current build; the cab and guide frames come from an unedited run with the real Uber
+and WhatsApp apps.
 
-In the app, go to **Settings → Developer → Demo replay**. Turning it on makes every task and guide flow run against the recorded screens in `fixtures/screens/` (Uber, Amazon, Practo, Pronto, Settings → Font size, and sharing a photo on WhatsApp), using the real agent loop, safety policy, confirm sheet and highlight ring. Settings → **Work offline** also replaces the backend with the on-device `FakeBackendClient`.
+| Home | Vaani picks a car, not the bike | Asks before booking | Guide mode rings the button |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/media/app/home.png" width="190"> | <img src="docs/media/app/run_ride_choice.png" width="190"> | <img src="docs/media/app/cab_confirm.webp" width="190"> | <img src="docs/media/app/run_guide_ring.png" width="190"> |
+| **Call-forwarding code typed** | **Scam warning** | **Three demo users** | **What Vaani did (for family)** |
+| <img src="docs/media/app/call_forwarding_question.png" width="190"> | <img src="docs/media/app/scam_alert_card.png" width="190"> | <img src="docs/media/app/demo_profiles.png" width="190"> | <img src="docs/media/app/activity_log.png" width="190"> |
 
-### Adding keys later
+Older captures from the first UI and four short demo recordings are in [`docs/media/`](docs/media).
 
-Copy `.env.example` to `.env` and fill in:
+## How it works
 
-| Key | Turns on |
-|---|---|
-| `GEMINI_API_KEY` | Real agent steps, vision, classification, link verdicts, Gemini Live camera |
-| `SARVAM_API_KEY` | Saaras STT and Bulbul TTS. Then run `python scripts/render_alert_clips.py` to bundle the safety voice clips. |
-| `TELEGRAM_BOT_TOKEN` | Real family alerts. Family send `/start` to the bot and get their chat ID back. |
-| `SAFE_BROWSING_API_KEY` | An extra check for links |
-
-No key ever goes into the APK. Before a release, run `grep -r "AIza" android/`; it should return nothing.
-
-### On a real phone
-
-1. Run `adb reverse tcp:8000 tcp:8000`, then set **Settings → Backend URL** to `http://localhost:8000`.
-2. Follow the in-app setup wizard. It asks for one permission per screen and explains each one aloud.
-3. On Android 13+, sideloaded apps need **App info → ⋮ → Allow restricted settings** before the accessibility switch can be turned on. The wizard shows this step and links to the page.
-
-> ⚠️ The link sandbox opens untrusted URLs in headless Chromium. **Run it only inside Docker**:
-> `docker build -f backend/Dockerfile -t saathi-backend . && docker run -p 8000:8000 --env-file .env saathi-backend`.
-> Never run the sandbox on a developer laptop outside a container. It is off unless `SANDBOX_ENABLED=1`.
-
----
-
-## Architecture
+**The AI suggests. The phone's code decides. You say “haan”.** The model proposes one action at a time; the phone's
+`SafetyPolicy` checks it before anything happens, and anything irreversible becomes a spoken yes/no question.
 
 ```mermaid
 flowchart LR
   subgraph Phone["Android app (Kotlin, Compose)"]
-    Mic["Mic bubble / Home tiles"] --> SI["SpeechInput<br/>16 kHz PCM + VAD"]
-    SI --> AS["Assistant<br/>intent → task/guide/camera/digest"]
-    AS --> Loop["AgentLoop<br/>observe → decide → validate → act"]
-    Loop --> SR["ScreenReader<br/>(accessibility tree → text)"]
-    Loop --> SP["SafetyPolicy + ConfirmGate<br/>(code, unit-tested)"]
-    SP --> EX["ActionExecutor<br/>tap/type/scroll/gestures"]
-    Loop --> OV["Overlays<br/>highlight · confirm · stop · alert"]
-    SMS["SmsReceiver / NotifListener"] --> RED["Redactor<br/>(OTP never leaves)"] --> ING["Inbox + MessageScanner"]
-    Call["PhoneStateReceiver"] --> CG["CallGuard + RiskScorer"]
-    ING --> CG
-    CG --> Clips["Pre-rendered safety clips<br/>(no network)"]
-    Cam["CameraX ~1 fps"] --> LS["LiveSocket"]
+    Mic["You speak"] --> Intent["Intent<br/>(rules on the phone, else backend)"]
+    Intent --> Loop["AgentLoop<br/>look → AI picks one step → check → act"]
+    Loop --> Read["Screen reader<br/>accessibility tree, + screenshot when needed"]
+    Loop --> Policy["SafetyPolicy + confirm gate<br/>(code, unit-tested)"]
+    Policy --> Act["Tap · type · scroll"]
+    SMS["SMS / notifications"] --> Vault["Private-value vault<br/>(OTPs never leave)"] --> Scam["Scam Shield<br/>CallGuard · DialGuard"]
+    Scam --> Clips["Bundled safety clips<br/>(no network)"]
   end
-  subgraph Backend["Backend (FastAPI)"]
-    API["/agent/step · /intent · /classify · /digest · /links/check"]
-    G["Gemini<br/>(brain + eyes)"]
-    S["Sarvam Saaras/Bulbul<br/>(ears + voice)"]
-    LV["/live/camera relay → Gemini Live"]
-    W["APScheduler welfare job → Telegram"]
-    SB["Playwright sandbox<br/>(Docker only)"]
+  subgraph Backend["Backend (FastAPI on DigitalOcean)"]
+    API["/intent · /agent/step · /classify · /care"]
+    LLM["Gemma 4 31B (open-weight)<br/>Qwen 3.8 Max · Gemini fallback"]
+    Skills["Compiled skills<br/>Docker sandbox"]
+    Care["Care: triage → Places → Bolna calls"]
+    Mem["Meko memory<br/>one datapack per person"]
+    Speech["Sarvam STT / TTS"]
   end
-  Loop -- redacted screen text --> API --> G
-  SI -- WAV --> S
-  LS <--> LV
-  ING -- redacted, non-contact only --> API
-  API --> SB
+  Loop -- redacted screen --> API --> LLM
+  API --> Skills
+  API --> Care --> Amb["Ambulance API (mock)"]
+  API --> Mem
+  Mic -- audio --> Speech
 ```
 
-**Design rules enforced in code** (see `core/agent/SafetyPolicy.kt` and its tests):
+- **Two kinds of apps.** Uber describes its screen well, so Vaani works from text. Pronto hides state changes from
+  accessibility, so every Pronto step also sends a screenshot and the AI taps by position. Both run under the same
+  rules. ([case studies](docs/features/APP_CASE_STUDIES.md))
+- **Models.** Every model ID lives in [`backend/app/models.yaml`](backend/app/models.yaml). Most reasoning runs on
+  Gemma 4 31B on DigitalOcean serverless inference; Qwen 3.8 Max compiles skills; Gemini is the fallback and drives
+  the live shopping camera; Sarvam Saaras and Bulbul listen and speak. ([learning and models](docs/features/LEARNING.md))
+- **Contract.** The app ↔ backend API is specified in [CONTRACTS.md](docs/engineering/CONTRACTS.md).
 
-- **Confirm gate.** A tap on anything labelled book, confirm, pay, place order, buy now, send, request, schedule or add to cart (and the Hindi equivalents) runs only after the user says or taps yes. If the model taps such a button directly, the gate turns the tap into a yes/no question.
-- **PIN, OTP, CVV and secure screens** stop the agent, and Saathi asks the user to type the code themselves. **Login screens** are also left to the user.
-- **ACT mode** only opens and works in apps on the allowlist. It only opens deep links that Saathi's own task code built, never `tel:`/`sms:` links or dial codes.
-- **GUIDE mode** can only highlight, ask, finish or fail.
-- Screen and message text is treated as **data**: prompts say so, and the code checks above hold even when the model is fooled.
-- **OTP messages and messages from saved contacts never leave the phone.** The activity log stores what was done and why, never raw screen text.
+## Safety rules enforced in code
+
+These are listed in [DEVELOPING.md](docs/engineering/DEVELOPING.md) as rules that must never regress, and each has
+tests.
+
+| Rule | Where it is enforced | Tested by |
+|---|---|---|
+| Book, confirm, pay, order, send and add to cart need a spoken or tapped yes; a direct tap becomes a question | `core/agent/SafetyPolicy.kt`, `AgentLoop.confirmThen` | `SafetyPolicyTest`, `AgentLoopReplayTest` |
+| PIN, OTP, CVV, secure and login screens stop the agent; it never types secrets or dial codes | `SafetyPolicy.kt` | `SafetyPolicyTest`, `AgentLoopReplayTest` |
+| Acts only in allow-listed apps and opens only deep links built by its own task code | `util/Packages.kt`, `features/tasks` | `TaskLinksTest`, `TaskFixesTest` |
+| Guide mode only highlights, asks, finishes or fails | `SafetyPolicy.kt` | `SafetyPolicyTest` |
+| OTPs and messages from saved contacts never leave the phone; other private values become tokens | `features/inbox/InboxPipeline.kt`, `PrivateSpans`, `Redactor` | `InboxPrivacyTest`, `PrivateSpansTest`, `RedactorTest`, `PrivacyTest`, `test_privacy.py` |
+| Raw message and screen text is never logged | backend logging, `app/routers` | `test_privacy.py`, [privacy audit](docs/privacy/PRIVACY_AUDIT.md) |
+| Model-written code runs only after a static check, a fingerprint check and tests, in a sandbox | `backend/app/skills/sandbox.py` | `test_code_skills.py`, `test_skills.py`, `test_abilities.py` |
+| Only allow-listed numbers are dialled; 108 is never dialled automatically | `app/telephony`, `app/care/ranking.py` | `test_telephony.py`, `test_bolna.py`, `test_care_dispatch.py` |
+
+Android tests live in [`android/app/src/test`](android/app/src/test/java/com/saathi/app); backend tests in
+[`backend/tests`](backend/tests).
+
+## How we tested it
+
+### What each suite checks
+
+| Area | What we wanted to know | Tests |
+|---|---|---|
+| Agent safety | Does any path tap a commit button without a yes, or act on a secret screen? | Android: `SafetyPolicyTest`, `AgentLoopReplayTest` (replays [recorded screens](fixtures/screens) of Uber, Pronto, Amazon, Flipkart, Practo, WhatsApp and Settings), `TreeSerializerTest`, `TaskLinksTest`, `TaskFixesTest` |
+| Scam Shield | Are forwarding codes, bad links and in-call OTP or payment-app risks caught, without flagging genuine bank SMS? | Android: `UssdDetectorTest`, `MessageScannerTest`, `RiskScorerTest`, `UrlExtractorTest`, `LocalLinkRulesTest`; acceptance: `scripts/scam_demo.sh` (four scenarios on the emulator) |
+| Privacy | Do secrets stay on the phone, stay out of logs, and is one device kept from another's data? | Android: `RedactorTest`, `PrivateSpansTest`, `InboxPrivacyTest`, `PrivacyTest`, `PrivacyAuditTest`; backend: `test_privacy.py`; measurement: `scripts/privacy_audit.py` → [PRIVACY_AUDIT.md](docs/privacy/PRIVACY_AUDIT.md) |
+| Emergency and doctor | Are red flags caught in three languages (with negations)? Is routing right, is ranking driven by the whole need, and is a booking only reported when the transcript proves it? | Backend: `test_care.py`, `test_care_dispatch.py`, `test_care_explicit.py`, `test_care_live_confirm.py`, `test_voice_care.py`, `test_bolna.py`, `test_telephony.py`, `test_calls.py`; Android: `CareReducerTest`, `CountdownWordsTest`, `PatientReplyTest` |
+| Compiled skills | Do routines replay on held-out runs, do recognisers reach their precision bar, and does unsafe code get rejected before it runs? | Backend: `test_skills.py`, `test_code_skills.py`, `test_abilities.py` |
+| Memory | Is each person's memory separate, does each destination see only what it may, and do Meko outages stay hidden? | Backend: `test_memory.py`, `test_voice_live.py`; Android: `AppointmentStateTest`, `ProfilesTest` |
+| Voice and language | Are yes/no answers, silences, language switches, place choices and names understood? | Android: `VoiceRulesTest`, `SpokenAnswerTest`, `LanguageSwitchTest`, `PlaceChoiceTest`, `NameMatcherTest`, `SpeakerSentencesTest`, `LiveVoiceTest`, `VoiceLevelTest`; backend: `test_rules_intent_fixes.py`, `test_romanize.py`, `test_revoice.py`, `test_gemini_speech.py` |
+| Inbox, digest, welfare | Are messages classified offline, reminders planned and welfare alerts sent at the right time? | Android: `LocalClassifierTest`, `LocalDigestWriterTest`, `ReminderPlannerTest`, `WelfareRulesTest`, `LocalClinicCallTest`; backend: `test_api.py`, `test_family.py`, `test_units.py` |
+| Speed and cost | Does a stalled model get overtaken by its fallback, and is usage metered without guessing prices? | Backend: `test_speed.py`, `test_usage.py`; Android: `UsageMeterTest`; simulation: `scripts/simulate_profiles.py` → [SIMULATION.md](docs/evaluation/SIMULATION.md) |
+
+### Measurements, not claims
+
+| Measurement | How | Result on our test set |
+|---|---|---|
+| Private values leaving the phone | 12 realistic SMS, email and WhatsApp messages holding 22 private values, run through the real notification path; the outgoing data was searched for each value | None left the phone |
+| Personal data in server logs | 32 requests packed with names, numbers and secrets through every route, all logs captured at debug level | None appeared |
+| Cross-device access | Forged and cross-device requests against device-owned routes | All 16 rejected |
+| AI steps saved by a learned routine | A simulated month of cab rides per demo profile | 38% fewer AI steps |
+| Sandbox speed | Compiled code in a fresh Docker container on the server | ~0.55 s per run; a memory bomb was killed in 0.7 s |
+
+Full method and tables: [PRIVACY_AUDIT.md](docs/privacy/PRIVACY_AUDIT.md), [SIMULATION.md](docs/evaluation/SIMULATION.md),
+[COMPILED_CODE.md](docs/features/COMPILED_CODE.md). Manual, on-device checks are in
+[TESTING.md](docs/engineering/TESTING.md) and the verification logs in [NOTES.md](NOTES.md).
+
+### Latest run (1 November 2026)
+
+| Suite | Command | Result |
+|---|---|---|
+| Backend | `cd backend && .venv/Scripts/python -m pytest -q` | 293 of 296 pass; 3 failing tests are listed in [NOTES.md](NOTES.md#open-test-failures-2026-11-01) |
+| Android unit tests | `cd android && ./gradlew :app:testDebugUnitTest` | 160 of 163 pass; 3 failing tests are listed in [NOTES.md](NOTES.md#open-test-failures-2026-11-01) |
+
+## Run it yourself
+
+Everything works **without API keys**: mock mode replays recorded screens and scripted AI answers.
+
+```bash
+bash scripts/backend_dev.sh      # mock backend on :8000
+```
+
+```bash
+bash scripts/emu_setup.sh        # Android 15 emulator (add -no-window for headless)
+```
+
+```bash
+bash scripts/dev_install.sh      # build, install, grant every permission
+```
+
+```bash
+bash scripts/seed_inbox.sh       # demo SMS → morning digest
+```
+
+```bash
+bash scripts/scam_demo.sh        # the four Scam Shield scenarios
+```
+
+```bash
+bash scripts/mock_ambulance.sh   # the ambulance dispatch stand-in on :9000
+```
+
+- **Typed speech** on debug builds:
+  `adb shell am broadcast -a com.saathi.app.DEBUG_SAY --es text "'Saket ke liye cab book kar do'" -p com.saathi.app`
+- **Replay mode:** Settings → Developer → Demo replay runs tasks on the recorded screens in `fixtures/screens/`.
+- **Demo users:** Settings → Demo profile → Ramesh, Sunita or Arjun.
+- **On a real phone:** `adb reverse tcp:8000 tcp:8000`, then Settings → Backend URL `http://localhost:8000`. On
+  Android 13+, sideloaded apps need App info → ⋮ → Allow restricted settings before accessibility can be turned on.
+
+Toolchain: JDK 17, Gradle 8.11.1 (wrapper), AGP 8.7.3, Kotlin 2.1.0, compile/target SDK 35, min SDK 29, Python 3.12.
+Step-by-step test guide: [TESTING.md](docs/engineering/TESTING.md). Server deployment: [deploy/README.md](deploy/README.md).
+
+## Configuration
+
+Copy `.env.example` to `.env` (git-ignored). **No key ever ships in the APK.**
+
+| Group | Variables | Turns on |
+|---|---|---|
+| Models | `GEMINI_API_KEY`, `DIGITALOCEAN_INFERENCE_KEY`, `SARVAM_API_KEY` | Real AI answers, vision, speech |
+| Doctor and calls | `GOOGLE_MAPS_API_KEY`, `BOLNA_API_KEY`, `BOLNA_INQUIRY_AGENT_ID`, `BOLNA_BOOKING_AGENT_ID`, `BOLNA_TOOL_SECRET`, `CALL_ALLOWED_NUMBERS`, `MASK_HOSPITAL_NUMBERS`, `DEMO_PHONE_MAP` | Hospital search and real phone calls (only to allow-listed numbers) |
+| Emergency | `MOCK_AMBULANCE_BASE_URL`, `MOCK_AMBULANCE_API_KEY`, `EMERGENCY_COUNTDOWN_SEC`, `SIM_SPEED_MULTIPLIER` | Ambulance dispatch stand-in |
+| Memory and skills | `MEKO_API_KEY`, `SKILL_SANDBOX`, `SKILL_MIN_RUNS`, `SKILL_MIN_SAMPLES`, `SKILL_SHADOW_AGREE`, `SKILL_AUTO_APPROVE` | Meko memory and the compiled-skill loop |
+| Family and links | `TELEGRAM_BOT_TOKEN`, `DASHBOARD_SECRET`, `PUBLIC_BASE_URL`, `SAFE_BROWSING_API_KEY`, `SANDBOX_ENABLED` | Family alerts, family page, link checks |
+
+The link sandbox opens untrusted URLs in headless Chromium: run it only inside Docker
+(`docker build -f backend/Dockerfile -t saathi-backend .`).
 
 ## Repository layout
 
 ```
-android/   Android Studio project (com.saathi.app)
-backend/   FastAPI app, prompts, models.yaml (every model ID lives here), tests, Dockerfile
-fixtures/  screens/ (recorded accessibility trees), agent_scripts/ (mock agent), messages/ (demo SMS)
-scripts/   emu_setup, dev_install, seed_inbox, scam_demo, backend_dev, render_alert_clips, gen_fixtures
-docs/      CONTRACTS.md — the shared app ↔ backend contract
-NOTES.md   decisions, verified IDs, deviations and known gaps
+android/          Android app (com.saathi.app): agent loop, safety policy, voice, overlays, Scam Shield, care
+backend/          FastAPI backend: models.yaml, prompts, care, skills + sandbox, memory, tests
+mock_ambulance/   Ambulance dispatch API stand-in with a driver page
+fixtures/         Recorded app screens, scripted agent runs, demo messages, personas and their abilities
+scripts/          Emulator, install, demo, audit and simulation scripts
+deploy/           DigitalOcean deployment (Docker Compose + Caddy)
+docs/             Documentation, media and the slide deck (index: docs/README.md)
+NOTES.md          Running log: what was verified, deviations from the spec, open gaps
 ```
 
-## Demo script (about 5 minutes)
+## Documentation
 
-1. **Hook.** "My grandmother can't book a cab, and last month someone tried to steal her OTP."
-2. **Guide mode.** Say "Mujhe ye photo Aarav ko bhejni hai." Pulsing rings walk through sharing the photo, then Saathi says "Well done!"
-3. **Shopping camera.** Show a biscuit pack. Saathi reads the MRP, warns that it expires soon, and **Order online** adds it to the Amazon cart.
-4. **Cab.** Say "Apollo Hospital jaana hai." Saathi reads the fare and waits for "haan".
-5. **Scam Shield.** Run `scripts/scam_demo.sh`: a forwarding-code SMS triggers a red alert, then an unknown caller plus an OTP triggers a spoken in-call warning.
-6. **Digest and welfare.** The morning digest is spoken, then **Settings → Test welfare alert** sends the family message.
-7. **Close.** OTPs never leave the phone, and every payment needs a spoken yes.
+Start at the **[documentation index](docs/README.md)**. The most useful entry points:
 
-## Limitations (hackathon build)
+| If you want to… | Read |
+|---|---|
+| Understand how Vaani uses Uber and Pronto | [APP_CASE_STUDIES.md](docs/features/APP_CASE_STUDIES.md) |
+| Understand the doctor and emergency features | [HEALTHCARE_KT.md](docs/features/HEALTHCARE_KT.md), then [CARE.md](docs/features/CARE.md) for the API |
+| See how repeated work becomes code, and the sandbox | [COMPILED_CODE.md](docs/features/COMPILED_CODE.md), [LEARNING.md](docs/features/LEARNING.md) |
+| Meet the three demo users | [PERSONAL_ABILITIES.md](docs/features/PERSONAL_ABILITIES.md) |
+| See how memory works across agents | [MEKO_STATE.md](docs/features/MEKO_STATE.md) |
+| Judge the privacy story | [PRIVACY_PITCH.md](docs/privacy/PRIVACY_PITCH.md), [PRIVACY_AUDIT.md](docs/privacy/PRIVACY_AUDIT.md) |
+| Contribute code | [DEVELOPING.md](docs/engineering/DEVELOPING.md), [CONTRACTS.md](docs/engineering/CONTRACTS.md), [NOTES.md](NOTES.md) |
 
-- The backend uses a shared `X-Saathi-Device` header instead of real authentication. Production needs proper auth.
-- Real Uber, Practo and Amazon screens differ from the recorded fixtures, so the prompts may need tuning on real devices. Use the debug **Record screen** button to capture new fixtures.
-- On Android 14+, the mic in a background service is restricted. Saathi switches its foreground service to the `microphone` type while listening and falls back to on-device recognition if that is refused.
-- `TelecomManager.endCall()` can be blocked on some OEM builds. If so, Saathi says "Press the red button to end the call."
-- The AI call to the clinic (stretch, Phase 8) is a **simulated call**: Saathi speaks its side and a teammate types the clinic's replies (Digest → "📞 Call the clinic for me"). Real telephony through Sarvam Samvaad or Exotel is not wired up.
+## Known limits
 
-## Family dashboard (stretch)
+- Hospital calls in demos ring our own test phone; the ambulance API is a realistic stand-in, since 108 has no public
+  API.
+- During a task, screen text and screenshots from allowed apps go to a cloud model (never logged, stopped at secure
+  screens). An on-phone-only mode is not built yet.
+- Coordinate taps on apps like Pronto are not bounds-checked, and the yes gate for them relies on a labelled element
+  being under the point.
+- The three demo users' abilities are seeded to show the result of the learning loop; they are re-tested in the
+  sandbox at every backend start.
+- Recorded app screens are hand-built from real apps and drift as the apps change; the agent prompts may need tuning
+  on new app versions.
 
-The backend serves a read-only page for family at `GET /family/<device_id>?key=<key>`. It shows when the phone was last used, the daily check time, family names and recent welfare and scam alerts. Each device's key is an HMAC signed with `DASHBOARD_SECRET`.
+Everything verified, every deviation from the spec and every open gap is logged in [NOTES.md](NOTES.md).
 
-The Android app gets the link back from `POST /welfare/config`. When `PUBLIC_BASE_URL` is set, Telegram alerts and the bot's `/start` reply include the link too. The page never shows chat IDs, OTPs or message contents.
+---
 
-See [NOTES.md](NOTES.md) for everything verified and not verified.
+Built by **Aryan Thakur, Keshav Goel and Anish Manchanda**.

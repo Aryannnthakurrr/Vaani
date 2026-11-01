@@ -11,7 +11,7 @@
 | Firewall (ufw) | Only 22, 80 and 443 are open. Unattended security upgrades are on |
 | `saathi-backend` | FastAPI backend built from `backend/Dockerfile`. Runs as an unprivileged user and keeps its SQLite DB in the `saathi-data` volume (`/data`). Limited to 2 GB |
 | `caddy` | HTTPS reverse proxy for HTTP and WebSockets (`/live/*`), with no read timeout for long voice sessions |
-| `saathi-skill-sandbox` image | Runs compiled Python skills. The backend starts one locked-down container per job (see `docs/LEARNING.md`) |
+| `saathi-skill-sandbox` image | Runs compiled Python skills. The backend starts one locked-down container per job (see `docs/features/LEARNING.md`) |
 
 Files on the server:
 - `/opt/saathi/src`: the uploaded source tree

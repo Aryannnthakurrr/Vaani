@@ -1,4 +1,4 @@
-"""Routines: declarative, compiled phone-automation skills (docs/LEARNING.md §1).
+"""Routines: declarative, compiled phone-automation skills (docs/features/LEARNING.md §1).
 
 A routine is a list of steps, each saying which screen it expects and which element to act on, located by text, not by
 the per-snapshot ID. Everything here is pure: parse the serialized screen, find the step for the current
@@ -36,7 +36,7 @@ class Node:
 
 
 def parse_screen(screen_text: str) -> list[Node]:
-    """Parse the serializer's `[id] Cls "text" desc=".." hint=".." flags bounds=(..)` lines (docs/CONTRACTS.md)."""
+    """Parse the serializer's `[id] Cls "text" desc=".." hint=".." flags bounds=(..)` lines (docs/engineering/CONTRACTS.md)."""
     nodes: list[Node] = []
     for line in screen_text.splitlines():
         m = _LINE.match(line)

@@ -14,7 +14,7 @@ enum class ReplyStyle(val wire: String) {
 
 enum class AgentMode { ACT, GUIDE }
 
-/** The agent action schema (docs/CONTRACTS.md). Flat with an [action] discriminator. */
+/** The agent action schema (docs/engineering/CONTRACTS.md). Flat with an [action] discriminator. */
 @Serializable
 data class AgentAction(
     val action: String,
@@ -74,7 +74,7 @@ data class AgentStepRequest(
     @SerialName("run_id") val runId: String? = null,
 )
 
-/** End of an agent run (docs/LEARNING.md §1): successful runs are what skills are compiled from. */
+/** End of an agent run (docs/features/LEARNING.md §1): successful runs are what skills are compiled from. */
 @Serializable
 data class AgentOutcomeReport(
     @SerialName("run_id") val runId: String,

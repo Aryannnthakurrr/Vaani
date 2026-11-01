@@ -57,7 +57,7 @@ object LiveToolArgs {
 }
 
 /**
- * Executes Gemini Live's tool calls on the phone (docs/LEARNING.md §2). Tasks and guides run through the normal
+ * Executes Gemini Live's tool calls on the phone (docs/features/LEARNING.md §2). Tasks and guides run through the normal
  * [com.saathi.app.core.Assistant] path with every safety gate; while they run the live session is paused, and when
  * they end the model is told the outcome so it can carry on the conversation.
  */

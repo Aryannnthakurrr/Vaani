@@ -1,5 +1,5 @@
 """The learning loop at runtime: serve agent steps from compiled routines, shadow-test them, track their health, and
-compile new versions in the background (docs/LEARNING.md §1)."""
+compile new versions in the background (docs/features/LEARNING.md §1)."""
 
 from __future__ import annotations
 

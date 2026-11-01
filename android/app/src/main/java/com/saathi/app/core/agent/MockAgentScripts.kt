@@ -21,7 +21,7 @@ data class AgentScript(
 )
 
 /**
- * Offline replay of `fixtures/agent_scripts`, mirroring the backend mock selection rule in docs/CONTRACTS.md.
+ * Offline replay of `fixtures/agent_scripts`, mirroring the backend mock selection rule in docs/engineering/CONTRACTS.md.
  * Used by [com.saathi.app.core.net.FakeBackendClient] and by JVM tests.
  */
 class MockAgentScripts(private val scripts: List<AgentScript>) {

@@ -16,7 +16,7 @@ echo "==> Uploading source to $HOST:/opt/saathi/src"
 "${SSH[@]}" 'mkdir -p /opt/saathi && rm -rf /opt/saathi/src.new && mkdir -p /opt/saathi/src.new'
 tar -C "$ROOT" -czf - \
   --exclude=.git --exclude=.venv --exclude=android --exclude=build --exclude='*/build' \
-  --exclude='*.db' --exclude=.env --exclude=docs/demo --exclude=__pycache__ --exclude=.pytest_cache \
+  --exclude='*.db' --exclude=.env --exclude=docs/media --exclude=docs/presentation --exclude=__pycache__ --exclude=.pytest_cache \
   --exclude=.ruff_cache --exclude=.claude --exclude=node_modules \
   backend fixtures deploy docs scripts README.md \
   | "${SSH[@]}" 'tar -xzf - -C /opt/saathi/src.new && rm -rf /opt/saathi/src && mv /opt/saathi/src.new /opt/saathi/src'

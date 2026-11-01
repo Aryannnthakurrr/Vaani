@@ -15,7 +15,7 @@ import java.util.Base64
 /** One line of the live conversation shown in big text on screen. */
 data class TranscriptLine(val role: String, val text: String, val final: Boolean)
 
-/** Server → app messages of `WS /live/voice` (docs/LEARNING.md §2). */
+/** Server → app messages of `WS /live/voice` (docs/features/LEARNING.md §2). */
 sealed interface LiveEvent {
     data class Audio(val pcm: ByteArray, val sampleRate: Int) : LiveEvent
     data class Transcript(val role: String, val text: String, val final: Boolean) : LiveEvent

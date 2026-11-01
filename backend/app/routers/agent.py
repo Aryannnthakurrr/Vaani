@@ -49,7 +49,7 @@ async def agent_step(
         return _checked(req, await llm.agent_step(req))
 
     # A compiled routine answers when one is active for this task; otherwise the LLM does, and the run is recorded
-    # so a routine can be compiled from it later (docs/LEARNING.md).
+    # so a routine can be compiled from it later (docs/features/LEARNING.md).
     served = await get_engine().step(
         device=device, run_id=req.run_id, task=req.task_hint, goal=req.goal, mode=req.mode,
         screen_text=req.screen_text, llm_step=ask_llm,

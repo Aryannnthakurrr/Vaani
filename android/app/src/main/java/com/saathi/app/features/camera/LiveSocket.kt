@@ -20,7 +20,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
-/** Events coming back from the camera Live relay (docs/CONTRACTS.md). */
+/** Events coming back from the camera Live relay (docs/engineering/CONTRACTS.md). */
 sealed interface LiveEvent {
     data class Card(val card: ProductCard) : LiveEvent
     data class Text(val text: String) : LiveEvent

@@ -67,7 +67,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Import the Sarvam SDK and open its client now, not inside the first request's deadline.
     await asyncio.to_thread(sarvam_tts.warm_up, settings)
     scheduler = start_scheduler(settings, get_db())
-    # Learning loop: compile routines from successful runs in the background (docs/LEARNING.md).
+    # Learning loop: compile routines from successful runs in the background (docs/features/LEARNING.md).
     scheduler.add_job(get_engine().compile_pending, "interval", minutes=10, args=[get_llm(settings)],
                       id="skill_compile", max_instances=1, coalesce=True)  # fmt: skip
     scheduler.add_job(get_code_skills().compile, "interval", minutes=30, args=[get_llm(settings)],

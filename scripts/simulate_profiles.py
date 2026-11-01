@@ -1,5 +1,5 @@
 """Simulate a month of Saathi for each demo profile: rules ("compiled") vs LLM calls, scams caught, a learned skill,
-and the data and model tokens an average user costs. Writes docs/SIMULATION.md and docs/simulation.json.
+and the data and model tokens an average user costs. Writes docs/evaluation/SIMULATION.md and docs/evaluation/simulation.json.
 
     backend/.venv/Scripts/python scripts/simulate_profiles.py            # offline, no keys, deterministic
     backend/.venv/Scripts/python scripts/simulate_profiles.py --live     # also asks the real model (costs tokens)
@@ -339,13 +339,13 @@ def main() -> int:
     )["profiles"]
     with TestClient(app) as client:
         results = [simulate(p, args.days, client, live_llm) for p in profiles]
-    (ROOT / "docs/simulation.json").write_text(
+    (ROOT / "docs/evaluation/simulation.json").write_text(
         json.dumps(results, indent=1, ensure_ascii=False), "utf-8"
     )
     md = report(
         results, args.days, settings.models.get("pricing") or {}, live_llm is not None
     )
-    (ROOT / "docs/SIMULATION.md").write_text(md + "\n", "utf-8")
+    (ROOT / "docs/evaluation/SIMULATION.md").write_text(md + "\n", "utf-8")
     print(md)
     return 0
 

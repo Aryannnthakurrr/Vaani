@@ -1,4 +1,4 @@
-"""Symptom-to-care API (docs/CARE.md, workflow §7). The app polls GET /care/{id}/events for progress."""
+"""Symptom-to-care API (docs/features/CARE.md, workflow §7). The app polls GET /care/{id}/events for progress."""
 
 from __future__ import annotations
 

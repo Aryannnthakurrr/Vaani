@@ -1,4 +1,4 @@
-"""The doctor intake as a live conversation: Gemini relays what was said, triage decides (docs/CARE.md)."""
+"""The doctor intake as a live conversation: Gemini relays what was said, triage decides (docs/features/CARE.md)."""
 
 from __future__ import annotations
 

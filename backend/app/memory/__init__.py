@@ -1,4 +1,4 @@
-"""Agent memory and state (docs/LEARNING.md §3): facts about each elder, and where each kind of fact may go.
+"""Agent memory and state (docs/features/LEARNING.md §3): facts about each elder, and where each kind of fact may go.
 
 Facts are stored as the elder said them, in English, Hindi or Hinglish; `topic` and `key` are English labels so
 storage, replacement and the sharing rules below work the same in every language. Everything goes through

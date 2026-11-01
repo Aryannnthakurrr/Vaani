@@ -1,4 +1,4 @@
-"""Measures Saathi's privacy guarantees and writes docs/PRIVACY_AUDIT.md + docs/privacy_audit.json.
+"""Measures Saathi's privacy guarantees and writes docs/privacy/PRIVACY_AUDIT.md + docs/privacy/privacy_audit.json.
 
 Runs the backend in-process (mock models, a throwaway database) and checks, with numbers:
   1. Log leaks: personal data from fixtures/privacy/messages.json, sent raw (as if the phone's redaction failed)
@@ -323,13 +323,13 @@ test links had personal parts; {ln["match_expected"]} of {ln["cases"]} come out 
 
 def main() -> int:
     report = run()
-    (ROOT / "docs" / "privacy_audit.json").write_text(
+    (ROOT / "docs" / "privacy" / "privacy_audit.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False), "utf-8"
     )
-    (ROOT / "docs" / "PRIVACY_AUDIT.md").write_text(markdown(report), "utf-8")
+    (ROOT / "docs" / "privacy" / "PRIVACY_AUDIT.md").write_text(markdown(report), "utf-8")
     ll, da, ph = report["log_leaks"], report["device_auth"], report["phone"]
     print(f"log leaks {len(ll['leaked'])}/{ll['values_checked']}, auth blocked {da['blocked']}/{da['attempts']}, "
-          f"phone leaks {ph['leaked'] if ph else 'n/a'}/{ph['secrets'] if ph else 'n/a'} -> docs/PRIVACY_AUDIT.md")  # fmt: skip
+          f"phone leaks {ph['leaked'] if ph else 'n/a'}/{ph['secrets'] if ph else 'n/a'} -> docs/privacy/PRIVACY_AUDIT.md")  # fmt: skip
     return 0 if not ll["leaked"] and da["blocked"] == da["attempts"] and (not ph or ph["leaked"] == 0) else 1
 
 

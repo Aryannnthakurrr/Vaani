@@ -66,7 +66,7 @@ import com.saathi.app.ui.theme.Leaf
 import com.saathi.app.ui.theme.Muted
 
 /**
- * The symptom-to-care screen (docs/CARE.md): the conversation as a chat, the hospitals being called, one clear
+ * The symptom-to-care screen (docs/features/CARE.md): the conversation as a chat, the hospitals being called, one clear
  * "Book" card, and a success screen at the end. Everything here is also spoken by [CareFlow].
  */
 @Composable

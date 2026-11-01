@@ -1,4 +1,4 @@
-"""Data contracts for the symptom-to-care flow (docs/CARE.md; field names follow the workflow spec)."""
+"""Data contracts for the symptom-to-care flow (docs/features/CARE.md; field names follow the workflow spec)."""
 
 from __future__ import annotations
 

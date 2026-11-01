@@ -1,6 +1,6 @@
 # NOTES — running log of decisions, deviations and verified facts
 
-Built on 2026-10-31 from the spec (docs/SPEC.md), with no API keys. "Verified" means it was checked on this
+Built on 2026-10-31 from the spec (docs/engineering/SPEC.md), with no API keys. "Verified" means it was checked on this
 machine; anything not verified is listed under **Gaps**.
 
 ## Build environment (this machine)
@@ -188,7 +188,7 @@ camera WebSocket, and a mock agent replay of every scenario in `fixtures/agent_s
 ## Round 2 (2026-10-31, after the first hand-off)
 
 **Added**
-- `docs/DEVELOPING.md` is now the developer guide. The original spec is saved verbatim as `docs/SPEC.md`.
+- `docs/engineering/DEVELOPING.md` is now the developer guide. The original spec is saved verbatim as `docs/engineering/SPEC.md`.
 - Family dashboard (Phase 8 stretch, backend): `GET /family/<device_id>?key=…`. Its content was checked as text.
   The visual render is unchecked, because Chrome on the emulator wants its ToS accepted and the browser pane
   couldn't take a screenshot.
@@ -200,7 +200,7 @@ camera WebSocket, and a mock agent replay of every scenario in `fixtures/agent_s
   - The floating bubble is hidden while Saathi itself is on screen.
   - Cards have accent stripes, icons and pill badges.
   - Digest shows summary chips, Alerts and the activity log show relative times, and onboarding shows "Step N of 9".
-- Backup demo videos are in `docs/demo/` (`scripts/record_demos.sh`), and a screenshot gallery is in the README.
+- Backup demo videos are in `docs/media/demo/` (`scripts/record_demos.sh`), and a screenshot gallery is in the README.
 
 **Bugs found by running on the emulator, fixed**
 - **Crash:** cancelling a voice turn called `SpeechRecognizer.cancel()` off the main thread, and the app died.
@@ -403,7 +403,7 @@ Keys go in the repo-root `.env` (git-ignored). Status with the keys provided:
 
 ## Self-learning skills, Live voice and Meko memory (2026-10-31)
 
-Design and contracts: [docs/LEARNING.md](docs/LEARNING.md). The loop is modelled on the author's earlier `sorted`
+Design and contracts: [docs/features/LEARNING.md](docs/features/LEARNING.md). The loop is modelled on the author's earlier `sorted`
 project, with the elder served by voice and the family by Telegram plus the family page.
 
 ### Verified with the live Gemini key
@@ -511,7 +511,7 @@ already raced voice against the Yes/No buttons. What failed people who can't see
 
 ## Symptom-to-care: intake, emergency path and hospital calling (2026-10-31, night)
 
-Built from the team's workflow spec; the design, API and setup are in [docs/CARE.md](docs/CARE.md).
+Built from the team's workflow spec; the design, API and setup are in [docs/features/CARE.md](docs/features/CARE.md).
 - **Verified here (no keys needed):** backend `test_care.py` covers the §3.6 acceptance (11 red-flag scripts → A at
   once, 4 everyday complaints → B, the note always has EMERGENCY ASSESSMENT), negations, red flags in follow-up
   answers, slot parsing ("kal 11 baje"), ranking, and Path B end to end with fake calls (one "no", one unanswered →
@@ -670,7 +670,7 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
 - **Metering:** server `GET /usage` (per device: routes, bytes, Gemini calls and tokens); phone Settings →
   Developer → Data used (per feature, WebSockets included). `models.yaml pricing` starts empty, so cost is never
   guessed.
-- **Simulation:** `scripts/simulate_profiles.py` → `docs/SIMULATION.md`. Offline findings: the learned cab skill
+- **Simulation:** `scripts/simulate_profiles.py` → `docs/evaluation/SIMULATION.md`. Offline findings: the learned cab skill
   cuts LLM steps by 38% over a month (and to zero per ride once active); message traffic is a few KB a month; **live
   voice is about 614 MB a month at 5 min/day**, because raw PCM travels as base64 JSON, so Opus between phone and
   server is the big bandwidth win. The run found the rules missed the "relative in an accident, send money, tell no
@@ -726,7 +726,7 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
 
 ## Privacy fixes and the privacy audit (2026-11-01)
 
-- `scripts/privacy_audit.py` → `docs/PRIVACY_AUDIT.md` + `docs/privacy_audit.json`. Measured: 0 of 26 personal values
+- `scripts/privacy_audit.py` → `docs/privacy/PRIVACY_AUDIT.md` + `docs/privacy/privacy_audit.json`. Measured: 0 of 26 personal values
   in server logs after 25 requests carrying them raw through 9 routes; 16 of 16 forged/cross-device requests
   blocked; 0 of 22 secrets leave the phone (`PrivacyAuditTest`, corpus `fixtures/privacy/messages.json`); 10 of 10
   links stripped as expected. The same checks run in `backend/tests/test_privacy.py`, `PrivacyTest.kt`,
@@ -766,7 +766,7 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   the triage prompt filters, adds a bonus, goes into the call's `needs`, and re-ranking pushes down hospitals missing
   a facility, over the fee limit or refusing the insurance (`CallResult.facilities_available`, `insurance_accepted`).
 - Gap: preferences come only from the AI intake; the rule fallback doesn't capture them.
-- Write-up for presenting: docs/HEALTHCARE_KT.md.
+- Write-up for presenting: docs/features/HEALTHCARE_KT.md.
 
 ## Personal compiled abilities, three demo users, camera sugar/salt warnings (2026-11-01)
 
@@ -785,7 +785,7 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   `datapack_list` (used when a teammate's backend already made the persona datapack) is assumed, not verified.
 - Abilities do the small parts only: the LLM (`ability_reply` route) words every reply from the ability's result,
   and the camera model gets the food finding as facts for its own nudge. Only urgent results skip the model.
-- Write-up: docs/PERSONAL_ABILITIES.md.
+- Write-up: docs/features/PERSONAL_ABILITIES.md.
 
 ## Meko: who learnt what, and appointments for cabs (2026-11-01)
 
@@ -797,8 +797,20 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   `datapack_list` exists and is used to find a persona datapack another backend created.
 - Persona seeding reconciles with Meko on every start (one `memory_get_all` per persona) instead of only when the
   local copy is empty, so Meko outages heal.
-- Docs: docs/MEKO_STATE.md, docs/COMPILED_CODE.md (the complete compiled-code reference).
+- Docs: docs/features/MEKO_STATE.md, docs/features/COMPILED_CODE.md (the complete compiled-code reference).
 - Live Meko (2026-11-01): free tier caps datapacks per account (`FREE_TIER_DATAPACK_LIMIT`), so persona datapacks are
   looked up by name before creating; bursts get `PAT_RATE_LIMITED`, so MekoMemory runs 2 calls at a time and retries
   after 5 s / 20 s; listings return text as `data`. Verified: 11/10/10 memories in the three persona datapacks, each
   under its learning agent, metadata intact (appointment with clinic, address, coordinates, learned_from).
+
+## Open test failures (2026-11-01)
+
+A full run on 1 November 2026, after the Vaani rename and the latest guide-mode and Scam Shield changes, left six
+tests failing. They are in code the documentation tidy-up did not touch:
+
+- Backend (293 of 296 pass): `tests/test_calls.py::test_full_happy_call` and
+  `tests/test_calls.py::test_route_requires_device_and_runs` (the simulated clinic call's expected wording),
+  `tests/test_units.py::test_expand_url_stops_after_five_hops`.
+- Android (160 of 163 pass): `SafetyPolicyTest.directTapOnCommitButtonNeedsConfirm` (expected `Allow`, got
+  `NeedsConfirm(target=Where to?)`), `AgentLoopReplayTest.pinScreenWaitsForTheUser`,
+  `LocalClinicCallTest.happyCallConfirmsAndReportsWait`.
