@@ -9,7 +9,10 @@ if [ ! -d .venv ]; then
   "$PY" -m venv .venv
 fi
 if [ -x .venv/Scripts/python ]; then VPY=.venv/Scripts/python; else VPY=.venv/bin/python; fi
-"$VPY" -m pip install -q -e ".[dev]"
+# A uv-made venv has no pip: install with uv then (or skip; the packages are already there).
+if "$VPY" -m pip --version >/dev/null 2>&1; then "$VPY" -m pip install -q -e ".[dev]"
+elif command -v uv >/dev/null 2>&1; then uv pip install -q --python "$VPY" -e ".[dev]"
+fi
 # Chromium is only needed inside Docker (SANDBOX_ENABLED=1). Install it locally only on request.
 if [ "${INSTALL_CHROMIUM:-0}" = 1 ]; then "$VPY" -m playwright install chromium; fi
 
