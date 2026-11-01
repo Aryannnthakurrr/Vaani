@@ -35,6 +35,19 @@ AUDIENCES: dict[str, frozenset[str]] = {
 }
 
 
+# The parts of Saathi that learn things, each its own Meko agent, so every fact says who learnt it. With
+# `learned_from` (where: "booking call to Fortis Memorial", "told Saathi by voice") in each fact's metadata.
+AGENTS: dict[str, str] = {
+    "saathi-voice": "the voice assistant, from what the user said",
+    "saathi-care": "the doctor feature, from hospital calls and bookings",
+    "saathi-tasks": "the phone agent, from tasks it did in apps",
+    "saathi-inbox": "the inbox, from bills and messages (summaries only, never message text)",
+    "saathi-camera": "the shopping camera",
+    "saathi-abilities": "compiled abilities, their running state",
+    "saathi-family": "the family's setup",
+}
+
+
 def fact_key(topic: str, key: str | None) -> str:
     """Single-valued topics key on themselves, so a second home or name replaces the first."""
     return (key or "").strip() or (topic if topic in SINGLE else "")
@@ -72,6 +85,7 @@ class FallbackMemory:
         self.primary, self.local = primary, local
         self.name = f"{primary.name}+{local.name}"
         self._bg: set[asyncio.Task[Any]] = set()
+        self._stored: dict[str, set[str]] = {}
 
     def _later(self, what: str, coro: Coroutine[Any, Any, Any]) -> None:
         async def guarded() -> None:
@@ -86,7 +100,10 @@ class FallbackMemory:
 
     async def remember(self, device: str, text: str, kind: str = "other", key: str = "", **meta: Any) -> None:
         await self.local.remember(device, text, kind, key, **meta)
-        self._later("remember", self.primary.remember(device, text, kind, key, **meta))
+        self._later("remember", self.primary.remember(device, text, kind, key, **dict(meta)))
+
+    async def entries(self, device: str) -> list[dict[str, Any]]:
+        return await self.local.entries(device)
 
     async def forget(self, device: str, kind: str, key: str = "") -> int:
         n = await self.local.forget(device, kind, key)
@@ -102,6 +119,19 @@ class FallbackMemory:
 
     async def run_state(self, device: str, run_id: str) -> list[dict[str, Any]]:
         return await self.local.run_state(device, run_id)
+
+    async def seed(self, device: str, text: str, kind: str, key: str = "", **meta: Any) -> None:
+        """A demo fact: stored locally now; sent to Meko only if no backend has put it in that datapack yet."""
+        await self.local.remember(device, text, kind, key, **meta)
+
+        async def once() -> None:
+            if device not in self._stored:
+                self._stored[device] = await self.primary.stored_texts(device)
+            if text.strip().lower() not in self._stored[device]:
+                await self.primary.remember(device, text, kind, key, **dict(meta))
+                self._stored[device].add(text.strip().lower())
+
+        self._later("seed", once())
 
     def mirror_state(self, device: str, name: str, state: dict[str, Any]) -> None:
         """A compiled ability's new state to Meko; the local copy is app/abilities' own table."""

@@ -13,10 +13,11 @@ from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel
 
 from app.abilities import get_abilities, user_key
+from app.care import remembered
 from app.deps import llm_dep, require_device
 from app.llm.base import LLMClient
 from app.llm.prompts import render
-from app.memory import TOPICS, facts_for, get_memory
+from app.memory import AGENTS, TOPICS, facts_for, get_memory
 from app.schemas import (
     GUIDE_ACTIONS,
     AgentStepRequest,
@@ -180,6 +181,33 @@ async def extract_appointment(req: ExtractRequest, llm: LLMClient = Depends(llm_
 @router.post("/digest", response_model=DigestResponse)
 async def digest(req: DigestRequest, llm: LLMClient = Depends(llm_dep)) -> DigestResponse:
     return DigestResponse(text=await llm.digest(req))
+
+
+def _owner(device: str, profile: str | None) -> str:
+    persona = get_abilities().persona(profile)
+    return user_key(persona.id) if persona else device
+
+
+@router.get("/memory/appointment")
+async def stored_appointment(
+    device: str = Depends(require_device), x_saathi_profile: str | None = Header(default=None)
+) -> dict[str, Any]:
+    """The next appointment the doctor feature booked (from Meko-backed memory), for "cab to my doctor's appointment"."""
+    return {"appointment": await remembered.next_appointment(_owner(device, x_saathi_profile))}
+
+
+@router.get("/memory/learned")
+async def learned(
+    device: str = Depends(require_device), x_saathi_profile: str | None = Header(default=None)
+) -> dict[str, Any]:
+    """Everything Saathi remembers about this user, each with the agent that learnt it and where."""
+    memory = get_memory()
+    entries = await memory.entries(_owner(device, x_saathi_profile)) if hasattr(memory, "entries") else []
+    return {
+        "agents": AGENTS,
+        "facts": [{"topic": e["topic"], "text": e["text"], "agent": e["meta"].get("agent", "saathi-voice"),
+                   "learned_from": e["meta"].get("learned_from", "")} for e in entries],
+    }  # fmt: skip
 
 
 @router.delete("/memory")

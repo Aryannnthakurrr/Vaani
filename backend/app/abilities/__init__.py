@@ -24,16 +24,19 @@ import sqlite3
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from datetime import time as dt_time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.config import get_settings
 from app.skills.sandbox import Sandbox
 
 log = logging.getLogger("saathi.abilities")
 ENTRY = "run"
+IST = ZoneInfo("Asia/Kolkata")
 PROFILE_HEADER = "X-Saathi-Profile"
 _PROFILE = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
 
@@ -92,6 +95,7 @@ class Persona:
     quirks: list[str]
     facts: list[dict[str, str]]
     abilities: list[Ability] = field(default_factory=list)
+    appointment: dict[str, Any] | None = None  # seeded as the doctor feature's remembered booking
 
 
 def resolve_dates(value: Any, today: date) -> Any:
@@ -119,7 +123,7 @@ def load_personas(root: Path) -> dict[str, Persona]:
     out: dict[str, Persona] = {}
     for p in data.get("personas", []):
         persona = Persona(p["id"], p["name"], p["language"], p.get("conditions", []), p.get("quirks", []),
-                          p.get("facts", []))  # fmt: skip
+                          p.get("facts", []), appointment=p.get("appointment"))  # fmt: skip
         for a in p.get("abilities", []):
             code = (root / "personas" / "abilities" / p["id"] / f"{a['name']}.py").read_text("utf-8")
             persona.abilities.append(Ability(
@@ -199,12 +203,31 @@ class Abilities:
             for a in p.abilities:
                 if not self._has_state(p.id, a.name):
                     self._save(p.id, a.name, resolve_dates(a.seed_state, today), ran=False)
-            known = {text for _, text in await memory.facts(user)}
+            # Every start: local copies are refreshed, and Meko gets whatever it is missing (seed() checks the
+            # datapack once), so a Meko outage on one start is made up on the next.
+            seed = getattr(memory, "seed", memory.remember)
             for f in p.facts:
-                if f["text"] not in known:
-                    await memory.remember(
-                        user, f["text"], f["topic"], f.get("key", ""), source="persona_seed"
-                    )
+                await seed(user, f["text"], f["topic"], f.get("key", ""), source="persona_seed",
+                           agent=f.get("agent", "saathi-voice"), learned_from=f.get("learned_from", ""))  # fmt: skip
+            await self._seed_appointment(p, user, memory)
+
+    async def _seed_appointment(self, p: Persona, user: str, memory: Any) -> None:
+        """The persona's upcoming booking, as the care agent would have stored it; never over a newer real one."""
+        from app.care import remembered
+
+        a = p.appointment
+        if not a or await remembered.next_appointment(user):
+            return
+        hour, minute = (int(x) for x in str(a["at"]).split(":"))
+        start = datetime.combine(date.today() + timedelta(days=int(a["in_days"])), dt_time(hour, minute), IST)
+        text = (f"Appointment with {a['doctor']} ({a['specialty']}) at {a['clinic']}, {a['address']}, "
+                f"{start.strftime('%a %d %b, %H:%M')}")  # fmt: skip
+        meta = {
+            k: a.get(k) for k in ("doctor", "specialty", "clinic", "address", "lat", "lng", "learned_from")
+        }
+        await memory.remember(user, text, remembered.KIND, remembered.KEY, agent=remembered.AGENT,
+                              start_iso=start.isoformat(), booking_ref="", phone="", source="persona_seed",
+                              **meta)  # fmt: skip
 
     def _has_state(self, profile: str, name: str) -> bool:
         with self._conn() as c:

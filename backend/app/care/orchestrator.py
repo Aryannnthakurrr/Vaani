@@ -11,7 +11,7 @@ import logging
 import re
 from datetime import datetime
 
-from app.care import calls, extract, places, ranking
+from app.care import calls, extract, places, ranking, remembered
 from app.care.calls import CallsUnavailable
 from app.care.models import (
     BookingResult,
@@ -319,6 +319,7 @@ async def _book(session: CareSession, llm: LLMClient, hospital_id: str, slot: Sl
         details["call_yourself"] = hospital.phone  # §10: two failed booking calls → the user calls
     await session.emit_text("booking_status", hospital_id=hospital_id, **details)
     if booking.status == "confirmed":
+        await remembered.remember_booking(session, hospital, booking, slot, "booking call")
         session.forget_transcripts()
 
 
@@ -341,6 +342,7 @@ async def _booked_on_the_call(
     details = booking.model_dump()
     details["calendar"] = _calendar_event(session, hospital, booking, slot)
     await session.emit_text("booking_status", hospital_id=hospital.id, during_inquiry=True, **details)
+    await remembered.remember_booking(session, hospital, booking, slot, "booked while the hospital was on the line")
     session.forget_transcripts()
     return True
 

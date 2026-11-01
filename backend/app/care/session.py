@@ -49,6 +49,7 @@ class CareSession:
     style: str = "en"
     location: Location | None = None
     patient: Patient = field(default_factory=Patient)
+    profile: str = ""  # the demo persona (X-Saathi-Profile) whose memory a booking goes to, if any
     created: float = field(default_factory=time.time)
     # intake
     utterances: list[str] = field(default_factory=list)

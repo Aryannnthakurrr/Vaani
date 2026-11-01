@@ -786,3 +786,15 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
 - Abilities do the small parts only: the LLM (`ability_reply` route) words every reply from the ability's result,
   and the camera model gets the food finding as facts for its own nudge. Only urgent results skip the model.
 - Write-up: docs/PERSONAL_ABILITIES.md.
+
+## Meko: who learnt what, and appointments for cabs (2026-11-01)
+
+- Each part of Saathi writes to the person's datapack as its own Meko agent (`AGENTS` in app/memory) with
+  `learned_from` in the metadata; each agent gets its own profile conversation (Meko requires the creating agent).
+- Confirmed bookings become `doctor/next_appointment` as `saathi-care` (app/care/remembered.py) with clinic, address
+  and coordinates; `GET /memory/appointment` serves it and the phone's cab task uses it when it has no local copy.
+- Verified against the live service: `memory_get_all` needs a `conversation_id` (it is still datapack-wide);
+  `datapack_list` exists and is used to find a persona datapack another backend created.
+- Persona seeding reconciles with Meko on every start (one `memory_get_all` per persona) instead of only when the
+  local copy is empty, so Meko outages heal.
+- Docs: docs/MEKO_STATE.md, docs/COMPILED_CODE.md (the complete compiled-code reference).

@@ -130,3 +130,36 @@ def test_the_llm_does_the_talking_around_the_code_result(client, monkeypatch) ->
     assert (
         asyncio.run(agent.ability_reply(Silent(), "sunita", "BP 146 by 92", done, "hinglish")) == done["say"]
     )
+
+
+def test_bookings_and_persona_facts_are_remembered_with_who_learnt_them(client) -> None:
+    from app.abilities import get_abilities
+    from app.care import remembered
+    from app.care.models import BookingResult, Hospital, Slot
+    from app.care.session import CareSession
+
+    asyncio.run(get_abilities().seed())
+    headers = {"X-Saathi-Device": "demo-device-1", "X-Saathi-Profile": "sunita"}
+    appt = client.get("/memory/appointment", headers=headers).json()["appointment"]
+    assert appt["clinic"] == "Fortis Memorial Gurugram" and appt["lat"] and appt["agent"] == "saathi-care"
+    learned = client.get("/memory/learned", headers=headers).json()
+    agents = {f["agent"] for f in learned["facts"]}
+    assert {"saathi-care", "saathi-camera", "saathi-inbox", "saathi-family"} <= agents
+    assert all(f["learned_from"] for f in learned["facts"])
+
+    # A real booking replaces it, for the phone itself (no profile).
+    session = CareSession(id="s_test", device="demo-device-2")
+    hospital = Hospital(id="h1", name="Saroj Hospital", address="Rohini, Delhi", lat=28.7, lng=77.1)
+    booking = BookingResult(
+        status="confirmed", doctor_name="Dr. Anish", start_iso="2099-01-02T09:00:00+05:30"
+    )
+    asyncio.run(
+        remembered.remember_booking(session, hospital, booking, Slot(start=booking.start_iso), "booking call")
+    )
+    got = client.get("/memory/appointment", headers={"X-Saathi-Device": "demo-device-2"}).json()[
+        "appointment"
+    ]
+    assert got["clinic"] == "Saroj Hospital" and got["learned_from"] == "booking call to Saroj Hospital"
+    assert client.get("/memory/appointment", headers={"X-Saathi-Device": "demo-device-3"}).json() == {
+        "appointment": None
+    }

@@ -155,3 +155,11 @@ with on-device TTS. Keys are lowercase `[a-z0-9_]`.
 - Camera `product_card` gains `sugar_g_per_100`, `sodium_mg_per_100`, `per` ("g" | "ml"), `health_warning` and
   `health_level` ("high" | "medium"), measured by `app/abilities/food.py`; the camera model gets the same finding
   as `health_check` in its tool answer and words its own nudge.
+
+## What Saathi remembers, with who learnt it (2026-11-01)
+
+- `GET /memory/appointment` (`X-Saathi-Device`, optional `X-Saathi-Profile`): `{"appointment": {text, clinic, address,
+  lat, lng, doctor, specialty, start_iso, booking_ref, phone, agent, learned_from} | null}`: the next booking the
+  doctor feature made, if still ahead. The phone uses it for "cab to my doctor's appointment" when it has no copy.
+- `GET /memory/learned`: `{"agents": {id: description}, "facts": [{topic, text, agent, learned_from}]}`.
+- Every remembered fact carries `agent` and `learned_from` in its metadata, locally and in Meko (docs/MEKO_STATE.md).

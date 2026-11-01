@@ -122,7 +122,8 @@ async def remember(device: str, args: dict[str, Any]) -> dict[str, Any]:
     if not safe_fact(fact):
         return {"ok": False, "error": "not stored: secrets and long numbers are never remembered"}
     try:
-        await get_memory().remember(device, fact, topic, fact_key(topic, args.get("key")), source="voice")
+        await get_memory().remember(device, fact, topic, fact_key(topic, args.get("key")), source="voice",
+                                    agent="saathi-voice", learned_from="told Saathi by voice")  # fmt: skip
     except Exception as exc:  # noqa: BLE001
         log.info("remember failed: %s", type(exc).__name__)
         return {"ok": False, "error": "memory unavailable"}

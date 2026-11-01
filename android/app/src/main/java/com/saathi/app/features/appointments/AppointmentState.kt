@@ -34,6 +34,9 @@ object AppointmentState {
      * "book a cab to my doctor's appointment" → the clinic's name and address. Returns null when the destination
      * doesn't refer to the appointment, or there is no upcoming one with a place.
      */
+    fun refersToAppointment(destination: String?): Boolean =
+        !destination.isNullOrBlank() && REFERS_TO_APPOINTMENT.containsMatchIn(destination)
+
     fun destinationFor(destination: String?, appt: Appointment?, now: ZonedDateTime): String? {
         if (destination.isNullOrBlank() || !REFERS_TO_APPOINTMENT.containsMatchIn(destination)) return null
         val next = upcoming(appt, now) ?: return null

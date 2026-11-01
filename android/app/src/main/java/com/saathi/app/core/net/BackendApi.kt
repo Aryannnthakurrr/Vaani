@@ -11,6 +11,9 @@ class BackendUnavailable(message: String, cause: Throwable? = null) : Exception(
  */
 interface BackendApi {
     suspend fun health(): Health
+
+    /** The next appointment the doctor feature booked, from the backend's Meko-backed memory; null if none. */
+    suspend fun storedAppointment(): Appointment? = null
     suspend fun stt(wav: File, languageHint: String, keyterms: List<String>): SttResult
     suspend fun tts(text: String, style: ReplyStyle): ByteArray
     suspend fun intent(utterance: String, style: ReplyStyle?): IntentResult
