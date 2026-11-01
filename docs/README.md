@@ -13,6 +13,7 @@ Everything written about Vaani, grouped by what you want to do. The project over
 | [PERSONAL_ABILITIES.md](features/PERSONAL_ABILITIES.md) | The three demo users, their compiled abilities, and the shopping camera's sugar and salt warnings |
 | [COMPILED_CODE.md](features/COMPILED_CODE.md) | Everything Vaani compiles (routines, recognisers, abilities), how it is tested and every sandbox layer |
 | [LEARNING.md](features/LEARNING.md) | The learning loop, models, voice and memory in one overview |
+| [MEKO_PROPOSAL.pdf](features/MEKO_PROPOSAL.pdf) | The two-page Meko feature proposal: why context matters, the design, every Meko use, privacy and live results |
 | [MEKO_STATE.md](features/MEKO_STATE.md) | One memory per person, seven agents, where each fact was learnt, and the appointment that becomes a cab destination |
 
 ## Privacy and evaluation: what we measured
