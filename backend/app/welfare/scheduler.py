@@ -48,7 +48,8 @@ def last_seen_phrase(last_ms: int | None, now: datetime) -> str:
         return f"today {clock}"
     if days == 1:
         return f"yesterday {clock}"
-    return f"{seen.strftime('%d %b')} {clock}"
+    # Older than yesterday: the date alone makes family count back, so say how long it has been too.
+    return f"{seen.strftime('%d %b')} {clock} ({days} days ago)"
 
 
 def alert_text(device: Device, now: datetime) -> str:
