@@ -263,3 +263,18 @@ def test_family_safe_hides_upi_ids_and_emails(summary: str, leaked: str) -> None
 def test_extract_urls_lists_a_repeated_link_once() -> None:
     text = "Pay now: sbi-kyc.in/now. Last chance sbi-kyc.in/now! Help: bit.ly/x1"
     assert extract_urls(text) == ["sbi-kyc.in/now", "bit.ly/x1"]
+
+
+def test_last_seen_phrase_counts_days_when_older_than_yesterday() -> None:
+    from app.welfare.scheduler import last_seen_phrase
+
+    now = datetime(2026, 10, 31, 12, 0, tzinfo=IST)
+
+    def ms(d: datetime) -> int:
+        return int(d.timestamp() * 1000)
+
+    assert last_seen_phrase(ms(datetime(2026, 10, 31, 9, 5, tzinfo=IST)), now) == "today 9:05 am"
+    assert last_seen_phrase(ms(datetime(2026, 10, 30, 21, 0, tzinfo=IST)), now) == "yesterday 9:00 pm"
+    assert (
+        last_seen_phrase(ms(datetime(2026, 10, 28, 8, 30, tzinfo=IST)), now) == "28 Oct 8:30 am (3 days ago)"
+    )
