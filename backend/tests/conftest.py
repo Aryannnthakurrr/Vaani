@@ -59,6 +59,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator:
     monkeypatch.setenv("FIXTURES_DIR", str(FIXTURES))
 
     from app import deps
+    from app.abilities import get_abilities
     from app.config import get_settings
     from app.llm.base import reset_llm
     from app.memory import get_memory
@@ -69,6 +70,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator:
     get_memory.cache_clear()
     get_engine.cache_clear()
     get_code_skills.cache_clear()
+    get_abilities.cache_clear()
     reset_llm()
 
     from fastapi.testclient import TestClient

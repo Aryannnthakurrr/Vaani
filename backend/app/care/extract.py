@@ -112,12 +112,19 @@ def rule_inquiry(hospital: Hospital, transcript: list[dict[str, str]], call_sid:
 
 
 async def inquiry_result(
-    llm: LLMClient, hospital: Hospital, specialty: str, transcript: list[dict[str, str]], call_sid: str | None
+    llm: LLMClient,
+    hospital: Hospital,
+    specialty: str,
+    transcript: list[dict[str, str]],
+    call_sid: str | None,
+    needs: str = "",
+    insurance: str | None = None,
 ) -> CallResult:
     rules = rule_inquiry(hospital, transcript, call_sid)
     if not _clinic_text(transcript):
         return rules
-    system = render("care_extract", mode="inquiry", specialty=specialty, now=datetime.now(IST).isoformat())
+    system = render("care_extract", mode="inquiry", specialty=specialty, now=datetime.now(IST).isoformat(),
+                    needs=needs or "none", insurance=insurance or "none")  # fmt: skip
     out = await llm.structured("care_extract", system, json.dumps(transcript, ensure_ascii=False), CallResult)
     if not isinstance(out, CallResult):
         return rules

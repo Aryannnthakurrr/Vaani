@@ -35,7 +35,10 @@ class AppContainer(val context: Context) {
     val notifier = Notifier(context)
     val alerts = AlertRouter(notifier)
 
-    init { com.saathi.app.core.net.DeviceAuth.key = { settings.current.deviceKey } }
+    init {
+        com.saathi.app.core.net.DeviceAuth.key = { settings.current.deviceKey }
+        com.saathi.app.core.net.DeviceAuth.profile = { settings.current.profileId.ifEmpty { null } }
+    }
 
     private val realBackend = BackendClient({ settings.current.backendUrl }, { settings.current.deviceId })
     private val fakeBackend = FakeBackendClient({ mockScripts }, { settings.current.userName.ifBlank { null } })

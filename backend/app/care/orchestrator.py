@@ -11,9 +11,18 @@ import logging
 import re
 from datetime import datetime
 
-from app.care import calls, extract, places, ranking
+from app.care import calls, extract, places, ranking, remembered
 from app.care.calls import CallsUnavailable
-from app.care.models import BookingResult, CallResult, Hospital, Location, Patient, Recommendation, Slot
+from app.care.models import (
+    BookingResult,
+    CallResult,
+    Hospital,
+    IntakeNote,
+    Location,
+    Patient,
+    Recommendation,
+    Slot,
+)
 from app.care.session import CareSession
 from app.llm.base import LLMClient
 from app.telephony.bolna import stop_call
@@ -107,7 +116,7 @@ async def _find_and_call(session: CareSession, llm: LLMClient) -> None:
     try:
         for radius in places.RADII_M:
             found = ranking.filter_candidates(
-                await places.search(loc, note.search_queries, radius, note.specialty), note.specialty
+                await places.search(loc, note.search_queries, radius, note.specialty), note.specialty, note.preferences
             )
             if len(found) >= 5:
                 break
@@ -115,8 +124,8 @@ async def _find_and_call(session: CareSession, llm: LLMClient) -> None:
         session.emit("error", stage="B1", message=str(exc))
         return
     await places.travel_minutes(loc, found)
-    await ranking.score_capability(llm, found, note.specialty)
-    ranked = ranking.rank(found)
+    await ranking.score_capability(llm, found, note)
+    ranked = ranking.rank(found, note)
     ranking.assign_call_numbers(ranked, ranking.mask_numbers())
     session.hospitals = ranked
     to_call, backups = ranking.split_calls(ranked)
@@ -149,6 +158,19 @@ async def _find_and_call(session: CareSession, llm: LLMClient) -> None:
     await _recommend(session, [r for r in results if r is not None])
 
 
+def needs(note: IntakeNote) -> str:
+    """What each hospital is asked about: the consultation, the facilities and the user's own conditions."""
+    prefs = note.preferences
+    parts = [f"{note.specialty} consultation", *note.required_facilities]
+    if prefs.doctor_gender:
+        parts.append(f"a {prefs.doctor_gender} doctor")
+    if prefs.insurance:
+        parts.append(f"accepts {prefs.insurance}")
+    if prefs.max_fee_inr:
+        parts.append(f"consultation fee up to Rs {prefs.max_fee_inr}")
+    return ", ".join(parts)
+
+
 async def _inquire_with_backup(
     session: CareSession, llm: LLMClient, first: Hospital, backups: asyncio.Queue[Hospital]
 ) -> CallResult | None:
@@ -171,7 +193,7 @@ async def _inquire(session: CareSession, llm: LLMClient, hospital: Hospital) -> 
         "specialty": note.specialty,
         "timeframe": note.appointment_timeframe or "the next 48 hours",
         "patient_brief": age_band(note.patient_brief or note.chief_complaint),
-        "needs": ", ".join([f"{note.specialty} consultation", *note.required_facilities]),
+        "needs": needs(note),
         "language": session.style,
         # References the agent passes back to check_with_patient, so the answer reaches the right phone and hospital.
         "session_ref": session.id,
@@ -192,14 +214,15 @@ async def _inquire(session: CareSession, llm: LLMClient, hospital: Hospital) -> 
             hospital_id=hospital.id, hospital_name=hospital.name, call_sid=run.execution_id,
             call_outcome=run.outcome, eta_minutes=hospital.eta_minutes, address=hospital.address,
         )  # fmt: skip
-    return await extract.inquiry_result(llm, hospital, note.specialty, run.transcript, run.execution_id)
+    return await extract.inquiry_result(llm, hospital, note.specialty, run.transcript, run.execution_id,
+                                        needs(note), note.preferences.insurance)  # fmt: skip
 
 
 async def _recommend(session: CareSession, results: list[CallResult]) -> None:
     if session.live_booked:
         return  # the user said yes while a hospital was on the line; that call booked it
     by_id = {h.id: h for h in session.hospitals}
-    ordered = ranking.rerank(results, by_id)
+    ordered = ranking.rerank(results, by_id, session.note.preferences if session.note else None)
     if not ordered:
         session.emit("no_options", message=_tr(session.style,
             "No hospital could confirm an appointment. Here are the nearest ones so you can call yourself.",
@@ -296,6 +319,7 @@ async def _book(session: CareSession, llm: LLMClient, hospital_id: str, slot: Sl
         details["call_yourself"] = hospital.phone  # §10: two failed booking calls → the user calls
     await session.emit_text("booking_status", hospital_id=hospital_id, **details)
     if booking.status == "confirmed":
+        await remembered.remember_booking(session, hospital, booking, slot, "booking call")
         session.forget_transcripts()
 
 
@@ -318,6 +342,7 @@ async def _booked_on_the_call(
     details = booking.model_dump()
     details["calendar"] = _calendar_event(session, hospital, booking, slot)
     await session.emit_text("booking_status", hospital_id=hospital.id, during_inquiry=True, **details)
+    await remembered.remember_booking(session, hospital, booking, slot, "booked while the hospital was on the line")
     session.forget_transcripts()
     return True
 

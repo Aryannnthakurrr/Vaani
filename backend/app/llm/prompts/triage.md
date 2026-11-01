@@ -29,7 +29,12 @@ Return `note` with every field. `emergency.answer` is YES, NO or UNCERTAIN; when
 then shows a cancellable countdown). `acuity` 1 = most critical … 5 = least. `specialty` is one OPD specialty in
 lowercase English (e.g. "cardiology", "general medicine"). `search_queries` are 1–3 short Google Maps searches
 ("cardiac hospital", "multispeciality hospital"). `patient_brief` is one line like
-"58M, chest pain to left arm, sweating, 30 min, diabetic". `note_text` is the note in exactly this format:
+"58M, chest pain to left arm, sweating, 30 min, diabetic". `required_facilities` are tests or equipment the visit
+may need, judged from the whole conversation ("ECG", "X-ray", "MRI", "dialysis", "wheelchair access"); keep it to
+what the picture supports. `appointment_timeframe` is how soon, from what was said ("today", "within 48 hours",
+"this week"). `preferences` holds only what the user actually said about the provider: `max_fee_inr` ("not more
+than 500"), `insurance` ("Ayushman card", "CGHS"), `prefer` and `avoid` (hospital names), `doctor_gender`
+("female" for "lady doctor"); leave the rest null or empty. `note_text` is the note in exactly this format:
 
 ```
 CLINICAL INTAKE NOTE  (AI-generated. Not a diagnosis.)

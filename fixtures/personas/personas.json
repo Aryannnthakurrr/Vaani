@@ -1,0 +1,846 @@
+{
+  "_about": "Three demo users (ids match fixtures/profiles/profiles.json). Loaded by every backend at startup (app/abilities), so every laptop shows the same people. Keys are the plain profile ids: nothing here depends on a phone's device id. Dates in state are written as days_ago and resolved at load time. Each fact names the Saathi agent that learnt it and where (agent, learned_from); they become Meko memories under that agent.",
+  "personas": [
+    {
+      "id": "ramesh",
+      "name": "Ramesh Sharma",
+      "language": "hi",
+      "conditions": [
+        "type 2 diabetes",
+        "knee arthritis"
+      ],
+      "quirks": [
+        "Speaks only Hindi and wants the reply in Hindi, even when he says an English word like 'fasting'",
+        "Checks his sugar every morning before chai and tells Saathi the number like a diary",
+        "Calls his son Amit in Pune for anything unusual; never wants to bother the doctor first"
+      ],
+      "facts": [
+        {
+          "topic": "name",
+          "key": "name",
+          "text": "Ramesh Sharma ji",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "home",
+          "key": "home",
+          "text": "Lajpat Nagar, New Delhi",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "family",
+          "key": "son",
+          "text": "Son Amit lives in Pune and handles his medicine orders",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "doctor",
+          "key": "diabetologist",
+          "text": "Dr. Neha Kapoor at Max Hospital Saket is his diabetes doctor",
+          "agent": "saathi-care",
+          "learned_from": "booking call to Max Hospital Saket"
+        },
+        {
+          "topic": "health",
+          "key": "diabetes",
+          "text": "Type 2 diabetes, on metformin 500 mg twice a day; fasting target 80-130, after food under 180",
+          "agent": "saathi-voice",
+          "learned_from": "told Saathi by voice while logging sugar"
+        },
+        {
+          "topic": "health",
+          "key": "knees",
+          "text": "Knee arthritis: autos and bikes hurt, cars only",
+          "agent": "saathi-tasks",
+          "learned_from": "chose a car over an auto on three cab bookings"
+        },
+        {
+          "topic": "preference",
+          "key": "chai",
+          "text": "Drinks chai without sugar, with Marie biscuits",
+          "agent": "saathi-camera",
+          "learned_from": "shopping camera at Lajpat Nagar market: picks sugar-free Marie biscuits"
+        },
+        {
+          "topic": "routine",
+          "key": "sugar_check",
+          "text": "Checks fasting sugar at 7 am before chai",
+          "agent": "saathi-abilities",
+          "learned_from": "sugar diary: readings arrive around 7 am"
+        },
+        {
+          "topic": "routine",
+          "key": "cab_choice",
+          "text": "Books Uber Go (car) to Max Hospital Saket, never an auto",
+          "agent": "saathi-tasks",
+          "learned_from": "Uber bookings from Lajpat Nagar"
+        },
+        {
+          "topic": "routine",
+          "key": "pharmacy",
+          "text": "Metformin comes from Apollo Pharmacy, Lajpat Nagar, ordered by Amit",
+          "agent": "saathi-inbox",
+          "learned_from": "Apollo Pharmacy order SMS (summary only)"
+        }
+      ],
+      "abilities": [
+        {
+          "name": "sugar_diary",
+          "title": "Sugar diary",
+          "description": "Logs a glucometer reading, checks it against Dr. Kapoor's targets and says the trend.",
+          "triggers": [
+            "sugar|शुगर|glucose|ग्लूकोज़|fasting|खाली पेट|khali pet"
+          ],
+          "learned_from": {
+            "llm_runs": 11,
+            "first_seen_days_ago": 41,
+            "compiled_days_ago": 19,
+            "examples": [
+              "aaj fasting sugar 148 aaya",
+              "खाने के बाद शुगर 210 थी",
+              "pichhle hafte sugar kaisi rahi"
+            ],
+            "why": "Ramesh reports his sugar almost every morning; the LLM was doing the same arithmetic each time."
+          },
+          "state": {
+            "targets": {
+              "fasting": [
+                80,
+                130
+              ],
+              "after_food": [
+                70,
+                180
+              ],
+              "random": [
+                70,
+                180
+              ]
+            },
+            "readings": [
+              {
+                "days_ago": 3,
+                "kind": "fasting",
+                "value": 138
+              },
+              {
+                "days_ago": 2,
+                "kind": "fasting",
+                "value": 131
+              },
+              {
+                "days_ago": 2,
+                "kind": "after_food",
+                "value": 196
+              },
+              {
+                "days_ago": 1,
+                "kind": "fasting",
+                "value": 126
+              }
+            ]
+          },
+          "cases": [
+            {
+              "input": {
+                "text": "aaj fasting sugar 145 aaya",
+                "today": "2026-11-01",
+                "state": {
+                  "readings": [
+                    {
+                      "date": "2026-10-30",
+                      "kind": "fasting",
+                      "value": 130
+                    }
+                  ]
+                }
+              },
+              "expect": [
+                "145",
+                "130 से ज़्यादा",
+                "लिख लिया"
+              ]
+            },
+            {
+              "input": {
+                "text": "शुगर 62 आई है",
+                "today": "2026-11-01",
+                "state": {}
+              },
+              "expect": [
+                "बहुत कम",
+                "अमित"
+              ],
+              "urgent": true
+            },
+            {
+              "input": {
+                "text": "khane ke baad 165",
+                "today": "2026-11-01",
+                "state": {}
+              },
+              "expect": [
+                "खाने के बाद",
+                "ठीक है"
+              ]
+            },
+            {
+              "input": {
+                "text": "meri sugar kaisi rahi",
+                "today": "2026-11-01",
+                "state": {
+                  "readings": [
+                    {
+                      "date": "2026-10-31",
+                      "kind": "fasting",
+                      "value": 126
+                    }
+                  ]
+                }
+              },
+              "expect": [
+                "126"
+              ],
+              "held_out": true
+            }
+          ]
+        },
+        {
+          "name": "medicine_refill",
+          "title": "Medicine stock",
+          "description": "Counts down his metformin day by day and says when Amit should reorder.",
+          "triggers": [
+            "goli|गोली|गोलियाँ|tablet|dawai|दवा|metformin|मेटफ़ॉर्मिन"
+          ],
+          "learned_from": {
+            "llm_runs": 7,
+            "first_seen_days_ago": 60,
+            "compiled_days_ago": 12,
+            "examples": [
+              "metformin ki kitni goli bachi",
+              "dawai kab khatam hogi",
+              "aaj 60 goli ka patta aaya"
+            ],
+            "why": "He asks every few days; the LLM was counting tablets from the last thing he said."
+          },
+          "state": {
+            "medicines": {
+              "metformin": {
+                "label": "मेटफ़ॉर्मिन",
+                "left": 34,
+                "per_day": 2,
+                "as_of_days_ago": 5
+              }
+            }
+          },
+          "cases": [
+            {
+              "input": {
+                "text": "metformin ki kitni goli bachi",
+                "today": "2026-11-01",
+                "state": {
+                  "medicines": {
+                    "metformin": {
+                      "label": "मेटफ़ॉर्मिन",
+                      "left": 30,
+                      "per_day": 2,
+                      "as_of": "2026-10-29"
+                    }
+                  }
+                }
+              },
+              "expect": [
+                "24 गोलियाँ",
+                "12 दिन"
+              ]
+            },
+            {
+              "input": {
+                "text": "aaj 60 goli ka naya patta aaya metformin",
+                "today": "2026-11-01",
+                "state": {
+                  "medicines": {
+                    "metformin": {
+                      "label": "मेटफ़ॉर्मिन",
+                      "left": 4,
+                      "per_day": 2,
+                      "as_of": "2026-11-01"
+                    }
+                  }
+                }
+              },
+              "expect": [
+                "64 गोलियाँ"
+              ]
+            },
+            {
+              "input": {
+                "text": "dawai kab khatam hogi",
+                "today": "2026-11-01",
+                "state": {
+                  "medicines": {
+                    "metformin": {
+                      "label": "मेटफ़ॉर्मिन",
+                      "left": 8,
+                      "per_day": 2,
+                      "as_of": "2026-11-01"
+                    }
+                  }
+                }
+              },
+              "expect": [
+                "अभी मँगवा लीजिए"
+              ],
+              "held_out": true
+            }
+          ]
+        }
+      ],
+      "appointment": {
+        "doctor": "Dr. Neha Kapoor",
+        "specialty": "diabetology",
+        "clinic": "Max Hospital Saket",
+        "address": "Press Enclave Road, Saket, New Delhi",
+        "lat": 28.5274,
+        "lng": 77.2122,
+        "in_days": 1,
+        "at": "10:30",
+        "reason": "diabetes review",
+        "learned_from": "booking call to Max Hospital Saket"
+      }
+    },
+    {
+      "id": "sunita",
+      "name": "Sunita Verma",
+      "language": "hinglish",
+      "conditions": [
+        "high blood pressure"
+      ],
+      "quirks": [
+        "Mixes Hindi and English in every sentence and wants short replies",
+        "Measures BP after her evening walk and says it as '146 by 92'",
+        "Loves achaar and namkeen, and asks Saathi to keep her honest about salt"
+      ],
+      "facts": [
+        {
+          "topic": "name",
+          "key": "name",
+          "text": "Sunita Verma",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "home",
+          "key": "home",
+          "text": "Sector 46, Gurugram",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "family",
+          "key": "daughter",
+          "text": "Daughter Priya lives nearby in Gurugram and checks on her BP",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "doctor",
+          "key": "cardiologist",
+          "text": "Dr. Rakesh Gupta at Fortis Memorial Gurugram manages her blood pressure",
+          "agent": "saathi-care",
+          "learned_from": "booking call to Fortis Memorial Gurugram"
+        },
+        {
+          "topic": "health",
+          "key": "bp",
+          "text": "High blood pressure, on amlodipine 5 mg every morning; target under 130 by 80",
+          "agent": "saathi-voice",
+          "learned_from": "told Saathi by voice"
+        },
+        {
+          "topic": "preference",
+          "key": "salt",
+          "text": "Trying to keep salt under 5 grams a day; loves achaar and namkeen",
+          "agent": "saathi-camera",
+          "learned_from": "shopping camera at Galleria Market: keeps picking up namkeen"
+        },
+        {
+          "topic": "routine",
+          "key": "bp_check",
+          "text": "Checks BP after her evening walk, around 7 pm",
+          "agent": "saathi-abilities",
+          "learned_from": "BP diary: readings arrive around 7 pm"
+        },
+        {
+          "topic": "routine",
+          "key": "electricity",
+          "text": "Pays the electricity bill (DHBVN) around the 5th of each month",
+          "agent": "saathi-inbox",
+          "learned_from": "DHBVN bill SMS (summary only)"
+        },
+        {
+          "topic": "preference",
+          "key": "walk",
+          "text": "Evening walk in Leisure Valley Park before her BP check",
+          "agent": "saathi-voice",
+          "learned_from": "told Saathi by voice"
+        }
+      ],
+      "abilities": [
+        {
+          "name": "bp_log",
+          "title": "BP diary",
+          "description": "Logs a BP reading, grades it against Dr. Gupta's target and keeps a 7-day average.",
+          "triggers": [
+            "\\bbp\\b|blood pressure|\\d{2,3}\\s*(?:/|by|over)\\s*\\d{2,3}|upar.*neeche"
+          ],
+          "learned_from": {
+            "llm_runs": 13,
+            "first_seen_days_ago": 52,
+            "compiled_days_ago": 21,
+            "examples": [
+              "BP 146 by 92 aaya",
+              "upar 150 neeche 95",
+              "is hafte BP kaisa raha"
+            ],
+            "why": "Sunita logs her BP almost every evening; grading a reading needs fixed thresholds, not a model."
+          },
+          "state": {
+            "target": [
+              130,
+              80
+            ],
+            "readings": [
+              {
+                "days_ago": 4,
+                "sys": 142,
+                "dia": 90,
+                "pulse": 76
+              },
+              {
+                "days_ago": 3,
+                "sys": 138,
+                "dia": 88,
+                "pulse": 74
+              },
+              {
+                "days_ago": 2,
+                "sys": 146,
+                "dia": 92,
+                "pulse": 80
+              },
+              {
+                "days_ago": 1,
+                "sys": 134,
+                "dia": 86,
+                "pulse": 72
+              }
+            ]
+          },
+          "cases": [
+            {
+              "input": {
+                "text": "aaj BP 146 by 92 aaya",
+                "today": "2026-11-01",
+                "state": {
+                  "target": [
+                    130,
+                    80
+                  ]
+                }
+              },
+              "expect": [
+                "146 by 92",
+                "high hai",
+                "Dr. Gupta"
+              ]
+            },
+            {
+              "input": {
+                "text": "BP 186/124 hai",
+                "today": "2026-11-01",
+                "state": {}
+              },
+              "expect": [
+                "bahut zyada",
+                "108"
+              ],
+              "urgent": true
+            },
+            {
+              "input": {
+                "text": "is hafte BP kaisa raha",
+                "today": "2026-11-01",
+                "state": {
+                  "readings": [
+                    {
+                      "date": "2026-10-31",
+                      "sys": 140,
+                      "dia": 90
+                    },
+                    {
+                      "date": "2026-10-30",
+                      "sys": 130,
+                      "dia": 80
+                    }
+                  ]
+                }
+              },
+              "expect": [
+                "average 135 by 85"
+              ]
+            },
+            {
+              "input": {
+                "text": "upar 128 neeche 78",
+                "today": "2026-11-01",
+                "state": {}
+              },
+              "expect": [
+                "128 by 78"
+              ],
+              "held_out": true
+            }
+          ]
+        },
+        {
+          "name": "salt_budget",
+          "title": "Salt budget",
+          "description": "Adds up the salt in what she ate today against 5 grams, with a swap tip.",
+          "triggers": [
+            "namak|salt|achaar|achar|pickle|papad|namkeen|bhujia|paratha|samosa|pakod|maggi|chips|khaya|khaaya"
+          ],
+          "learned_from": {
+            "llm_runs": 9,
+            "first_seen_days_ago": 30,
+            "compiled_days_ago": 9,
+            "examples": [
+              "aaj do paratha aur achaar khaya",
+              "kitna namak ho gaya aaj",
+              "shaam ko samosa kha liya"
+            ],
+            "why": "The LLM's per-serving salt estimates for her usual foods were frozen into a table; new foods still go to the LLM."
+          },
+          "state": {
+            "date_days_ago": 0,
+            "grams": 1.6,
+            "items": [
+              "poha",
+              "roti"
+            ]
+          },
+          "cases": [
+            {
+              "input": {
+                "text": "aaj do paratha aur achaar khaya",
+                "today": "2026-11-01",
+                "state": {
+                  "date": "2026-11-01",
+                  "grams": 0.0
+                }
+              },
+              "expect": [
+                "2.7 gram",
+                "nimbu"
+              ]
+            },
+            {
+              "input": {
+                "text": "kitna namak ho gaya aaj",
+                "today": "2026-11-01",
+                "state": {
+                  "date": "2026-11-01",
+                  "grams": 3.2
+                }
+              },
+              "expect": [
+                "3.2 gram"
+              ]
+            },
+            {
+              "input": {
+                "text": "maggi aur papad khaya",
+                "today": "2026-11-01",
+                "state": {
+                  "date": "2026-11-01",
+                  "grams": 2.0
+                }
+              },
+              "expect": [
+                "limit paar"
+              ],
+              "held_out": true
+            }
+          ]
+        }
+      ],
+      "appointment": {
+        "doctor": "Dr. Rakesh Gupta",
+        "specialty": "cardiology",
+        "clinic": "Fortis Memorial Gurugram",
+        "address": "Sector 44, Gurugram",
+        "lat": 28.4536,
+        "lng": 77.0726,
+        "in_days": 2,
+        "at": "11:00",
+        "reason": "blood pressure check",
+        "learned_from": "booked while the hospital was on the line (Fortis Memorial Gurugram)"
+      }
+    },
+    {
+      "id": "arjun",
+      "name": "Arjun Mehta",
+      "language": "en",
+      "conditions": [
+        "blind (no useful vision)"
+      ],
+      "quirks": [
+        "Totally blind: every number is read out, nothing refers to colours or the screen",
+        "Pays for everything by UPI and tells Saathi each payment so he can keep a budget",
+        "Splits bills with friends after Friday dinner and wants the exact share instantly"
+      ],
+      "facts": [
+        {
+          "topic": "name",
+          "key": "name",
+          "text": "Arjun",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "home",
+          "key": "home",
+          "text": "Safdarjung Enclave, New Delhi",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "family",
+          "key": "wife",
+          "text": "Wife Neha",
+          "agent": "saathi-family",
+          "learned_from": "family setup on the dashboard"
+        },
+        {
+          "topic": "doctor",
+          "key": "eye",
+          "text": "Dr. S. Iyer at Centre for Sight Safdarjung",
+          "agent": "saathi-care",
+          "learned_from": "booking call to Centre for Sight Safdarjung"
+        },
+        {
+          "topic": "health",
+          "key": "vision",
+          "text": "Blind, no useful vision; uses TalkBack",
+          "agent": "saathi-voice",
+          "learned_from": "told Saathi by voice"
+        },
+        {
+          "topic": "preference",
+          "key": "voice",
+          "text": "Read every number and price aloud; never say 'tap the green button'",
+          "agent": "saathi-voice",
+          "learned_from": "told Saathi by voice"
+        },
+        {
+          "topic": "routine",
+          "key": "budget",
+          "text": "Keeps a monthly budget of 25000 rupees for household spending",
+          "agent": "saathi-abilities",
+          "learned_from": "expense log: monthly total he asks about"
+        },
+        {
+          "topic": "routine",
+          "key": "commute",
+          "text": "Takes Uber Go from home to Hauz Khas metro on weekdays at 9 am",
+          "agent": "saathi-tasks",
+          "learned_from": "Uber bookings from Safdarjung Enclave"
+        },
+        {
+          "topic": "preference",
+          "key": "grocery",
+          "text": "Orders groceries on Blinkit; asks for every price read aloud",
+          "agent": "saathi-tasks",
+          "learned_from": "Blinkit orders"
+        }
+      ],
+      "abilities": [
+        {
+          "name": "expense_log",
+          "title": "Spoken expense log",
+          "description": "Records what he paid and totals it by day, week, month or category.",
+          "triggers": [
+            "\\b(spent|paid|spend|gave|bought)\\b"
+          ],
+          "learned_from": {
+            "llm_runs": 14,
+            "first_seen_days_ago": 35,
+            "compiled_days_ago": 16,
+            "examples": [
+              "spent 240 on groceries",
+              "how much did I spend this week",
+              "what did transport cost this month"
+            ],
+            "why": "Arjun can't see a spending app, so he tells Saathi each payment; adding them up is fixed code."
+          },
+          "state": {
+            "entries": [
+              {
+                "days_ago": 6,
+                "amount": 1840,
+                "category": "food"
+              },
+              {
+                "days_ago": 4,
+                "amount": 420,
+                "category": "groceries"
+              },
+              {
+                "days_ago": 3,
+                "amount": 260,
+                "category": "transport"
+              },
+              {
+                "days_ago": 1,
+                "amount": 999,
+                "category": "bills"
+              }
+            ]
+          },
+          "cases": [
+            {
+              "input": {
+                "text": "I spent 240 on groceries",
+                "today": "2026-11-04",
+                "state": {
+                  "entries": []
+                }
+              },
+              "expect": [
+                "Noted 240 rupees for groceries",
+                "This week so far: 240 rupees"
+              ]
+            },
+            {
+              "input": {
+                "text": "how much did I spend on transport this month",
+                "today": "2026-11-04",
+                "state": {
+                  "entries": [
+                    {
+                      "date": "2026-11-02",
+                      "amount": 300,
+                      "category": "transport"
+                    },
+                    {
+                      "date": "2026-10-20",
+                      "amount": 90,
+                      "category": "transport"
+                    }
+                  ]
+                }
+              },
+              "expect": [
+                "300 rupees on transport this month",
+                "1 payments"
+              ]
+            },
+            {
+              "input": {
+                "text": "how much did I spend this week",
+                "today": "2026-11-04",
+                "state": {
+                  "entries": [
+                    {
+                      "date": "2026-11-03",
+                      "amount": 500,
+                      "category": "food"
+                    },
+                    {
+                      "date": "2026-11-04",
+                      "amount": 100,
+                      "category": "bills"
+                    }
+                  ]
+                }
+              },
+              "expect": [
+                "600 rupees",
+                "food, 500 rupees"
+              ],
+              "held_out": true
+            }
+          ]
+        },
+        {
+          "name": "bill_split",
+          "title": "Bill splitter",
+          "description": "Divides a bill, with an optional tip, and says each share rounded up to the rupee.",
+          "triggers": [
+            "\\bsplit\\b"
+          ],
+          "learned_from": {
+            "llm_runs": 6,
+            "first_seen_days_ago": 28,
+            "compiled_days_ago": 7,
+            "examples": [
+              "split 1840 between 4",
+              "split 2350 among me and 3 friends with 10 percent tip"
+            ],
+            "why": "Friday dinners; the same division every week did not need a model."
+          },
+          "state": {},
+          "cases": [
+            {
+              "input": {
+                "text": "split 1840 between 4",
+                "today": "2026-11-01",
+                "state": {}
+              },
+              "expect": [
+                "460 rupees"
+              ]
+            },
+            {
+              "input": {
+                "text": "split 2350 among me and 3 friends with 10 percent tip",
+                "today": "2026-11-01",
+                "state": {}
+              },
+              "expect": [
+                "4 people pays 647 rupees",
+                "2585"
+              ]
+            },
+            {
+              "input": {
+                "text": "split 999 between three",
+                "today": "2026-11-01",
+                "state": {}
+              },
+              "expect": [
+                "333 rupees"
+              ],
+              "held_out": true
+            }
+          ]
+        }
+      ],
+      "appointment": {
+        "doctor": "Dr. S. Iyer",
+        "specialty": "ophthalmology",
+        "clinic": "Centre for Sight Safdarjung",
+        "address": "Safdarjung Enclave, New Delhi",
+        "lat": 28.5626,
+        "lng": 77.196,
+        "in_days": 4,
+        "at": "16:00",
+        "reason": "eye check-up",
+        "learned_from": "booking call to Centre for Sight Safdarjung"
+      }
+    }
+  ]
+}

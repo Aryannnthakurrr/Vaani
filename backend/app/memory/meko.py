@@ -30,12 +30,15 @@ TIMEOUT_S = 30.0
 
 
 def elder_for(device: str) -> str:
-    """A stable, non-reversible id per phone, used as the elder's datapack name (prefixes of device ids collide)."""
+    """A stable, non-reversible id per phone, used as the elder's datapack name (prefixes of device ids collide).
+    Demo personas ("persona:ramesh") get a readable name instead, the same from every backend."""
+    if device.startswith("persona:"):
+        return "saathi-persona-" + device.removeprefix("persona:")
     return "elder-" + hashlib.sha256(device.encode()).hexdigest()[:16]
 
 
 # Parts of Saathi that write into an elder's datapack. They share that elder's context, nobody else's.
-SETUP, VOICE, TASKS = "saathi-setup", "saathi-voice", "saathi-tasks"
+SETUP, VOICE, TASKS, ABILITIES = "saathi-setup", "saathi-voice", "saathi-tasks", "saathi-abilities"
 
 
 class MekoMemory:
@@ -93,19 +96,30 @@ class MekoMemory:
         """The elder's own datapack: everything Saathi stores about them, and nothing about anyone else."""
 
         async def make() -> str:
+            name = elder_for(device)
             setup = await self._new_conversation(SETUP, "setup", {"kind": "setup"}, None)
-            made = await self._call("datapack_create", {"name": elder_for(device), "conversation_id": setup})
-            log.info("created Meko datapack for %s", elder_for(device))
+            try:
+                made = await self._call("datapack_create", {"name": name, "conversation_id": setup})
+            except RuntimeError:
+                # A persona's datapack may already exist, made by a teammate's backend on the same Meko account.
+                found = next((d for d in _items(await self._call("datapack_list", {}), "datapacks")
+                              if d.get("name") == name), None)  # fmt: skip
+                if not found:
+                    raise
+                made = found
+            log.info("using Meko datapack %s", name if device.startswith("persona:") else "for an elder")
             return str(_get(made, "datapack_id", "id"))
 
         return await self._once(f"meko:datapack:{device}", make)
 
-    async def profile(self, device: str) -> str:
-        """The voice agent's long-lived conversation in the elder's datapack, which facts hang off."""
+    async def profile(self, device: str, agent: str = VOICE) -> str:
+        """An agent's long-lived conversation in the elder's datapack, which the facts it learnt hang off. Each part
+        of Saathi writes as its own agent, so Meko records who learnt what (see AGENTS in app.memory)."""
         datapack = await self.datapack(device)
+        key = f"meko:voice:{device}" if agent == VOICE else f"meko:profile:{agent}:{device}"
         return await self._once(
-            f"meko:voice:{device}",
-            lambda: self._new_conversation(VOICE, "profile", {"kind": "profile"}, datapack),
+            key,
+            lambda: self._new_conversation(agent, "profile", {"kind": "profile", "agent": agent}, datapack),
         )
 
     @staticmethod
@@ -116,28 +130,35 @@ class MekoMemory:
     async def _delete(self, device: str, prefix: str) -> None:
         if not self.ids:
             return
-        for memory_id in self.ids.take_ids(prefix):
+        for stored in self.ids.take_ids(prefix):
+            agent, _, memory_id = stored.rpartition("|")  # "agent|id"; older entries are bare voice ids
+            agent = agent or VOICE
             await self._call("memory_delete_by_id", {
                 "memory_id": memory_id, "datapack_id": await self.datapack(device),
-                "conversation_id": await self.profile(device), "agent_id": VOICE,
+                "conversation_id": await self.profile(device, agent), "agent_id": agent,
             })  # fmt: skip
 
     async def remember(self, device: str, text: str, kind: str = "other", key: str = "", **meta: Any) -> None:
-        """Mirror a fact. A keyed fact replaces the earlier copy, as it does locally."""
+        """Mirror a fact as the agent that learnt it (`meta["agent"]`, default voice), with where it was learnt in the
+        metadata. A keyed fact replaces the earlier copy, as it does locally."""
         key = norm_key(key)
+        agent = str(meta.pop("agent", "") or VOICE)
         if key:
             await self._delete(device, self._bucket(device, kind, key))
         added = await self._call("memory_add", {
-            "datapack_id": await self.datapack(device), "conversation_id": await self.profile(device),
-            "agent_id": VOICE, "text": text,
-            "metadata": json.dumps({"kind": kind, "key": key, **{k: str(v) for k, v in meta.items()}}),
+            "datapack_id": await self.datapack(device), "conversation_id": await self.profile(device, agent),
+            "agent_id": agent, "text": text,
+            "metadata": json.dumps({"kind": kind, "key": key, "agent": agent,
+                                    **{k: str(v) for k, v in meta.items()}}, ensure_ascii=False),
         })  # fmt: skip
         if (
             self.ids
         ):  # Meko may split one fact into several memories; keep every id so forget removes them all
             for hit in _items(added, "results", "memories"):
                 if hit.get("id"):
-                    self.ids.set_id(self._bucket(device, kind, key or "_") + str(hit["id"]), str(hit["id"]))
+                    self.ids.set_id(
+                        self._bucket(device, kind, key or "_") + str(hit["id"]), f"{agent}|{hit['id']}"
+                    )
 
     async def forget(self, device: str, kind: str, key: str = "") -> None:
         key = norm_key(key)
@@ -177,6 +198,27 @@ class MekoMemory:
             "datapack_id": await self.datapack(device),
         })  # fmt: skip
         return list(_items(got, "messages"))
+
+    async def stored_texts(self, device: str) -> set[str]:
+        """Every memory text already in the elder's datapack (any agent, any backend): seeding skips these."""
+        got = await self._call("memory_get_all", {  # datapack-wide, like memory_search; a conversation is required
+            "datapack_id": await self.datapack(device), "conversation_id": await self.profile(device), "page_size": 200,
+        })  # fmt: skip
+        texts = (
+            m.get("memory") or m.get("text") or m.get("content") for m in _items(got, "memories", "results")
+        )
+        return {str(t).strip().lower() for t in texts if t}
+
+    async def save_state(self, device: str, name: str, state: dict[str, Any]) -> None:
+        """A compiled ability's state after a run: one conversation per ability, one message per change."""
+        datapack = await self.datapack(device)
+        conv = await self._once(f"meko:ability:{device}:{name}", lambda: self._new_conversation(
+            ABILITIES, f"ability {name}", {"kind": "ability_state", "ability": name}, datapack))  # fmt: skip
+        await self._call("conversation_add_message", {
+            "conversation_id": conv, "agent_id": ABILITIES, "datapack_id": datapack,
+            "input": f"state of {name}", "output": json.dumps(state, ensure_ascii=False)[:8000],
+            "metadata": json.dumps({"ability": name}),
+        })  # fmt: skip
 
     async def health(self) -> dict[str, Any]:
         return {"ok": True}

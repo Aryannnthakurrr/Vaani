@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -47,6 +48,13 @@ class BackendClient(
         } catch (e: IOException) {
             throw BackendUnavailable("network: ${e.message}", e)
         }
+    }
+
+    override suspend fun storedAppointment(): Appointment? {
+        val body = execute(http, request("/memory/appointment").get().build()).decodeToString()
+        val element = SaathiJson.parseToJsonElement(body).jsonObject["appointment"] ?: return null
+        if (element is kotlinx.serialization.json.JsonNull) return null
+        return SaathiJson.decodeFromJsonElement(Appointment.serializer(), element)
     }
 
     private suspend fun <Req, Res> post(

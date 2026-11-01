@@ -12,9 +12,11 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.abilities import food, get_abilities, user_key
 from app.config import Settings, get_settings
 from app.deps import device_ok
 from app.llm.prompts import render
+from app.memory import get_memory
 from app.schemas import ProductCard
 
 log = logging.getLogger("saathi.live")
@@ -35,14 +37,35 @@ UPDATE_CARD_TOOL = {
             "expiry_iso": {"type": "string", "description": "Expiry date YYYY-MM-DD"},
             "expiry_status": {"type": "string", "enum": ["ok", "soon", "expired", "unknown"]},
             "confidence": {"type": "number", "description": "0 to 1"},
+            "sugar_g_per_100": {
+                "type": "number",
+                "description": "Total sugars per 100 g or ml, from the nutrition panel",
+            },
+            "sodium_mg_per_100": {
+                "type": "number",
+                "description": "Sodium in mg per 100 g or ml, from the nutrition panel",
+            },
+            "per": {
+                "type": "string",
+                "enum": ["g", "ml"],
+                "description": "Whether the panel is per 100 g or 100 ml",
+            },
         },
         "required": ["expiry_status", "confidence"],
     },
 }
 
 
-def mock_card(today: date | None = None) -> ProductCard:
+def mock_card(today: date | None = None, conditions: set[str] | None = None) -> ProductCard:
+    """The scripted pack: a Frooti for a diabetic shopper and Lay's for high BP show each warning offline."""
     today = today or date.today()
+    conditions = conditions or set()
+    if "diabetes" in conditions:
+        return ProductCard(name="Frooti Mango Drink", mrp=20, quantity="200 ml",
+                           expiry_iso=(today + timedelta(days=120)).isoformat(), expiry_status="ok", confidence=0.9)  # fmt: skip
+    if "bp" in conditions:
+        return ProductCard(name="Lay's Classic Salted", mrp=20, quantity="52 g",
+                           expiry_iso=(today + timedelta(days=60)).isoformat(), expiry_status="ok", confidence=0.9)  # fmt: skip
     return ProductCard(
         name="Parle-G Gold Biscuits",
         mrp=140,
@@ -53,6 +76,14 @@ def mock_card(today: date | None = None) -> ProductCard:
     )
 
 
+def with_health(card: ProductCard, conditions: set[str], style: str) -> ProductCard:
+    """The card with the fixed-code sugar or salt warning for this shopper, if any."""
+    found = food.check(card.model_dump(), conditions, style)
+    if found is None:
+        return card.model_copy(update={"health_warning": None, "health_level": None})
+    return card.model_copy(update={"health_level": found[0], "health_warning": found[1]})
+
+
 _MOCK_LINES = {
     "en": "This is Parle-G Gold, 1 kilo. The printed MRP is ₹140. It expires in 5 days, so please use it soon.",
     "hi": "यह पारले-जी गोल्ड है, 1 किलो। छपा हुआ एमआरपी ₹140 है। यह 5 दिन में एक्सपायर होगा, जल्दी इस्तेमाल कीजिए।",
@@ -60,7 +91,7 @@ _MOCK_LINES = {
 }
 
 
-async def _mock_session(ws: WebSocket, style: str) -> None:
+async def _mock_session(ws: WebSocket, style: str, conditions: set[str] | None = None) -> None:
     frames = 0
     sent = False
     while True:
@@ -84,14 +115,24 @@ async def _mock_session(ws: WebSocket, style: str) -> None:
                 await ws.send_json({"type": "turn_complete"})
             if frames >= MOCK_FRAMES_BEFORE_CARD and not sent:
                 sent = True
-                await ws.send_json({"type": "product_card", "card": mock_card().model_dump()})
-                await ws.send_json({"type": "text", "text": _MOCK_LINES.get(style, _MOCK_LINES["en"])})
+                card = with_health(mock_card(conditions=conditions), conditions or set(), style)
+                await ws.send_json({"type": "product_card", "card": card.model_dump()})
+                line = (
+                    _MOCK_LINES.get(style, _MOCK_LINES["en"])
+                    if (card.name or "").startswith("Parle")
+                    else f"{card.name}."
+                )
+                await ws.send_json(
+                    {"type": "text", "text": " ".join(x for x in (line, card.health_warning) if x)}
+                )
                 await ws.send_json({"type": "turn_complete"})
         elif kind == "end":
             return
 
 
-async def _gemini_session(ws: WebSocket, settings: Settings, style: str, context: str = "") -> None:
+async def _gemini_session(
+    ws: WebSocket, settings: Settings, style: str, context: str = "", conditions: set[str] | None = None
+) -> None:
     from google import genai
     from google.genai import types
 
@@ -114,6 +155,7 @@ async def _gemini_session(ws: WebSocket, settings: Settings, style: str, context
         ),
     )
     model = settings.route("camera_live")["model"]
+    warned: set[str] = set()  # products already warned about this session: say it once
     async with client.aio.live.connect(model=model, config=config) as session:
 
         async def upstream() -> None:
@@ -134,7 +176,7 @@ async def _gemini_session(ws: WebSocket, settings: Settings, style: str, context
         async def downstream() -> None:
             while True:
                 async for resp in session.receive():
-                    await _forward(ws, session, resp, types)
+                    await _forward(ws, session, resp, types, conditions or set(), style, warned)
 
         tasks = [asyncio.create_task(upstream()), asyncio.create_task(downstream())]
         try:
@@ -146,7 +188,9 @@ async def _gemini_session(ws: WebSocket, settings: Settings, style: str, context
                 task.cancel()
 
 
-async def _forward(ws: WebSocket, session: Any, resp: Any, types: Any) -> None:
+async def _forward(
+    ws: WebSocket, session: Any, resp: Any, types: Any, conditions: set[str], style: str, warned: set[str]
+) -> None:
     if resp.data:
         await ws.send_json(
             {"type": "audio", "pcm_b64": base64.b64encode(resp.data).decode(), "sample_rate": 24000}
@@ -164,11 +208,28 @@ async def _forward(ws: WebSocket, session: Any, resp: Any, types: Any) -> None:
     if tool_call:
         responses = []
         for call in tool_call.function_calls or []:
+            answer: dict[str, Any] = {"ok": True}
             if call.name == "update_product_card":
-                card = ProductCard.model_validate(call.args or {})
+                card = with_health(ProductCard.model_validate(call.args or {}), conditions, style)
                 await ws.send_json({"type": "product_card", "card": card.model_dump()})
-            responses.append(types.FunctionResponse(id=call.id, name=call.name, response={"ok": True}))
+                product = (card.name or "").lower()
+                if card.health_warning and product not in warned:
+                    warned.add(product)
+                    # Facts for the model's own gentle nudge (camera.md), not a line to read out.
+                    answer["health_check"] = {"level": card.health_level, "finding": card.health_warning}
+            responses.append(types.FunctionResponse(id=call.id, name=call.name, response=answer))
         await session.send_tool_response(function_responses=responses)
+
+
+async def shopper_conditions(context: str, profile: str | None) -> set[str]:
+    """Diabetes and BP from the app's context line, the demo persona and the user's remembered health facts."""
+    texts = [context]
+    persona = get_abilities().persona(profile)
+    if persona is not None:
+        texts += persona.conditions
+        with contextlib.suppress(Exception):
+            texts += [t for _, t in await get_memory().facts(user_key(persona.id), ["health"])]
+    return food.conditions_from(*texts)
 
 
 @router.websocket("/live/camera")
@@ -183,19 +244,21 @@ async def live_camera(ws: WebSocket) -> None:
     settings = get_settings()
     style = ws.query_params.get("reply_style", "en")
     context = ""
+    profile = ws.headers.get("x-saathi-profile")
     try:
-        if not settings.mock:
-            # The app's first message is its config: reply style plus what Saathi knows about the user (health,
-            # next appointment) for gentle shopping advice. Sent in the socket, never the URL, so it isn't logged.
-            with contextlib.suppress(TimeoutError, ValueError):
-                first = json.loads(await asyncio.wait_for(ws.receive_text(), CONFIG_WAIT_S))
-                if first.get("type") == "config":
-                    style = first.get("reply_style", style)
-                    context = str(first.get("context") or "")[:500]
+        # The mock reads it too, so its scripted pack follows the shopper's health.
+        # The app's first message is its config: reply style plus what Saathi knows about the user (health,
+        # next appointment) for gentle shopping advice. Sent in the socket, never the URL, so it isn't logged.
+        with contextlib.suppress(TimeoutError, ValueError):
+            first = json.loads(await asyncio.wait_for(ws.receive_text(), CONFIG_WAIT_S))
+            if first.get("type") == "config":
+                style = first.get("reply_style", style)
+                context = str(first.get("context") or "")[:500]
+        conditions = await shopper_conditions(context, profile)
         if settings.mock:
-            await _mock_session(ws, style)
+            await _mock_session(ws, style, conditions)
         else:
-            await _gemini_session(ws, settings, style, context)
+            await _gemini_session(ws, settings, style, context, conditions)
     except (WebSocketDisconnect, TimeoutError):
         log.info("camera session ended")
     except Exception as exc:

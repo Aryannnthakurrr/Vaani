@@ -19,7 +19,7 @@ MAX_OUTPUT = 64 * 1024
 # Runs inside the per-case child: load the skill, call the entry function, print one JSON line.
 CHILD = r"""
 import json, sys
-src = sys.stdin.read()
+src = sys.stdin.buffer.read().decode("utf-8")  # not the locale: Hindi skills on Windows
 job = json.loads(src)
 ns = {"__name__": "skill"}
 try:
@@ -34,7 +34,7 @@ sys.stdout.write("\n__RESULT__" + json.dumps(out, default=str))
 
 
 def run_case(code: str, entry: str, case: object) -> dict:
-    job = json.dumps({"code": code, "entry": entry, "input": case})
+    job = json.dumps({"code": code, "entry": entry, "input": case})  # ASCII: safe in any locale
     try:
         proc = subprocess.run(
             [sys.executable, "-I", "-S", "-c", CHILD],
@@ -53,14 +53,14 @@ def run_case(code: str, entry: str, case: object) -> dict:
         err = (proc.stderr or "no output").strip().splitlines()[-1:] or ["no output"]
         return {"ok": False, "error": f"Crashed (exit {proc.returncode}): {err[0][:300]}"}
     try:
-        return json.loads(out[marker + len("\n__RESULT__"):])
+        return json.loads(out[marker + len("\n__RESULT__") :])
     except json.JSONDecodeError:
         return {"ok": False, "error": "Unreadable result"}
 
 
 def main() -> int:
     try:
-        job = json.loads(sys.stdin.read())
+        job = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         code, entry, cases = job["code"], job["entry"], job["cases"]
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
         json.dump([{"ok": False, "error": f"Bad job: {exc}"}], sys.stdout)

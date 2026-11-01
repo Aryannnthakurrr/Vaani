@@ -113,6 +113,19 @@ class LocalMemory:
         out = [(r["kind"], r["text"]) for r in rows if wanted is None or r["kind"] in wanted]
         return out[:MAX_FACTS]
 
+    async def entries(self, device: str) -> list[dict[str, Any]]:
+        """Every fact with its key, metadata (agent, learned_from, …) and time, newest first."""
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT kind, key, text, meta, ts FROM memories WHERE device_id=? ORDER BY ts DESC, id DESC",
+                (device,),
+            ).fetchall()
+        return [{"topic": r["kind"], "key": r["key"], "text": r["text"], "meta": json.loads(r["meta"] or "{}"),
+                 "ts": r["ts"]} for r in rows][:MAX_FACTS]  # fmt: skip
+
+    async def seed(self, device: str, text: str, kind: str, key: str = "", **meta: Any) -> None:
+        await self.remember(device, text, kind, key, **meta)
+
     async def log_step(self, device: str, run_id: str, goal: str, step: dict[str, Any]) -> None:
         with self._conn() as c:
             # Step history only helps resume a task; nothing needs it after a week.

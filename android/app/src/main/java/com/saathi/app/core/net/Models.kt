@@ -226,6 +226,9 @@ data class ProductCard(
     @SerialName("expiry_iso") val expiryIso: String? = null,
     @SerialName("expiry_status") val expiryStatus: String = "unknown",
     val confidence: Double? = null,
+    /** Sugar or salt warning for this user's diabetes or BP, decided by fixed code on the backend (app/abilities/food.py). */
+    @SerialName("health_warning") val healthWarning: String? = null,
+    @SerialName("health_level") val healthLevel: String? = null,
 ) {
     /** Printed MRP as "₹140", whether the relay sent "₹140", "140" or 140.0. */
     val mrpText: String?

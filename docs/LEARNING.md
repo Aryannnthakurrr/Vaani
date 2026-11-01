@@ -28,6 +28,9 @@ key, every speech path runs on Google alone.
 
 ## 1. Skills
 
+The complete reference for compiled code (all three kinds, every safety layer, the lifecycle, personal abilities) is
+[COMPILED_CODE.md](COMPILED_CODE.md); this section is the summary.
+
 ### Kinds
 
 | Kind | Learns from | Compiled into | Runs where |
@@ -142,7 +145,9 @@ them share that one elder's context. Reads stay local because a Meko search take
 |---|---|---|
 | Facts and preferences about the elder ("prefers Uber Go", "Dr. Mehta is her cardiologist"), each with a topic and key, in their own language | `memory_add` / `memory_delete_by_id` in the elder's datapack | Built: the voice `remember` / `forget` tools store and delete them; the Live prompt gets all of them plus the elder's name at the start of every conversation; clinic calls get only the name (`AUDIENCES`) |
 | Agent run state: per step the task, mode, screen size and app, action, reason, and which handler answered (skill or LLM) | `conversation_create` per run + `conversation_add_message` per step (`reasoning`, `plan`) | Built: a decision trail per run, written off the request path. Not built: resuming a run after an app restart |
-| Compiled skills, token usage, shared learnings | `artifact_put`, `track_token_usage`, `memory_promote` | Not built yet |
+| Who learnt what: each part of Saathi writes as its own agent (`saathi-voice`, `saathi-care`, `saathi-tasks`, `saathi-inbox`, `saathi-camera`, `saathi-abilities`, `saathi-family`), with `learned_from` in each memory's metadata | `memory_add` per agent profile conversation | Built: see [MEKO_STATE.md](MEKO_STATE.md). Booked appointments (`saathi-care`) feed "cab to my doctor's appointment" |
+| Compiled abilities' state (readings, totals, stock) | `conversation_add_message` per ability (`saathi-abilities`) | Built |
+| Compiled skills as files, token usage, shared learnings | `artifact_put`, `track_token_usage`, `memory_promote` | Not built yet |
 
 Privacy: screen text is **not** sent to Meko at all, only its size and the app's package. `remember` refuses
 anything with OTP/PIN/password/card/Aadhaar words or long numbers (`safe_fact`). Raw audio is never stored. A copy

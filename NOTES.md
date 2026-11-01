@@ -752,3 +752,49 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
   narrowing (9), processors page (12), debug-hook release check (13), short-lived family link tokens (15b), Bolna
   recording settings (11b, not verified).
 
+
+## Hospital calls listen properly; provider matching uses the whole need (2026-11-01)
+
+- Real Bolna transcripts showed the inquiry agent answering half-sentences and being cut off by one word: endpointing
+  250 → 700 ms, `number_of_words_for_interruption` 1 → 3, plus prompt rules to re-ask unclear answers and repeat slots
+  and fees back. `scripts/bolna_agent.py --update` rewrites an existing agent in place (same id); both agents updated.
+- The mid-call `check_with_patient` request awaited romanizing (up to 3 s) before returning; Bolna dropped it and the
+  agent said "I'll call back". The `live_confirm` event is now spawned, HOLD_S 6 → 5. Call transcript lines are
+  romanized in parallel.
+- Ranking: the capability scorer gets facilities, conditions, acuity, timeframe and doctor gender; urgency sets the
+  weights (`ranking.weights`); new `IntakeNote.preferences` (fee limit, insurance, prefer/avoid, doctor gender) from
+  the triage prompt filters, adds a bonus, goes into the call's `needs`, and re-ranking pushes down hospitals missing
+  a facility, over the fee limit or refusing the insurance (`CallResult.facilities_available`, `insurance_accepted`).
+- Gap: preferences come only from the AI intake; the rule fallback doesn't capture them.
+- Write-up for presenting: docs/HEALTHCARE_KT.md.
+
+## Personal compiled abilities, three demo users, camera sugar/salt warnings (2026-11-01)
+
+- `app/abilities`: per-user compiled abilities (code in `fixtures/personas/abilities/<user>/`, users, facts, cases and
+  learning history in `fixtures/personas/personas.json`). Seeded and sandbox-tested on every backend start; only an
+  ability that passes every case (held-out included) is active. `/intent` with `X-Saathi-Profile` tries them first.
+- Users are the existing demo profiles Ramesh (diabetes), Sunita (BP) and Arjun (blind), keyed by plain profile id so
+  all three laptops show the same people. Facts go through `get_memory()` under `persona:<id>`; ability state is a
+  local table mirrored to Meko (`MekoMemory.save_state`, datapack `saathi-persona-<id>`).
+- Fixed: the skill sandbox runner read stdin in the Windows locale, so any compiled code with Hindi text failed on
+  Windows laptops. It now reads UTF-8.
+- Camera: `food.py` decides sugar (diabetes) and sodium (BP) warnings from the label or a typical-values table (FSA
+  thresholds); the mock camera shows Frooti to a diabetic user and Lay's to a BP user.
+- Gaps: the personal abilities are seeded, not yet compiled from live voice traces; keyword triggers can catch a
+  request that only sounds like an ability; Meko mirroring is unverified here (no `MEKO_API_KEY` on this laptop) and
+  `datapack_list` (used when a teammate's backend already made the persona datapack) is assumed, not verified.
+- Abilities do the small parts only: the LLM (`ability_reply` route) words every reply from the ability's result,
+  and the camera model gets the food finding as facts for its own nudge. Only urgent results skip the model.
+- Write-up: docs/PERSONAL_ABILITIES.md.
+
+## Meko: who learnt what, and appointments for cabs (2026-11-01)
+
+- Each part of Saathi writes to the person's datapack as its own Meko agent (`AGENTS` in app/memory) with
+  `learned_from` in the metadata; each agent gets its own profile conversation (Meko requires the creating agent).
+- Confirmed bookings become `doctor/next_appointment` as `saathi-care` (app/care/remembered.py) with clinic, address
+  and coordinates; `GET /memory/appointment` serves it and the phone's cab task uses it when it has no local copy.
+- Verified against the live service: `memory_get_all` needs a `conversation_id` (it is still datapack-wide);
+  `datapack_list` exists and is used to find a persona datapack another backend created.
+- Persona seeding reconciles with Meko on every start (one `memory_get_all` per persona) instead of only when the
+  local copy is empty, so Meko outages heal.
+- Docs: docs/MEKO_STATE.md, docs/COMPILED_CODE.md (the complete compiled-code reference).

@@ -11,7 +11,7 @@ import pytest
 
 from app.care import calls, extract, orchestrator, ranking, safety_net
 from app.care.calls import CallRun
-from app.care.models import CallResult, Hospital, Slot
+from app.care.models import CallResult, Hospital, IntakeNote, Slot
 from tests.conftest import HEADERS
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -336,3 +336,48 @@ def test_relative_in_trouble_scam_is_caught_by_rules() -> None:
     assert classify_one(MessageIn(id="1", sender="+918800112233", text=sms)).category == "scam_suspected"
     ok = "Reminder: your appointment at Sir Ganga Ram Hospital is on Tuesday 9:30 am."
     assert classify_one(MessageIn(id="2", sender="VK-GANGAR", text=ok)).category != "scam_suspected"
+
+
+def _note(**kw) -> IntakeNote:
+    from app.care.models import Emergency
+
+    return IntakeNote(emergency=Emergency(answer="NO", acuity=kw.pop("acuity", 4)), **kw)
+
+
+def test_ranking_uses_the_whole_need() -> None:
+    from app.care.models import Preferences
+    from app.care.orchestrator import needs
+
+    near = Hospital(
+        id="near", name="Near Nursing Home", phone="+1", rating=3.8, rating_count=40, eta_minutes=5
+    )
+    far = Hospital(
+        id="far", name="Big Ortho Hospital", phone="+2", rating=4.8, rating_count=3000, eta_minutes=25
+    )
+    near.capability, far.capability = 0.55, 0.95
+    # Urgent: distance weighs most; routine: the most capable, best-reviewed place wins.
+    assert ranking.rank([near, far], _note(acuity=3, appointment_timeframe="today"))[0].id == "near"
+    assert ranking.rank([near, far], _note(acuity=4, appointment_timeframe="this week"))[0].id == "far"
+    assert ranking.weights(_note(acuity=3, appointment_timeframe="within 48 hours")) == (0.45, 0.35, 0.20)
+
+    prefs = Preferences(
+        avoid=["big ortho"], prefer=["near nursing"], max_fee_inr=500, insurance="Ayushman card"
+    )
+    assert [h.id for h in ranking.filter_candidates([near, far], "orthopedics", prefs)] == ["near"]
+    note = _note(specialty="orthopedics", required_facilities=["X-ray"], preferences=prefs)
+    assert (
+        needs(note) == "orthopedics consultation, X-ray, accepts Ayushman card, consultation fee up to Rs 500"
+    )
+
+    slot = Slot(start="2026-11-02T10:00:00+05:30")
+    later = Slot(start="2026-11-03T10:00:00+05:30")
+    cheap = CallResult(
+        hospital_id="c", hospital_name="C", specialty_available=True, slots=[later], fee_inr=400
+    )
+    costly = CallResult(
+        hospital_id="d", hospital_name="D", specialty_available=True, slots=[slot], fee_inr=1000
+    )
+    no_xray = CallResult(hospital_id="e", hospital_name="E", specialty_available=True, slots=[slot],
+                         facilities_available=False)  # fmt: skip
+    order = ranking.rerank([costly, no_xray, cheap], {}, prefs)
+    assert [r.hospital_id for r in order] == ["c", "d", "e"]

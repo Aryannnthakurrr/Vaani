@@ -100,7 +100,12 @@ class TaskRunner(private val c: AppContainer) {
         if (spec.deeplink == null) return slots to places
         val said = slots.destination?.takeIf { it.isNotBlank() } ?: return slots to places
         // "To my doctor's appointment" → the clinic of the next booked appointment.
-        val dest = AppointmentState.destinationFor(said, lastAppointment(), ZonedDateTime.now()) ?: said
+        // The phone's own copy first; else what the doctor feature stored in memory (Meko), e.g. after a reinstall,
+        // a booking made from another phone, or a demo profile.
+        val now = ZonedDateTime.now()
+        val dest = AppointmentState.destinationFor(said, lastAppointment(), now)
+            ?: (if (AppointmentState.refersToAppointment(said)) rememberedAppointment()?.let { AppointmentState.destinationFor(said, it, now) } else null)
+            ?: said
         if (dest != said) ui.say(tr(style, "Going to your appointment at $dest.", "आपके अपॉइंटमेंट पर: $dest।", "Aapke appointment par: $dest."))
         val resolved = slots.copy(destination = dest)
         val options = PlaceChoice.options(places.candidates(dest))
@@ -117,6 +122,11 @@ class TaskRunner(private val c: AppContainer) {
         }
         return slots.copy(destination = "$dest, ${chosen.area}") to PlaceLookup { chosen.at }
     }
+
+    private suspend fun rememberedAppointment(): com.saathi.app.core.net.Appointment? =
+        kotlinx.coroutines.withTimeoutOrNull(4_000) { runCatching { c.backend.storedAppointment() }.getOrNull() }?.also {
+            c.settings.setLastAppointment(com.saathi.app.util.SaathiJson.encodeToString(com.saathi.app.core.net.Appointment.serializer(), it))
+        }
 
     private fun lastAppointment() = c.settings.current.lastAppointment?.let {
         runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()

@@ -13,6 +13,8 @@
 # agent steps allow 20-25 s per model. The phone waits 55 s per step (BackendClient.agentHttp) to cover the fallback.
 # intent_router stays short: the phone gives up after 4 s and answers with its own keyword rules.
 intent_router:       { model: gemma-4-31B-it,       thinking: minimal, fallback: gemini-3.5-flash-lite, second_opinion: qwen3.8-max, temperature: 0.1, json: true, timeout_s: 5 }
+# The spoken reply after a user's compiled ability did the bookkeeping (app/abilities): short, like intent_router.
+ability_reply:       { model: gemma-4-31B-it,       thinking: minimal, fallback: gemini-3.5-flash-lite, temperature: 0.4, json: true, timeout_s: 5 }
 # On a real Uber run flash took 16 s + 12 s (invalid JSON, retried) and then timed out at 20 s, while flash-lite answered
 # in 1.4 s; agent steps tried flash-lite first. At 23:00 on 2026-10-31 flash-lite timed out on most calls while
 # flash answered in 2-5 s, so intent_router and agent_step try flash first again. agent_step_hard keeps the stronger model for repeated failures.

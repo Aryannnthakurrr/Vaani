@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.abilities import get_abilities
 from app.care import dispatch, live_confirm, orchestrator, places, triage
 from app.care.models import BookRequest, CareStart, IntakeTurn, Location, Patient
 from app.care.session import CARE, CareSession
@@ -40,8 +41,12 @@ def _session(session_id: str, device: str) -> CareSession:
 
 
 @router.post("/session")
-def start(body: CareStart, device: str = Depends(require_device)) -> dict[str, object]:
+def start(
+    body: CareStart, device: str = Depends(require_device), x_saathi_profile: str | None = Header(default=None)
+) -> dict[str, object]:
     session = CARE.create(device)
+    persona = get_abilities().persona(x_saathi_profile)
+    session.profile = persona.id if persona else ""
     session.style = body.reply_style
     session.location = body.location
     session.patient = body.patient
