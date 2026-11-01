@@ -73,7 +73,7 @@ the skill runs beside the LLM on live requests; one disagreement degrades it, 20
 ```
 
 - **Matching:** the step whose `expect` strings all appear on the current screen and which comes after the last
-  executed step. Targets resolve to the current snapshot's node IDs by text, hint, desc, regex or viewId, never by
+  executed step. Targets resolve to the current snapshot's node IDs by text, hint, desc or regex, never by
   stored IDs.
 - **Safety is unchanged:** routines go through the same Android `SafetyPolicy`. Commit buttons must be wrapped in
   `confirm` (checked again by the backend validator), and routines can never contain `open_deeplink`, dial codes or
