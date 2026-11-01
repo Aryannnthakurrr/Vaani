@@ -258,3 +258,8 @@ def test_family_safe_hides_upi_ids_and_emails(summary: str, leaked: str) -> None
     from app.routers.welfare import family_safe
 
     assert leaked not in family_safe(summary)
+
+
+def test_extract_urls_lists_a_repeated_link_once() -> None:
+    text = "Pay now: sbi-kyc.in/now. Last chance sbi-kyc.in/now! Help: bit.ly/x1"
+    assert extract_urls(text) == ["sbi-kyc.in/now", "bit.ly/x1"]

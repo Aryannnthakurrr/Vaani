@@ -93,7 +93,9 @@ class UrlFacts:
 
 
 def extract_urls(text: str) -> list[str]:
-    return [m.group(0).rstrip(".,);!?'\"") for m in _URL_RE.finditer(text or "")]
+    """Links in a message, in order, each once: scam texts often repeat the same link two or three times."""
+    found = (m.group(0).rstrip(".,);!?'\"") for m in _URL_RE.finditer(text or ""))
+    return list(dict.fromkeys(found))
 
 
 def normalize_url(raw: str) -> str:
