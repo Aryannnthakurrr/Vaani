@@ -33,6 +33,12 @@ IST = ZoneInfo("Asia/Kolkata")
         ("https://www.amazon.in/dp/B00ABC", "safe"),
         ("https://www.irctc.co.in", "safe"),
         ("https://www.wikipedia.org", "safe"),
+        ("http://kotak-kyc-update.in/verify", "dangerous"),
+        ("https://airtel-recharge-offer.xyz", "dangerous"),
+        ("https://licindia-bonus.com/claim", "dangerous"),
+        ("https://www.kotak.com/en/home.html", "safe"),
+        ("https://www.airtel.in/recharge", "safe"),
+        ("https://unifiedportal-mem.epfindia.gov.in", "safe"),
     ],
 )
 def test_rule_verdicts(url: str, expected: str) -> None:
@@ -193,7 +199,7 @@ def test_bare_domain_is_not_flagged_insecure():
     bare = analyse("airtel.in/pay")
     assert not any(s.startswith("no_https") for s in bare.signals)
     assert rule_verdict(bare)[0] == "safe"
-    explicit = analyse("http://airtel-offers.example/pay")
+    explicit = analyse("http://recharge-offers.example/pay")  # no brand name: only "not secure"
     assert any(s.startswith("no_https") for s in explicit.signals)
     assert rule_verdict(explicit)[0] == "suspicious"
 
