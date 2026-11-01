@@ -16,7 +16,11 @@ from app.schemas import DeviceOnly, FamilyNotify, Heartbeat, SendResult, Welfare
 from app.welfare.scheduler import alert_text, send_to_family
 
 # Amounts, account, card and phone numbers in the phone's scam summary never reach Telegram.
-_NUMBERS = re.compile(r"(₹|rs\.?|inr)?\s*\d[\d,.\s-]{2,}\d", re.IGNORECASE)
+# Any amount after a currency sign ("₹500", "Rs. 99"), and any other run of 3+ digits (OTPs, phone, account and card
+# numbers, with or without separators). "rs" must start a word, so "hours 12" doesn't become "hou…".
+_NUMBERS = re.compile(
+    r"(?:₹|\b(?:rs|inr)(?![a-z])\.?)\s*\d(?:[,.]?\d)*|\d(?:[\s,.-]{0,2}\d){2,}", re.IGNORECASE
+)
 
 
 def family_safe(summary: str) -> str:
