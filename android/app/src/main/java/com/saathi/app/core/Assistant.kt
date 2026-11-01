@@ -110,7 +110,7 @@ class Assistant(private val c: AppContainer) {
     }.stateIn(c.scope, SharingStarted.Eagerly, VoiceStatus.IDLE)
 
     /**
-     * Mic bubble / "Talk to Saathi": opens a realtime voice conversation (Gemini Live via the backend). Tapping
+     * Mic bubble / "Talk to Vaani": opens a realtime voice conversation (Gemini Live via the backend). Tapping
      * again ends it; while a task runs, a tap stops the task. If Live is unavailable (offline, fake backend, socket
      * refused) the turn-based path is used.
      */
@@ -138,29 +138,37 @@ class Assistant(private val c: AppContainer) {
                     com.saathi.app.features.appointments.AppointmentState.contextLine(appt, java.time.ZonedDateTime.now()),
                 ).joinToString("\n").ifBlank { null }
             },
+            languageLocked = { c.settings.current.language != "auto" },
         )
         endRequested = false
         _live.value = session
         _state.value = AssistantState.LISTENING
         OverlayService.start(c.context, OverlayService.ACTION_MIC_ON)
         // "Listening" only once the mic is really open; until then anything said would be lost.
-        screen.caption(tr(style, "Connecting…", "जुड़ रही हूँ…", "Connect ho rahi hoon…"), "Saathi")
+        screen.caption(tr(style, "Connecting…", "जुड़ रही हूँ…", "Connect ho rahi hoon…"), "Vaani")
         liveWatch = c.scope.launch {
             launch {
                 session.transcripts.collect { lines ->
                     val user = lines.lastOrNull { it.role == "user" }?.text
                     val saathi = lines.lastOrNull { it.role == "saathi" }?.text
-                    user?.let { _lastHeard.value = it; c.scope.launch { switchLanguageIfAsked(it, speak = false) } }
+                    // "English mein bolo" mid-conversation: the setting changes, and this conversation is told too (its
+                    // language was fixed when it connected).
+                    user?.let { heard ->
+                        _lastHeard.value = heard
+                        c.scope.launch {
+                            if (switchLanguageIfAsked(heard, speak = false)) session.sendText(languageNote(c.settings.current.language))
+                        }
+                    }
                     // A running task owns the caption (its question, its Done button); the transcript waits.
                     if ((user != null || saathi != null) && job?.isActive != true) {
-                        screen.caption(listOfNotNull(user?.let { "“$it”" }, saathi).joinToString("\n"), "Saathi")
+                        screen.caption(listOfNotNull(user?.let { "“$it”" }, saathi).joinToString("\n"), "Vaani")
                     }
                 }
             }
             session.state.collect { ls ->
                 if (job?.isActive == true) return@collect // a running task owns the state
                 if (ls == LiveState.LISTENING && session.transcripts.value.isEmpty()) {
-                    screen.caption(c.phrases.text("listening", style), "Saathi")
+                    screen.caption(c.phrases.text("listening", style), "Vaani")
                 }
                 _state.value = when (ls) {
                     LiveState.CONNECTING, LiveState.LISTENING, LiveState.SPEAKING -> AssistantState.LISTENING
@@ -209,9 +217,9 @@ class Assistant(private val c: AppContainer) {
     /** One turn: record → transcribe → intent → act. Used when Live is unavailable. */
     private fun listenOnce() {
         if (c.context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            val msg = tr(style, "I can't hear you: please allow the microphone for Saathi in Settings.",
-                "मैं सुन नहीं पा रही: सेटिंग्स में साथी को माइक की अनुमति दीजिए।",
-                "Main sun nahi pa rahi: Settings mein Saathi ko mic ki permission dijiye.")
+            val msg = tr(style, "I can't hear you: please allow the microphone for Vaani in Settings.",
+                "मैं सुन नहीं पा रही: सेटिंग्स में वाणी को माइक की अनुमति दीजिए।",
+                "Main sun nahi pa rahi: Settings mein Vaani ko mic ki permission dijiye.")
             showResult(ok = false, msg)
             c.scope.launch { c.speaker.say(msg, style) }
             return
@@ -219,7 +227,7 @@ class Assistant(private val c: AppContainer) {
         launch { run ->
             _state.value = AssistantState.LISTENING
             OverlayService.start(c.context, OverlayService.ACTION_MIC_ON)
-            screen.caption(c.phrases.text("listening", style), "Saathi")
+            screen.caption(c.phrases.text("listening", style), "Vaani")
             val heard = try { speech.listen(cue = true) } finally { OverlayService.start(c.context, OverlayService.ACTION_MIC_OFF) }
             if (heard == null || heard.transcript.isBlank()) {
                 c.speaker.sayPhrase("didnt_understand", style)
@@ -263,7 +271,7 @@ class Assistant(private val c: AppContainer) {
         when {
             // The care flow takes the sentence as its first turn, so "send an ambulance now" acts at once.
             intent.intent == "book_doctor" && task == null -> startCare(utterance)
-            task != null -> { run.say(reply); runTask(task, intent.slots, run, preferredApp(utterance)) }
+            task != null -> { run.say(reply); runTask(task, withAppointment(task, intent.slots, utterance), run, preferredApp(utterance)) }
             intent.intent == "guide" -> { run.say(reply); runGuide(utterance, run) }
             intent.intent == "care" -> startCare(utterance)
             intent.intent == "camera" -> { c.speaker.say(reply, replyStyle); com.saathi.app.features.camera.CameraSession.instructionSpoken(); openScreen("camera") }
@@ -296,6 +304,15 @@ class Assistant(private val c: AppContainer) {
     /** A second tap on a tile while something runs is ignored (it used to cancel and restart); Stop ends it. */
     private fun busyJob(): Job? = job?.takeIf { it.isActive }
 
+    /**
+     * "Cab to my appointment": the router never invents a place, so it leaves the destination empty and the cab app
+     * fell back to a recent trip. The user's own words go in as the destination; TaskRunner turns them into the clinic.
+     */
+    private fun withAppointment(task: TaskSpec, slots: Slots, utterance: String): Slots =
+        if (task == Tasks.UBER && slots.destination.isNullOrBlank() &&
+            com.saathi.app.features.appointments.AppointmentState.refersToAppointment(utterance)) slots.copy(destination = utterance)
+        else slots
+
     /** An app the user named in their request, e.g. "Flipkart se biscuit mangao". */
     private fun preferredApp(utterance: String): String? {
         val t = utterance.lowercase()
@@ -307,7 +324,9 @@ class Assistant(private val c: AppContainer) {
         _lastOutcome.value = null
         _state.value = AssistantState.RUNNING
         run.setRunning(true) // the Stop chip from the first question, not only once the app is open
-        var slots = initial
+        // From the live conversation too: the model may leave out "my appointment", but the user's last words have it.
+        // Only while one is open: after a tile tap the last words may be from an older request.
+        var slots = if (_live.value != null) withAppointment(task, initial, _lastHeard.value) else initial
         for (q in task.required) {
             if (q.isFilled(slots)) continue
             val answer = run.ask(q.ask(style)) ?: return
@@ -331,7 +350,7 @@ class Assistant(private val c: AppContainer) {
             is AgentOutcome.Failed -> {
                 // Shown as well as spoken, so a failure doesn't vanish the moment the sentence ends.
                 showResult(ok = false, outcome.message)
-                c.notifier.post(Notifier.CH_ASSISTANT, 7, "Saathi", outcome.message)
+                c.notifier.post(Notifier.CH_ASSISTANT, 7, "Vaani", outcome.message)
             }
             AgentOutcome.Cancelled -> Unit
         }
@@ -358,7 +377,7 @@ class Assistant(private val c: AppContainer) {
         liveUi = null
         _taskActive.value = false
         _state.value = if (_live.value != null) AssistantState.LISTENING else AssistantState.IDLE
-        if (_live.value != null) screen.caption(c.phrases.text("listening", style), "Saathi")
+        if (_live.value != null) screen.caption(c.phrases.text("listening", style), "Vaani")
     }
 
     /**
@@ -418,6 +437,12 @@ class Assistant(private val c: AppContainer) {
         return true
     }
 
+    /** The note that moves an open conversation to the language the user just asked for. */
+    private fun languageNote(code: String): String = when (code) {
+        "hi" -> "[The user asked you to speak only Hindi from now on. Reply only in simple Hindi, whatever language they use.]"
+        else -> "[The user asked you to speak only English from now on. Reply only in simple English, whatever language they use.]"
+    }
+
     /** Words Sarvam should listen out for: app names, family names, doctors from reminders. */
     /** Family contacts and the user's own name: the only names sent to Sarvam as hints. */
     private fun nameHints(): List<String> {
@@ -440,7 +465,7 @@ class Assistant(private val c: AppContainer) {
 
     private fun keyterms(): List<String> {
         val s = c.settings.current
-        return listOf("Saathi", "Uber", "Practo", "Amazon", "Flipkart", "Pronto", "WhatsApp", "Apollo") +
+        return listOf("Vaani", "Uber", "Practo", "Amazon", "Flipkart", "Pronto", "WhatsApp", "Apollo") +
             s.contacts.map { it.name } + listOf(s.userName).filter { it.isNotBlank() }
     }
 

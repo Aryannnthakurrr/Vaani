@@ -17,7 +17,7 @@ _INTENTS: list[tuple[str, str]] = [
     ),
     (
         "chitchat",
-        r"^(hi|hello|hey|namaste|namaskar|नमस्ते|नमस्कार)[\s!.,]*(saathi|साथी)?[\s!.,]*$|"
+        r"^(hi|hello|hey|namaste|namaskar|नमस्ते|नमस्कार)[\s!.,]*(vaani|vani|saathi|वाणी|साथी)?[\s!.,]*$|"
         r"\bhow are you\b|\bkaise ho\b|\bkaisi ho\b|कैसे हो|कैसी हो",
     ),
     (
@@ -123,9 +123,9 @@ _REPLIES: dict[str, dict[str, str]] = {
     },
     "settings": {"en": "Opening settings.", "hi": "सेटिंग्स खोल रही हूँ।", "hinglish": "Settings khol rahi hoon."},
     "chitchat": {
-        "en": "Namaste! I am Saathi. How can I help you?",
-        "hi": "नमस्ते! मैं साथी हूँ। मैं आपकी क्या मदद करूँ?",
-        "hinglish": "Namaste! Main Saathi hoon. Aapki kya madad karoon?",
+        "en": "Namaste! I am Vaani. How can I help you?",
+        "hi": "नमस्ते! मैं वाणी हूँ। मैं आपकी क्या मदद करूँ?",
+        "hinglish": "Namaste! Main Vaani hoon. Aapki kya madad karoon?",
     },
     "unknown": {
         "en": "Sorry, I did not understand. You can say: book a cab, or show me how.",

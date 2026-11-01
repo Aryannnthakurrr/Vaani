@@ -166,7 +166,7 @@ class SkillEngine:
                     self.store.set(skill.id, status="active")
                     self.store.retire_older("routine", skill.name, skill.version)
                     self.store.event(skill.id, "activated", shadow_matches=matches)
-                    await self._tell(f"Saathi has learned to do '{skill.name}' on its own (v{skill.version}). "
+                    await self._tell(f"Vaani has learned to do '{skill.name}' on its own (v{skill.version}). "
                                      "It will be faster and cheaper from now on.")  # fmt: skip
             else:
                 self.store.set(skill.id, status="degraded", last_error="disagreed with the LLM in shadow")
@@ -235,8 +235,8 @@ class SkillEngine:
         self.store.event(sid, "compiled", version=version, held_out_pass=res.held_out_pass, tokens=res.tokens,
                          auto_approved=self.config.auto_approve)  # fmt: skip
         if status == "tested":
-            await self._tell(f"Saathi learned a new routine for '{task}' (v{version}), tested on "
-                             f"{len(ids)} past runs. Approve it on the family page so Saathi can start using it.")  # fmt: skip
+            await self._tell(f"Vaani learned a new routine for '{task}' (v{version}), tested on "
+                             f"{len(ids)} past runs. Approve it on the family page so Vaani can start using it.")  # fmt: skip
         return sid
 
     async def _tell(self, text: str) -> None:

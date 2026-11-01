@@ -1,5 +1,9 @@
 package com.saathi.app.features.camera
 
+import com.saathi.app.ui.theme.Ink
+import com.saathi.app.ui.theme.Touch
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.OnFill
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -120,19 +124,19 @@ fun CameraScreen(container: AppContainer, onBack: () -> Unit) {
                 }
             },
         )
-        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(Space.lg), verticalArrangement = Arrangement.spacedBy(Space.md)) {
             val message = when {
-                !granted -> tr(style, "Saathi needs the camera to read the pack. Please allow it.",
-                    "पैकेट पढ़ने के लिए साथी को कैमरा चाहिए। कृपया इजाज़त दीजिए।",
-                    "Packet padhne ke liye Saathi ko camera chahiye. Please allow kijiye.")
+                !granted -> tr(style, "Vaani needs the camera to read the pack. Please allow it.",
+                    "पैकेट पढ़ने के लिए वाणी को कैमरा चाहिए। कृपया इजाज़त दीजिए।",
+                    "Packet padhne ke liye Vaani ko camera chahiye. Please allow kijiye.")
                 cameraFailed -> tr(style, "The camera could not start. Please close and try again.",
                     "कैमरा चालू नहीं हो पाया। बंद करके फिर से कोशिश कीजिए।", "Camera chalu nahi ho paaya. Band karke phir se try kijiye.")
                 else -> caption
             }
             if (message.isNotBlank()) {
-                Surface(shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = 0.92f)) {
+                Surface(shape = MaterialTheme.shapes.medium, color = OnFill.copy(alpha = 0.92f)) {
                     Text(message, style = MaterialTheme.typography.titleMedium, color = Color.Black,
-                        modifier = Modifier.padding(16.dp).semantics { liveRegion = LiveRegionMode.Polite })
+                        modifier = Modifier.padding(Space.lg).semantics { liveRegion = LiveRegionMode.Polite })
                 }
             }
             if (!granted) {
@@ -154,22 +158,22 @@ fun CameraScreen(container: AppContainer, onBack: () -> Unit) {
             }) }
             // Mute only does something while Saathi is listening; otherwise say why it can't hear.
             val micNote = when (mic) {
-                CameraSession.Mic.OFFLINE -> tr(style, "Asking by voice needs the internet. Saathi will still read the pack.",
-                    "बोलकर पूछने के लिए इंटरनेट चाहिए। साथी फिर भी पैकेट पढ़ेगा।", "Bolkar poochne ke liye internet chahiye. Saathi phir bhi packet padhega.")
-                CameraSession.Mic.UNAVAILABLE -> tr(style, "The microphone is not allowed, so Saathi can't hear you here. It will still read the pack.",
-                    "माइक की इजाज़त नहीं है, इसलिए साथी यहाँ आपकी बात नहीं सुन सकता। फिर भी पैकेट पढ़ेगा।",
-                    "Mic ki permission nahi hai, isliye Saathi yahan aapki baat nahi sun sakta. Phir bhi packet padhega.")
+                CameraSession.Mic.OFFLINE -> tr(style, "Asking by voice needs the internet. Vaani will still read the pack.",
+                    "बोलकर पूछने के लिए इंटरनेट चाहिए। वाणी फिर भी पैकेट पढ़ेगा।", "Bolkar poochne ke liye internet chahiye. Vaani phir bhi packet padhega.")
+                CameraSession.Mic.UNAVAILABLE -> tr(style, "The microphone is not allowed, so Vaani can't hear you here. It will still read the pack.",
+                    "माइक की इजाज़त नहीं है, इसलिए वाणी यहाँ आपकी बात नहीं सुन सकता। फिर भी पैकेट पढ़ेगा।",
+                    "Mic ki permission nahi hai, isliye Vaani yahan aapki baat nahi sun sakta. Phir bhi packet padhega.")
                 else -> null
             }
             if (granted && micNote != null) {
-                Text(micNote, style = MaterialTheme.typography.bodyLarge, color = Color.White,
-                    modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).padding(12.dp))
+                Text(micNote, style = MaterialTheme.typography.bodyLarge, color = OnFill,
+                    modifier = Modifier.background(Color.Black.copy(alpha = 0.6f), MaterialTheme.shapes.medium).padding(Space.md))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                 when (mic) {
                     CameraSession.Mic.LISTENING -> CamButton(
                         if (muted) tr(style, "🎤 Unmute", "🎤 माइक चालू", "🎤 Mic on") else tr(style, "🔇 Mute", "🔇 माइक बंद", "🔇 Mic band"),
-                        Color(0xFF3B2F27), Modifier.weight(1f)) { session.muted.value = !muted }
+                        Ink, Modifier.weight(1f)) { session.muted.value = !muted }
                     CameraSession.Mic.LOST -> CamButton(tr(style, "🔄 Retry", "🔄 फिर से", "🔄 Retry"), Leaf, Modifier.weight(1f), session::retry)
                     else -> Unit
                 }
@@ -187,23 +191,23 @@ private fun ProductCardView(card: ProductCard, style: com.saathi.app.core.net.Re
         "ok" -> tr(style, "Fresh", "ठीक है", "Theek hai") to Leaf
         else -> tr(style, "Expiry not read", "एक्सपायरी नहीं पढ़ी", "Expiry nahi padhi") to Color.Gray
     }
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
+        Column(Modifier.padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
             Text(card.name ?: "…", style = MaterialTheme.typography.headlineMedium)
             Text(listOfNotNull(card.quantity, card.mrpText?.let { "MRP $it" }).joinToString("  ·  "), style = MaterialTheme.typography.titleLarge)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(color = color, shape = RoundedCornerShape(12.dp)) {
-                    Text(badge, color = Color.White, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+                Surface(color = color, shape = MaterialTheme.shapes.medium) {
+                    Text(badge, color = OnFill, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = Space.md, vertical = Space.sm))
                 }
                 card.expiryIso?.let { Text(tr(style, "Expiry: $it", "एक्सपायरी: $it", "Expiry: $it"), style = MaterialTheme.typography.bodyLarge) }
             }
             card.healthWarning?.let { warning ->
-                Surface(color = if (card.healthLevel == "high") Danger else Amber, shape = RoundedCornerShape(16.dp)) {
-                    Text("⚠ $warning", color = Color.White, style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
+                Surface(color = if (card.healthLevel == "high") Danger else Amber, shape = MaterialTheme.shapes.medium) {
+                    Text("⚠ $warning", color = OnFill, style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = Space.lg, vertical = Space.md))
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                 CamButton(tr(style, "🔊 Read again", "🔊 फिर से सुनें", "🔊 Phir se sunein"), MaterialTheme.colorScheme.primary, Modifier.weight(1f), onReadAgain)
                 CamButton(tr(style, "🛒 Order online", "🛒 ऑनलाइन मंगाएँ", "🛒 Order karein"), Leaf, Modifier.weight(1f), onOrder)
             }
@@ -213,8 +217,8 @@ private fun ProductCardView(card: ProductCard, style: com.saathi.app.core.net.Re
 
 @Composable
 private fun CamButton(text: String, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Button(onClick = onClick, modifier = modifier.heightIn(min = 72.dp), shape = RoundedCornerShape(18.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.White)) {
+    Button(onClick = onClick, modifier = modifier.heightIn(min = Touch.primary), shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = OnFill)) {
         Text(text, style = MaterialTheme.typography.titleMedium)
     }
 }

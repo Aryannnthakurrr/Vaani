@@ -88,7 +88,7 @@ class CareClient(private val settings: () -> Settings) {
                 SaathiJson.decodeFromString(serializer, text)
             }
         } catch (e: IOException) {
-            throw CareUnavailable("Can't reach the Saathi server.")
+            throw CareUnavailable("Can't reach the Vaani server.")
         }
     }
 

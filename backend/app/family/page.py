@@ -60,7 +60,7 @@ def _clock(ms: int, now: datetime) -> str:
 
 
 def render(device: Device, alerts: list[dict[str, Any]], now: datetime) -> str:
-    name = escape(device.user_name or "Saathi user")
+    name = escape(device.user_name or "Vaani user")
     status, ago_en, ago_hi = humanize_age(device.last_heartbeat_ms, now)
     headline = {
         "ok": ("Using the phone normally", "फ़ोन सामान्य रूप से चल रहा है"),

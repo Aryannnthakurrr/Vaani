@@ -56,6 +56,8 @@ class LiveVoiceSession(
     private val onEnded: (connected: Boolean) -> Unit = {},
     /** Facts from other workflows for the assistant (the next appointment). */
     private val sharedContext: () -> String? = { null },
+    /** True when the user picked a language in Settings: Saathi keeps to it instead of mirroring their speech. */
+    private val languageLocked: () -> Boolean = { false },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val client = OkHttpClient.Builder().readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(15, TimeUnit.SECONDS).build()
@@ -100,7 +102,7 @@ class LiveVoiceSession(
         ws = client.newWebSocket(com.saathi.app.core.net.DeviceAuth.sign(Request.Builder().url(url)).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 connected = true
-                webSocket.send(LiveWire.config(replyStyle(), sharedContext()))
+                webSocket.send(LiveWire.config(replyStyle(), sharedContext(), languageLocked()))
                 _state.value = LiveState.LISTENING
                 startPlayer()
                 startMic()

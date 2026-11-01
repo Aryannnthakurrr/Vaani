@@ -1,5 +1,10 @@
 package com.saathi.app.ui
 
+import com.saathi.app.ui.theme.Touch
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.Border
+import com.saathi.app.ui.theme.OnFill
+import com.saathi.app.ui.theme.Paper
 import android.content.pm.PackageManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -115,9 +120,9 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
     var health by remember { mutableStateOf<Result<Health>?>(null) }
     // A save that reached the phone but not the server says so, instead of crashing the screen.
     fun synced(ok: Boolean) = if (ok) t("Saved.", "सेव हो गया।", "Save ho gaya.")
-        else t("Saved on this phone, but the Saathi server could not be reached. Your family's alerts will update when it is back.",
-            "फ़ोन में सेव हो गया, पर साथी सर्वर से जुड़ नहीं पाए। सर्वर मिलते ही परिवार वाले अलर्ट अपडेट होंगे।",
-            "Phone mein save ho gaya, par Saathi server se connect nahi ho paya. Server milte hi family alerts update honge.")
+        else t("Saved on this phone, but the Vaani server could not be reached. Your family's alerts will update when it is back.",
+            "फ़ोन में सेव हो गया, पर वाणी सर्वर से जुड़ नहीं पाए। सर्वर मिलते ही परिवार वाले अलर्ट अपडेट होंगे।",
+            "Phone mein save ho gaya, par Vaani server se connect nahi ho paya. Server milte hi family alerts update honge.")
     val saving = t("Saving…", "सेव हो रहा है…", "Save ho raha hai…")
 
     LaunchedEffect(s.backendUrl, s.useFakeBackend) {
@@ -127,7 +132,7 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
 
     SaathiScaffold(t("Settings", "सेटिंग्स", "Settings"), onBack, subtitle = a("Settings", "आपकी सेटिंग्स")) {
         // Intro line and whether Saathi is connected, at a glance.
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
             Text(t("Language, family and daily check-ins", "भाषा, परिवार और रोज़ की जाँच", "Bhasha, family aur daily check-in"),
                 style = MaterialTheme.typography.bodyLarge, color = Muted, modifier = Modifier.weight(1f))
             when (health?.isSuccess) {
@@ -150,7 +155,7 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
             }
             if (s.profileId.isNotEmpty()) {
                 IconButtonBig(t("Back to my own profile", "अपनी प्रोफ़ाइल पर वापस", "Apni profile par wapas"), Icons.Filled.Person,
-                    { scope.launch { c.profiles.clear() } }, color = Color.White, contentColor = Ink, border = Edge, height = 56.dp)
+                    { scope.launch { c.profiles.clear() } }, color = Paper, contentColor = Ink, border = Edge, height = 56.dp)
             }
         }
 
@@ -162,7 +167,7 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
                 Triple("hi", "हिन्दी", "Hindi"),
                 Triple("hinglish", "Hinglish", null),
             ).chunked(2).forEach { pair ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                     pair.forEach { (code, label, sub) ->
                         Choice(label, sub, s.language == code, Modifier.weight(1f)) { scope.launch { c.settings.setLanguage(code) } }
                     }
@@ -174,7 +179,7 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
         }
 
         SectionCard(Icons.Filled.Badge, t("Your name", "आपका नाम", "Aapka naam") + " (" + a("Your name", "आपका नाम") + ")",
-            t("How Saathi addresses you", "साथी आपको किस नाम से बुलाए", "Saathi aapko kis naam se bulaye")) {
+            t("How Vaani addresses you", "वाणी आपको किस नाम से बुलाए", "Vaani aapko kis naam se bulaye")) {
             var name by remember(s.userName) { mutableStateOf(s.userName) }
             val nameNote = rememberNote()
             BigField(null, null, name, placeholder = t("e.g. Ramesh Sharma", "जैसे रमेश शर्मा", "jaise Ramesh Sharma")) { name = it }
@@ -189,37 +194,37 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
                 "Family ko aapke alerts aur daily updates milte hain")) {
             InfoBox(Icons.AutoMirrored.Filled.Send,
                 t("How family joins", "परिवार कैसे जुड़े", "Family kaise jude") + ": " +
-                    t("Your family member opens the Saathi bot in Telegram and sends /start. The bot replies with a chat ID. Type it below.",
-                        "परिवार का सदस्य टेलीग्राम में साथी बॉट खोलकर /start भेजे। बॉट एक चैट आईडी भेजेगा। उसे नीचे लिखिए।",
-                        "Family member Telegram mein Saathi bot khol ke /start bheje. Bot ek chat ID bhejega. Use neeche likhiye."),
+                    t("Your family member opens the Vaani bot in Telegram and sends /start. The bot replies with a chat ID. Type it below.",
+                        "परिवार का सदस्य टेलीग्राम में वाणी बॉट खोलकर /start भेजे। बॉट एक चैट आईडी भेजेगा। उसे नीचे लिखिए।",
+                        "Family member Telegram mein Vaani bot khol ke /start bheje. Bot ek chat ID bhejega. Use neeche likhiye."),
                 null, Sky, Sky50)
 
             val familyNote = rememberNote()
             var removing by remember { mutableStateOf<FamilyContact?>(null) }
             if (s.contacts.isNotEmpty()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(t("Linked family", "जुड़े सदस्य", "Jude sadasya").uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    Text(t("Linked family", "जुड़े सदस्य", "Jude sadasya").uppercase(), style = MaterialTheme.typography.labelSmall,
                         color = Muted, modifier = Modifier.weight(1f))
                     StatusPill(t("${s.contacts.size} connected", "${s.contacts.size} जुड़े", "${s.contacts.size} connected"), Leaf, filled = false)
                 }
             }
             s.contacts.forEach { contact ->
-                Surface(shape = RoundedCornerShape(14.dp), color = Color.White, border = BorderStroke(1.5.dp, Edge)) {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(shape = MaterialTheme.shapes.medium, color = Paper, border = BorderStroke(Border.control, Edge)) {
+                    Row(Modifier.fillMaxWidth().padding(Space.lg), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                         Box(Modifier.size(48.dp).clip(CircleShape).background(Leaf50), contentAlignment = Alignment.Center) {
-                            Text(initials(contact.name), fontWeight = FontWeight.Bold, color = Leaf, fontSize = 18.sp)
+                            Text(initials(contact.name), fontWeight = FontWeight.Bold, color = Leaf, style = MaterialTheme.typography.bodySmall)
                         }
                         Column(Modifier.weight(1f)) {
                             Text(contact.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                            Text(t("Chat ID", "चैट आईडी", "Chat ID") + ": " + contact.telegramChatId, fontSize = 16.sp, color = Muted)
+                            Text(t("Chat ID", "चैट आईडी", "Chat ID") + ": " + contact.telegramChatId, style = MaterialTheme.typography.bodySmall, color = Muted)
                         }
-                        Surface(onClick = { removing = contact }, enabled = !familyNote.busy, shape = RoundedCornerShape(12.dp),
+                        Surface(onClick = { removing = contact }, enabled = !familyNote.busy, shape = MaterialTheme.shapes.medium,
                             color = Danger50, contentColor = Danger, modifier = Modifier.heightIn(min = 52.dp)) {
-                            Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(Modifier.padding(horizontal = Space.md, vertical = Space.md), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
                                 Icon(Icons.Filled.Delete, null, modifier = Modifier.size(22.dp))
-                                Text(t("Remove", "हटाएँ", "Hatayein"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                Text(t("Remove", "हटाएँ", "Hatayein"), style = MaterialTheme.typography.titleSmall)
                             }
                         }
                     }
@@ -244,9 +249,9 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
                 )
             }
             // Adding someone: its own soft panel inside the card.
-            Surface(shape = RoundedCornerShape(14.dp), color = Soft) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(shape = MaterialTheme.shapes.medium, color = Soft) {
+                Column(Modifier.padding(Space.lg), verticalArrangement = Arrangement.spacedBy(Space.md)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                         Icon(Icons.Filled.PersonAdd, null, tint = MaterialTheme.colorScheme.primary)
                         Text(t("Add a family member", "नया सदस्य जोड़ें", "Naya sadasya jodein"), style = MaterialTheme.typography.titleMedium)
                     }
@@ -295,7 +300,7 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
                         testing = true
                         try { checkNote.show(c.welfare.sendTestAlert(), ok = null, millis = 10_000) } finally { testing = false }
                     }
-                }, color = Color.White, contentColor = Ink, border = Edge, enabled = !testing, height = 56.dp)
+                }, color = Paper, contentColor = Ink, border = Edge, enabled = !testing, height = 56.dp)
             NoteLine(checkNote)
         }
 
@@ -307,15 +312,15 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
                     colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
             })
 
-        SectionCard(Icons.Filled.Apps, t("Apps Saathi can use", "ऐप्स जिनमें साथी काम कर सकता है", "Apps jinmein Saathi kaam kar sakta hai"),
-            a("Apps Saathi can use", "साथी किन ऐप्स में मदद करता है")) {
+        SectionCard(Icons.Filled.Apps, t("Apps Vaani can use", "ऐप्स जिनमें वाणी काम कर सकता है", "Apps jinmein Vaani kaam kar sakta hai"),
+            a("Apps Vaani can use", "वाणी किन ऐप्स में मदद करता है")) {
             Packages.ACT_ALLOWLIST.filter { it != Packages.SELF }.forEach { pkg ->
                 val installed = runCatching { ctx.packageManager.getPackageInfo(pkg, 0); true }.getOrElse { it !is PackageManager.NameNotFoundException }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                     Icon(if (installed) Icons.Filled.CheckCircle else Icons.Filled.Cancel, null, tint = if (installed) Leaf else Muted)
                     Text(Packages.displayName(pkg), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Text(if (installed) t("installed", "इंस्टॉल है", "installed hai") else t("not installed", "इंस्टॉल नहीं", "installed nahi"),
-                        fontSize = 17.sp, color = if (installed) Leaf else Muted)
+                        style = MaterialTheme.typography.bodySmall, color = if (installed) Leaf else Muted)
                 }
             }
         }
@@ -324,9 +329,9 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
 
         // Setup again: a plain row, as quiet as the History link on Home.
         val (press, pressMotion) = rememberPress()
-        Surface(onClick = onSetup, interactionSource = press, shape = RoundedCornerShape(16.dp), color = Color.White,
-            border = BorderStroke(1.5.dp, Edge), modifier = Modifier.fillMaxWidth().then(pressMotion).semantics { role = Role.Button }) {
-            Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Surface(onClick = onSetup, interactionSource = press, shape = MaterialTheme.shapes.medium, color = Paper,
+            border = BorderStroke(Border.control, Edge), modifier = Modifier.fillMaxWidth().then(pressMotion).semantics { role = Role.Button }) {
+            Row(Modifier.padding(Space.lg), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
                 Icon(Icons.Filled.Refresh, null, tint = Ink, modifier = Modifier.size(28.dp))
                 TwoLine(t("Run setup again", "सेटअप फिर से", "Setup phir se"), a("Run setup again", "शुरुआती सेटअप दोबारा करें"),
                     Modifier.weight(1f))
@@ -335,7 +340,7 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
 
         if (BuildConfig.DEBUG) DebugSection(c, style, s.replayMode)
 
-        Text("Saathi v${BuildConfig.VERSION_NAME}", fontSize = 16.sp, color = Muted, textAlign = TextAlign.Center,
+        Text("Vaani v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = Muted, textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth())
     }
 }
@@ -345,7 +350,7 @@ private fun ConnectionCard(c: AppContainer, health: Result<Health>?, offline: Bo
     fun t(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
     val ok = health?.isSuccess
     val line = when (ok) {
-        true -> t("Connected to Saathi", "साथी से जुड़ा है", "Saathi se connected")
+        true -> t("Connected to Vaani", "वाणी से जुड़ा है", "Vaani se connected")
         false -> t("Not connected", "जुड़ा नहीं है", "Connected nahi")
         null -> t("Checking…", "जाँच रहे हैं…", "Check kar rahe hain…")
     }
@@ -357,10 +362,10 @@ private fun ConnectionCard(c: AppContainer, health: Result<Health>?, offline: Bo
                 if (r.isSuccess) Leaf else Danger, if (r.isSuccess) Leaf50 else Danger50)
         }
         // Offline: its own soft panel with the switch, as in the design.
-        Surface(shape = RoundedCornerShape(14.dp), color = Soft) {
-            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBubble(Icons.Filled.CloudOff, Ink, Color.White, size = 44.dp, round = true)
+        Surface(shape = MaterialTheme.shapes.medium, color = Soft) {
+            Row(Modifier.fillMaxWidth().padding(Space.lg), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Space.md)) {
+                IconBubble(Icons.Filled.CloudOff, Ink, OnFill, size = 44.dp, round = true)
                 TwoLine(t("Work offline", "बिना इंटरनेट", "Offline chalayein"),
                     t("Use the phone's own checks", "फ़ोन की अपनी जाँच से चलाएँ", "Phone ki apni checks se chalayein"), Modifier.weight(1f))
                 Switch(checked = offline, onCheckedChange = { scope.launch { c.settings.setUseFakeBackend(it) } },
@@ -372,7 +377,7 @@ private fun ConnectionCard(c: AppContainer, health: Result<Health>?, offline: Bo
         BigField(t("Server address", "सर्वर का पता", "Server ka address"), null, url) { url = it }
         IconButtonBig(t("Save address", "पता सेव करें", "Address save karein"), Icons.Filled.Save, {
             urlNote.run(scope) { c.settings.setBackendUrl(url.trim()); t("Saved.", "सेव हो गया।", "Save ho gaya.") to true }
-        }, color = Color.White, contentColor = Ink, border = Edge, enabled = !urlNote.busy, height = 56.dp)
+        }, color = Paper, contentColor = Ink, border = Edge, enabled = !urlNote.busy, height = 56.dp)
         NoteLine(urlNote)
     }
 }
@@ -382,19 +387,19 @@ private fun ConnectionCard(c: AppContainer, health: Result<Health>?, offline: Bo
 private fun Choice(label: String, sub: String?, chosen: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val (press, pressMotion) = rememberPress()
     Surface(
-        onClick = onClick, interactionSource = press, shape = RoundedCornerShape(16.dp),
-        color = if (chosen) MaterialTheme.colorScheme.primary else Color.White,
-        contentColor = if (chosen) Color.White else Ink,
-        border = if (chosen) null else BorderStroke(1.5.dp, Edge),
-        modifier = modifier.heightIn(min = 64.dp).then(pressMotion).semantics { role = Role.RadioButton; selected = chosen },
+        onClick = onClick, interactionSource = press, shape = MaterialTheme.shapes.medium,
+        color = if (chosen) MaterialTheme.colorScheme.primary else OnFill,
+        contentColor = if (chosen) OnFill else Ink,
+        border = if (chosen) null else BorderStroke(Border.control, Edge),
+        modifier = modifier.heightIn(min = Touch.button).then(pressMotion).semantics { role = Role.RadioButton; selected = chosen },
     ) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+        Row(Modifier.padding(horizontal = Space.md, vertical = Space.md), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center) {
-            if (chosen) Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.padding(end = 8.dp).size(24.dp))
+            if (chosen) Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.padding(end = Space.sm).size(24.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(label, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-                sub?.let { Text(it, fontSize = 15.sp, lineHeight = 19.sp, textAlign = TextAlign.Center,
-                    color = if (chosen) Color.White.copy(alpha = 0.85f) else Muted) }
+                sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
+                    color = if (chosen) OnFill.copy(alpha = 0.85f) else Muted) }
             }
         }
     }
@@ -403,10 +408,10 @@ private fun Choice(label: String, sub: String?, chosen: Boolean, modifier: Modif
 /** A tinted note with a leading icon (how family joins, the Auto hint, the connection status). */
 @Composable
 private fun InfoBox(icon: ImageVector, text: String, second: String?, tint: Color, bg: Color) {
-    Surface(shape = RoundedCornerShape(14.dp), color = bg) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Surface(shape = MaterialTheme.shapes.medium, color = bg) {
+        Row(Modifier.fillMaxWidth().padding(Space.lg), horizontalArrangement = Arrangement.spacedBy(Space.md)) {
             Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
-            TwoLine(text, second, Modifier.weight(1f), mainStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 19.sp, lineHeight = 26.sp),
+            TwoLine(text, second, Modifier.weight(1f), mainStyle = MaterialTheme.typography.bodySmall,
                 mainColor = Ink)
         }
     }
@@ -424,9 +429,9 @@ private fun healthLine(r: Result<Health>, style: ReplyStyle): String = r.fold(
             "Telegram: " + if (h.telegram) tr(style, "on", "चालू", "on") else tr(style, "log only", "सिर्फ़ लॉग", "sirf log"),
         ).joinToString(" · ")
     },
-    { tr(style, "Server not reachable. Saathi is using the phone's own voice and checks.",
-        "सर्वर से नहीं जुड़ पाए। साथी फ़ोन की अपनी आवाज़ और जाँच से काम कर रहा है।",
-        "Server se connect nahi ho paya. Saathi phone ki apni awaaz aur checks se kaam kar raha hai.") },
+    { tr(style, "Server not reachable. Vaani is using the phone's own voice and checks.",
+        "सर्वर से नहीं जुड़ पाए। वाणी फ़ोन की अपनी आवाज़ और जाँच से काम कर रहा है।",
+        "Server se connect nahi ho paya. Vaani phone ki apni awaaz aur checks se kaam kar raha hai.") },
 )
 
 /**
@@ -528,22 +533,22 @@ private fun BigField(
     label: String?, icon: ImageVector?, value: String, placeholder: String? = null, trailing: ImageVector? = null,
     onChange: (String) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Space.sm)) {
         label?.let {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
                 icon?.let { Icon(it, null, tint = Ink, modifier = Modifier.size(22.dp)) }
-                Text(label, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                Text(label, style = MaterialTheme.typography.titleSmall, color = Ink)
             }
         }
         OutlinedTextField(
             value = value, onValueChange = onChange, singleLine = true,
             placeholder = placeholder?.let { { Text(it, style = MaterialTheme.typography.bodyLarge, color = Muted) } },
             trailingIcon = trailing?.let { { Icon(it, null, tint = Ink) } },
-            textStyle = MaterialTheme.typography.bodyLarge, shape = RoundedCornerShape(14.dp),
+            textStyle = MaterialTheme.typography.bodyLarge, shape = MaterialTheme.shapes.medium,
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = Edge, focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedContainerColor = Color.White, focusedContainerColor = Color.White),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+                unfocusedContainerColor = Paper, focusedContainerColor = Paper),
+            modifier = Modifier.fillMaxWidth().heightIn(min = Touch.button),
         )
     }
 }

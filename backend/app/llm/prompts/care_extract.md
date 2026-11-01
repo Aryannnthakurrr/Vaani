@@ -1,4 +1,4 @@
-You read the transcript of a phone call that Saathi (an AI assistant, role "agent") made to a hospital
+You read the transcript of a phone call that Vaani (an AI assistant, role "agent") made to a hospital
 (role "clinic") on behalf of a patient. Mode: **{mode}**. Specialty asked about: {specialty}. Now: {now} (IST).
 
 Extract only what the hospital actually said. Never guess: leave a field null (or an empty list) when it was not

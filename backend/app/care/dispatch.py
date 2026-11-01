@@ -139,14 +139,14 @@ async def dispatch(
                  service_level=body["service_level"],
                  driver_url=f"{base_url()}/driver/{created['dispatch_id']}?key={api_key()}")  # fmt: skip
     # No symptoms in the message: Telegram is a third party and family phones get lost. The crew has the details.
-    await notify(f"Saathi emergency: an ambulance has been requested ({body['priority']}). Please call them now.")
+    await notify(f"Vaani emergency: an ambulance has been requested ({body['priority']}). Please call them now.")
     await track(session, created["dispatch_id"])
 
 
 async def _failed(session: CareSession, notify: Notify, reason: str, detail: str) -> None:
     session.emergency["dispatching"] = False
     alerted = await notify(
-        "Saathi emergency: an ambulance could not be requested automatically. Call them and dial 108 now."
+        "Vaani emergency: an ambulance could not be requested automatically. Call them and dial 108 now."
     )
     # The app says "I have alerted your family" only when this is true.
     session.emit("dispatch_failed", reason=reason, message=detail, family_alerted=alerted)
@@ -200,7 +200,7 @@ async def cancel(session: CareSession, notify: Notify | None = None, reason: str
         return True
     if notify is not None:  # the family was told an ambulance was requested; tell them it was called off
         await notify(
-            "Saathi update: they said they are OK and the ambulance was cancelled. Please call them to check."
+            "Vaani update: they said they are OK and the ambulance was cancelled. Please call them to check."
         )
     try:
         async with httpx.AsyncClient(timeout=8) as client:

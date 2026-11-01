@@ -362,7 +362,7 @@ def _calendar_event(
         f"Instructions: {b.instructions}" if b.instructions else "",
         f"Reason for visit: {note.chief_complaint}" if note else "",
         "",
-        "Booked by the Saathi assistant.",
+        "Booked by the Vaani assistant.",
     ]
     return {
         "title": f"{doctor} ({specialty}), {hospital.name}",

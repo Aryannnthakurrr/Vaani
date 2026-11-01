@@ -68,7 +68,12 @@ class TaskRunner(private val c: AppContainer) {
         }
         // Replay runs on recorded screens, so it never looks up places or opens links.
         // Cabs go straight to the deep link, as before: no place-choice or ride-advice questions first.
-        val cabSlots = if (spec.id == Tasks.UBER.id) slots.copy(destination = slots.destination?.let(DeepLinks::cleanDestination)) else slots
+        // "To my appointment" becomes the clinic here too: cabs skip resolvePlace, so the cab app was given the raw words.
+        val cabSlots = if (spec.id == Tasks.UBER.id && !replay) {
+            val dest = appointmentAware(slots.destination, ui)
+            if (slots.destination != null && dest == null) return AgentOutcome.Cancelled // asked where to, no answer
+            slots.copy(destination = dest?.let(DeepLinks::cleanDestination))
+        } else if (spec.id == Tasks.UBER.id) slots.copy(destination = slots.destination?.let(DeepLinks::cleanDestination)) else slots
         val (taskSlots, lookup) = if (replay || spec.id == Tasks.UBER.id) cabSlots to places else resolvePlace(spec, slots, ui)
         val link = if (replay) null else spec.deeplink?.invoke(taskSlots, lookup)
         val task = TaskContext(taskHint = scenario, trustedDeeplinks = setOfNotNull(link), appPackage = pkg.takeUnless { replay })
@@ -98,15 +103,7 @@ class TaskRunner(private val c: AppContainer) {
      */
     private suspend fun resolvePlace(spec: TaskSpec, slots: Slots, ui: AgentUi): Pair<Slots, PlaceLookup> {
         if (spec.deeplink == null) return slots to places
-        val said = slots.destination?.takeIf { it.isNotBlank() } ?: return slots to places
-        // "To my doctor's appointment" → the clinic of the next booked appointment.
-        // The phone's own copy first; else what the doctor feature stored in memory (Meko), e.g. after a reinstall,
-        // a booking made from another phone, or a demo profile.
-        val now = ZonedDateTime.now()
-        val dest = AppointmentState.destinationFor(said, lastAppointment(), now)
-            ?: (if (AppointmentState.refersToAppointment(said)) rememberedAppointment()?.let { AppointmentState.destinationFor(said, it, now) } else null)
-            ?: said
-        if (dest != said) ui.say(tr(style, "Going to your appointment at $dest.", "आपके अपॉइंटमेंट पर: $dest।", "Aapke appointment par: $dest."))
+        val dest = appointmentAware(slots.destination, ui) ?: return slots.copy(destination = null) to places
         val resolved = slots.copy(destination = dest)
         val options = PlaceChoice.options(places.candidates(dest))
         if (options.isEmpty()) return resolved to places
@@ -121,6 +118,28 @@ class TaskRunner(private val c: AppContainer) {
             return resolved to PlaceLookup { null }
         }
         return slots.copy(destination = "$dest, ${chosen.area}") to PlaceLookup { chosen.at }
+    }
+
+    /**
+     * "To my doctor's appointment" → the clinic of the next booked appointment: the phone's own copy first, else
+     * what the doctor feature stored in memory (Meko). No upcoming one: say so and ask, instead of handing the cab
+     * app the words ("my doctor"), which it searched literally or matched to a recent trip. Any other destination
+     * comes back as said; null when there is none.
+     */
+    private suspend fun appointmentAware(destination: String?, ui: AgentUi): String? {
+        val said = destination?.takeIf { it.isNotBlank() } ?: return null
+        if (!AppointmentState.refersToAppointment(said)) return said
+        val now = ZonedDateTime.now()
+        val booked = AppointmentState.destinationFor(said, lastAppointment(), now)
+            ?: rememberedAppointment()?.let { AppointmentState.destinationFor(said, it, now) }
+        if (booked != null) {
+            ui.say(tr(style, "Going to your appointment at $booked.", "आपके अपॉइंटमेंट पर: $booked।", "Aapke appointment par: $booked."))
+            return booked
+        }
+        ui.say(tr(style, "I can't find an upcoming appointment for you.", "मुझे आपका कोई आने वाला अपॉइंटमेंट नहीं मिला।",
+            "Mujhe aapka koi aane wala appointment nahi mila."))
+        return ui.ask(tr(style, "Where should the cab take you?", "कैब आपको कहाँ ले जाए?", "Cab aapko kahan le jaye?"))
+            ?.trim()?.takeIf { it.isNotBlank() && !AppointmentState.refersToAppointment(it) }
     }
 
     private suspend fun rememberedAppointment(): com.saathi.app.core.net.Appointment? =
@@ -160,9 +179,9 @@ class TaskRunner(private val c: AppContainer) {
     }
 
     private suspend fun notReady(ui: AgentUi): AgentOutcome {
-        val msg = tr(style, "Please turn on Saathi in Accessibility settings first. Open Saathi and follow the setup.",
-            "पहले एक्सेसिबिलिटी सेटिंग में साथी चालू कीजिए। साथी खोलकर सेटअप पूरा कीजिए।",
-            "Pehle Accessibility settings mein Saathi on kijiye. Saathi kholkar setup poora kijiye.")
+        val msg = tr(style, "Please turn on Vaani in Accessibility settings first. Open Vaani and follow the setup.",
+            "पहले एक्सेसिबिलिटी सेटिंग में वाणी चालू कीजिए। वाणी खोलकर सेटअप पूरा कीजिए।",
+            "Pehle Accessibility settings mein Vaani on kijiye. Vaani kholkar setup poora kijiye.")
         ui.say(msg)
         return AgentOutcome.Failed(msg)
     }

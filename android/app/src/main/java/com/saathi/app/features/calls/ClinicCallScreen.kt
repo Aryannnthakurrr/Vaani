@@ -1,5 +1,8 @@
 package com.saathi.app.features.calls
 
+import com.saathi.app.ui.theme.Touch
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.OnFill
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -146,9 +149,9 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
                         "फ़ोन कॉल अभी सेट नहीं हुई है। परिवार से सेटअप पूरा करवाइए, या अभ्यास कॉल आज़माइए।",
                         "Phone call abhi set nahi hui hai. Family se setup poora karwaiye, ya practice call try kijiye.")
                 } else {
-                    tr(style, "Saathi could not place the call. Please check the internet and try again.",
-                        "साथी फ़ोन नहीं लगा पाया। इंटरनेट देखकर फिर से कोशिश कीजिए।",
-                        "Saathi phone nahi laga paaya. Internet check karke phir se try kijiye.")
+                    tr(style, "Vaani could not place the call. Please check the internet and try again.",
+                        "वाणी फ़ोन नहीं लगा पाया। इंटरनेट देखकर फिर से कोशिश कीजिए।",
+                        "Vaani phone nahi laga paaya. Internet check karke phir se try kijiye.")
                 }) + (if (com.saathi.app.BuildConfig.DEBUG) "\n(${e.message})" else "")
                 mode = CallMode.CHOOSE
                 return@launch
@@ -167,9 +170,9 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
                 } else if (++misses >= 20) {
                     // ~30 s without the server: hang up rather than leave a call running that the user can't follow.
                     runCatching { realCalls.hangUp(id) }
-                    finish(tr(style, "Saathi lost touch with the call and hung up. Please try again later.",
-                        "साथी का कॉल से संपर्क टूट गया, इसलिए कॉल काट दी। बाद में फिर से कोशिश कीजिए।",
-                        "Saathi ka call se connection toot gaya, isliye call kaat di. Baad mein phir se try kijiye."), "real")
+                    finish(tr(style, "Vaani lost touch with the call and hung up. Please try again later.",
+                        "वाणी का कॉल से संपर्क टूट गया, इसलिए कॉल काट दी। बाद में फिर से कोशिश कीजिए।",
+                        "Vaani ka call se connection toot gaya, isliye call kaat di. Baad mein phir se try kijiye."), "real")
                     break
                 }
                 delay(1500)
@@ -191,9 +194,9 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
             }
             val state = runCatching { realCalls.hangUp(id) }.getOrNull()
             finish(when {
-                state == null -> tr(style, "Saathi could not reach the server to hang up. The call will end by itself soon.",
-                    "साथी कॉल काटने के लिए सर्वर तक नहीं पहुँच पाया। कॉल थोड़ी देर में अपने-आप कट जाएगी।",
-                    "Saathi call kaatne ke liye server tak nahi pahunch paaya. Call thodi der mein apne-aap kat jayegi.")
+                state == null -> tr(style, "Vaani could not reach the server to hang up. The call will end by itself soon.",
+                    "वाणी कॉल काटने के लिए सर्वर तक नहीं पहुँच पाया। कॉल थोड़ी देर में अपने-आप कट जाएगी।",
+                    "Vaani call kaatne ke liye server tak nahi pahunch paaya. Call thodi der mein apne-aap kat jayegi.")
                 else -> state.summary
             }, "real")
         }
@@ -235,38 +238,38 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
         // Call header, like a phone's in-call screen.
         Column(
             Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(AccentDark, Accent)))
-                .statusBarsPadding().padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
+                .statusBarsPadding().padding(Space.xl),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.sm),
         ) {
             Text("📞", fontSize = 44.sp)
             Text(shown?.clinic ?: tr(style, "Clinic", "क्लिनिक", "Clinic"), style = MaterialTheme.typography.headlineMedium,
-                color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                color = OnFill, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             val sub = when {
-                mode == CallMode.CHOOSE -> tr(style, "Saathi can call the clinic for you", "साथी आपके लिए क्लिनिक को फ़ोन कर सकता है",
-                    "Saathi aapke liye clinic ko phone kar sakta hai")
+                mode == CallMode.CHOOSE -> tr(style, "Vaani can call the clinic for you", "वाणी आपके लिए क्लिनिक को फ़ोन कर सकता है",
+                    "Vaani aapke liye clinic ko phone kar sakta hai")
                 summary != null -> tr(style, "Call ended", "कॉल खत्म", "Call khatam")
                 mode == CallMode.REAL -> "$status · %d:%02d".format(seconds / 60, seconds % 60)
                 else -> tr(style, "Practice call · %d:%02d", "अभ्यास कॉल · %d:%02d", "Practice call · %d:%02d").format(seconds / 60, seconds % 60)
             }
-            Text(sub, style = MaterialTheme.typography.titleMedium, color = Color.White.copy(alpha = 0.92f),
+            Text(sub, style = MaterialTheme.typography.titleMedium, color = OnFill.copy(alpha = 0.92f),
                 textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
 
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp), state = listState,
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            item { Box(Modifier.padding(top = 8.dp)) }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = Space.lg), state = listState,
+            verticalArrangement = Arrangement.spacedBy(Space.md)) {
+            item { Box(Modifier.padding(top = Space.sm)) }
             if (mode == CallMode.CHOOSE) {
                 item {
                     if (upcoming != null) {
                         InfoCard(title = listOfNotNull(upcoming.doctor, upcoming.clinic).joinToString(" · "),
-                            body = tr(style, "Saathi will confirm your appointment and ask how long the wait is.",
-                                "साथी आपकी मुलाक़ात पक्की करेगा और पूछेगा कि कितना इंतज़ार है।",
-                                "Saathi appointment confirm karega aur poochega ki kitna wait hai."), icon = "🩺", accent = Leaf)
+                            body = tr(style, "Vaani will confirm your appointment and ask how long the wait is.",
+                                "वाणी आपकी मुलाक़ात पक्की करेगा और पूछेगा कि कितना इंतज़ार है।",
+                                "Vaani appointment confirm karega aur poochega ki kitna wait hai."), icon = "🩺", accent = Leaf)
                     } else {
                         InfoCard(title = tr(style, "No upcoming appointment", "कोई आने वाली मुलाक़ात नहीं", "Koi aane wali appointment nahi"),
-                            body = tr(style, "When you book a doctor, Saathi can call the clinic to confirm it. You can still try a practice call.",
-                                "डॉक्टर से मुलाक़ात बुक होने पर साथी क्लिनिक को फ़ोन करके उसे पक्का कर सकता है। अभ्यास कॉल अभी भी आज़मा सकते हैं।",
-                                "Doctor ki appointment book hone par Saathi clinic ko phone karke confirm kar sakta hai. Practice call abhi bhi try kar sakte hain."),
+                            body = tr(style, "When you book a doctor, Vaani can call the clinic to confirm it. You can still try a practice call.",
+                                "डॉक्टर से मुलाक़ात बुक होने पर वाणी क्लिनिक को फ़ोन करके उसे पक्का कर सकता है। अभ्यास कॉल अभी भी आज़मा सकते हैं।",
+                                "Doctor ki appointment book hone par Vaani clinic ko phone karke confirm kar sakta hai. Practice call abhi bhi try kar sakte hain."),
                             icon = "📅")
                     }
                 }
@@ -276,7 +279,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
             items(lines) { line -> Bubble(line, style) }
             // The first practice turn takes a moment to come back: show that Saathi is on it, not a blank screen.
             if (mode == CallMode.PRACTICE && busy && summary == null && lines.lastOrNull()?.role != "agent") {
-                item { InfoCard(title = tr(style, "Saathi is speaking…", "साथी बोल रहा है…", "Saathi bol raha hai…"), icon = "⏳") }
+                item { InfoCard(title = tr(style, "Vaani is speaking…", "वाणी बोल रहा है…", "Vaani bol raha hai…"), icon = "⏳") }
             }
             if (mode == CallMode.REAL && lines.isEmpty() && summary == null) {
                 item { InfoCard(title = tr(style, "Waiting for the clinic", "क्लिनिक का इंतज़ार", "Clinic ka intezaar"),
@@ -287,7 +290,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
         }
 
         Surface(shadowElevation = 10.dp) {
-            Column(Modifier.navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.navigationBarsPadding().padding(Space.lg), verticalArrangement = Arrangement.spacedBy(Space.md)) {
                 when {
                     summary != null -> BigButton(tr(style, "Done", "हो गया", "Ho gaya"), onBack)
                     mode == CallMode.CHOOSE -> {
@@ -315,16 +318,16 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
                         OutlinedTextField(
                             value = reply, onValueChange = { reply = it }, enabled = !busy, singleLine = true,
                             label = { Text(tr(style, "Clinic says…", "क्लिनिक कहता है…", "Clinic kehta hai…")) },
-                            textStyle = MaterialTheme.typography.bodyLarge, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
+                            textStyle = MaterialTheme.typography.bodyLarge, modifier = Modifier.fillMaxWidth().heightIn(min = Touch.primary),
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                             Button(onClick = { if (reply.isNotBlank()) { lines += CallLine("clinic", reply.trim()); reply = ""; practiceTurn() } },
-                                enabled = !busy && reply.isNotBlank(), modifier = Modifier.weight(1f).heightIn(min = 72.dp),
-                                shape = RoundedCornerShape(20.dp), colors = ButtonDefaults.buttonColors(containerColor = Leaf)) {
+                                enabled = !busy && reply.isNotBlank(), modifier = Modifier.weight(1f).heightIn(min = Touch.primary),
+                                shape = MaterialTheme.shapes.medium, colors = ButtonDefaults.buttonColors(containerColor = Leaf)) {
                                 Text(tr(style, "Send", "भेजें", "Bhejein"), style = MaterialTheme.typography.titleLarge)
                             }
-                            Button(onClick = { c.speaker.stop(); onBack() }, modifier = Modifier.weight(1f).heightIn(min = 72.dp),
-                                shape = RoundedCornerShape(20.dp), colors = ButtonDefaults.buttonColors(containerColor = Danger)) {
+                            Button(onClick = { c.speaker.stop(); onBack() }, modifier = Modifier.weight(1f).heightIn(min = Touch.primary),
+                                shape = MaterialTheme.shapes.medium, colors = ButtonDefaults.buttonColors(containerColor = Danger)) {
                                 Text(tr(style, "End call", "कॉल काटें", "Call kaatein"), style = MaterialTheme.typography.titleLarge)
                             }
                         }
@@ -370,11 +373,11 @@ private fun Bubble(line: CallLine, style: ReplyStyle) {
     val agent = line.role == "agent"
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (agent) Arrangement.Start else Arrangement.End) {
         Column(
-            Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(20.dp))
+            Modifier.widthIn(max = 320.dp).clip(MaterialTheme.shapes.medium)
                 .background(if (agent) Accent.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant)
-                .padding(14.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                .padding(Space.lg).semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            Text(if (agent) tr(style, "🤖 Saathi", "🤖 साथी", "🤖 Saathi") else tr(style, "🏥 Clinic", "🏥 क्लिनिक", "🏥 Clinic"),
+            Text(if (agent) tr(style, "🤖 Vaani", "🤖 वाणी", "🤖 Vaani") else tr(style, "🏥 Clinic", "🏥 क्लिनिक", "🏥 Clinic"),
                 style = MaterialTheme.typography.labelLarge, color = if (agent) AccentDark else MaterialTheme.colorScheme.onSurfaceVariant)
             Text(line.text, style = MaterialTheme.typography.bodyLarge)
         }

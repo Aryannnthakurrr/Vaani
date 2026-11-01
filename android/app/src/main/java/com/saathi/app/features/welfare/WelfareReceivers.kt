@@ -19,7 +19,7 @@ class CheckInReceiver : BroadcastReceiver() {
             if (!WelfareRules.needsCheckIn(s.lastUnlockTs, ZonedDateTime.now())) return@launchAsync
             val style = s.replyStyle
             val text = c.phrases.text("welfare_prompt", style)
-            c.notifier.post(Notifier.CH_WELFARE, 11_30, "Saathi", text,
+            c.notifier.post(Notifier.CH_WELFARE, 11_30, "Vaani", text,
                 tap = c.notifier.openAppIntent(null, ACTION_CHECK_IN), fullScreen = true)
             c.speaker.sayPhrase("welfare_prompt", style)
         }

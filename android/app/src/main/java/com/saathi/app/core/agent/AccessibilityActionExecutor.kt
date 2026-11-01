@@ -31,6 +31,9 @@ class AccessibilityActionExecutor(
     private val reader: LiveScreenReader,
 ) : ActionPerformer {
 
+    /** The bottom sheet last dragged open, so the same sheet is expanded once and then scrolled. */
+    private var expandedSheet: List<Int>? = null
+
     override suspend fun perform(action: AgentAction, snapshot: ScreenSnapshot): Boolean = withContext(Dispatchers.Main) {
         val svc = service() ?: return@withContext false
         when (action.action) {
@@ -87,6 +90,13 @@ class AccessibilityActionExecutor(
             ?: reader.refs.filter { it.info.scrollable }.maxByOrNull { w(it).toLong() * h(it) }
         val dm = svc.resources.displayMetrics
         val (l, t, r, b) = list?.info?.bounds ?: listOf(0, 0, dm.widthPixels, dm.heightPixels)
+        // A list starting low on the screen is a pull-up sheet (Uber's ride list): a swipe inside it often moves
+        // nothing. Drag the sheet up by its top edge first, once per sheet; later scrolls then move the list.
+        val bounds = listOf(l, t, r, b)
+        if (direction == "down" && list != null && t > dm.heightPixels * 0.35f && expandedSheet != bounds) {
+            expandedSheet = bounds
+            if (swipe(svc, (l + r) / 2f, t + 24f, (l + r) / 2f, dm.heightPixels * 0.12f)) return true
+        }
         val cx = (l + r) / 2f
         val cy = (t + b) / 2f
         val dx = (r - l) * 0.35f

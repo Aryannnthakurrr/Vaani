@@ -49,7 +49,7 @@ object Packages {
     val INBOX_SOURCES = setOf(WHATSAPP, GOOGLE_MESSAGES, GMAIL) + MONEY_APPS
 
     fun displayName(pkg: String): String = when (pkg) {
-        SELF -> "Saathi"
+        SELF -> "Vaani"
         UBER -> "Uber"
         AMAZON -> "Amazon"
         FLIPKART -> "Flipkart"

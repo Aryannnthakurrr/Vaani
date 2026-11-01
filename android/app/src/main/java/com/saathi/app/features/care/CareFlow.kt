@@ -204,7 +204,8 @@ class CareFlow(private val c: AppContainer) {
                 }
                 buildJsonObject { put("ok", JsonPrimitive(true)) }
             },
-            onEnded = { connected -> result.complete(if (connected) LiveIntake.Ended else LiveIntake.Unavailable) })
+            onEnded = { connected -> result.complete(if (connected) LiveIntake.Ended else LiveIntake.Unavailable) },
+            languageLocked = { c.settings.current.language != "auto" })
         val mirror = launch {
             live.transcripts.collect { lines ->
                 _ui.update { ui -> ui.copy(chat = lines.takeLast(6).map { ChatLine(it.role == "user", it.text) }) }
@@ -473,22 +474,22 @@ class CareFlow(private val c: AppContainer) {
         val whenText = CareText.time(b.startIso ?: cal?.startIso.orEmpty(), style)
         val ref = b.bookingRef?.let { s(", reference $it", ", रेफ़रेंस $it", ", reference $it") }.orEmpty()
         val doctor = b.doctorName ?: cal?.title
-        say(s("Booked: ${doctor ?: "the appointment"}, $whenText$ref. Shall I add it to your calendar and remind you a day before and two hours before?",
-            "बुक हो गया: ${doctor ?: "अपॉइंटमेंट"}, $whenText$ref। क्या मैं इसे कैलेंडर में जोड़ दूँ और एक दिन पहले और दो घंटे पहले याद दिला दूँ?",
-            "Book ho gaya: ${doctor ?: "appointment"}, $whenText$ref. Kya main ise calendar mein jod doon aur ek din pehle aur do ghante pehle yaad dila doon?"))
-        if (!yesNo()) return say(s("Okay, I haven't added it. It's saved here if you need it.", "ठीक है, मैंने नहीं जोड़ा। यह यहाँ सेव है।",
-            "Theek hai, maine nahi joda. Yeh yahan save hai."))
+        // Calendar and reminders right away, before anything is said: asking first lost the booking whenever the user
+        // left the screen before answering (the booking itself was already their yes).
         val added = cal?.let { c.calendar.insertEvent(it.title, it.location, it.description, it.startIso, it.endIso) } != null
         _ui.update { it.copy(calendarAdded = added) }
         val reminders = com.saathi.app.features.inbox.ReminderPlanner.forAppointment(appt, java.time.ZonedDateTime.now())
         reminders.forEach { c.reminders.add(c.db.reminders(), it) }
-        say(when {
-            added && reminders.isNotEmpty() -> s("Done. It's in your calendar and I'll remind you.", "हो गया। कैलेंडर में जोड़ दिया और मैं याद दिला दूँगी।",
-                "Ho gaya. Calendar mein jod diya aur main yaad dila doongi.")
+        val booked = s("Booked: ${doctor ?: "the appointment"}, $whenText$ref.", "बुक हो गया: ${doctor ?: "अपॉइंटमेंट"}, $whenText$ref।",
+            "Book ho gaya: ${doctor ?: "appointment"}, $whenText$ref.")
+        say(booked + " " + when {
+            added && reminders.isNotEmpty() -> s("It's in your calendar, and I'll remind you a day before and two hours before.",
+                "कैलेंडर में जोड़ दिया है, और मैं एक दिन पहले और दो घंटे पहले याद दिला दूँगी।",
+                "Calendar mein jod diya hai, aur main ek din pehle aur do ghante pehle yaad dila doongi.")
             reminders.isNotEmpty() -> s("I'll remind you. I couldn't add it to the calendar.", "मैं याद दिला दूँगी। कैलेंडर में नहीं जोड़ पाई।",
                 "Main yaad dila doongi. Calendar mein nahi jod payi.")
             added -> s("It's in your calendar.", "कैलेंडर में जोड़ दिया।", "Calendar mein jod diya.")
-            else -> s("I couldn't add it, but it's saved here.", "मैं नहीं जोड़ पाई, पर यह यहाँ सेव है।", "Main nahi jod payi, par yeh yahan save hai.")
+            else -> s("It's saved here.", "यह यहाँ सेव है।", "Yeh yahan save hai.")
         })
     }
 

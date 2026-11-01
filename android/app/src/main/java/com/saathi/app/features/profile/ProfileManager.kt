@@ -21,12 +21,27 @@ class ProfileManager(private val c: AppContainer) {
 
     fun current(): Profile? = c.settings.current.profileId.takeIf { it.isNotEmpty() }?.let { id -> all.firstOrNull { it.id == id } }
 
+    /**
+     * Whose memory (Meko datapack) the server uses: the chosen demo user, else the demo user with the same first name
+     * as the phone's user ("Ramesh" after "Back to my own profile"). Each demo user has one datapack, and the free tier
+     * has no room for a new one per phone. Null for a real user with no matching demo name.
+     */
+    fun memoryId(): String? {
+        val s = c.settings.current
+        if (s.profileId.isNotEmpty()) return s.profileId
+        val name = s.userName.trim().substringBefore(" ")
+        if (name.isEmpty()) return null
+        return all.firstOrNull { it.name.substringBefore(" ").equals(name, ignoreCase = true) }?.id
+    }
+
     suspend fun switchTo(p: Profile) {
         c.settings.setProfileId(p.id)
         c.settings.setUserName(p.name.substringBefore(" "))
         c.settings.setLanguage(p.language)
         val now = ZonedDateTime.now()
-        Profiles.appointment(p, now)?.let {
+        // A booking this demo user really made (kept in their memory) wins over the profile's built-in example.
+        val remembered = kotlinx.coroutines.withTimeoutOrNull(4_000) { runCatching { c.backend.storedAppointment() }.getOrNull() }
+        (remembered ?: Profiles.appointment(p, now))?.let {
             c.settings.setLastAppointment(SaathiJson.encodeToString(Appointment.serializer(), it))
         }
         c.db.messages().deleteFrom(DEMO_SOURCE)

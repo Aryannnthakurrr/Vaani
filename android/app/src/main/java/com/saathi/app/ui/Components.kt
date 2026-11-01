@@ -1,5 +1,10 @@
 package com.saathi.app.ui
 
+import com.saathi.app.ui.theme.Touch
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.Border
+import com.saathi.app.ui.theme.OnFill
+import com.saathi.app.ui.theme.Paper
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -101,27 +106,33 @@ fun SaathiScaffold(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { HeaderBand { HeaderBar(title, subtitle, onBack) } },
+        // Swiss: the header is separated from the page by a single thin rule, not a colour block or a shadow.
+        topBar = {
+            Column {
+                HeaderBand { HeaderBar(title, subtitle, onBack) }
+                HorizontalDivider(thickness = Border.hairline, color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        },
         bottomBar = {
             bottomBar?.let {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     Column(Modifier.navigationBarsPadding()) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                        Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) { it() }
+                        HorizontalDivider(thickness = Border.hairline, color = MaterialTheme.colorScheme.outlineVariant)
+                        Box(Modifier.padding(horizontal = Space.lg, vertical = Space.md)) { it() }
                     }
                 }
             }
         },
     ) { pad ->
-        val base = Modifier.fillMaxSize().padding(pad).padding(horizontal = 20.dp)
+        val base = Modifier.fillMaxSize().padding(pad).padding(horizontal = Space.xl)
         Column(
             modifier = (if (scroll) base.verticalScroll(rememberScrollState()) else base)
                 .then(if (bottomBar == null) Modifier.navigationBarsPadding() else Modifier),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(Space.lg),
         ) {
-            Box(Modifier.padding(top = 4.dp))
+            Box(Modifier.padding(top = Space.xs))
             content()
-            Row(Modifier.padding(bottom = 24.dp)) {}
+            Row(Modifier.padding(bottom = Space.xxl)) {}
         }
     }
 }
@@ -130,17 +141,17 @@ fun SaathiScaffold(
 @Composable
 fun HeaderBand(modifier: Modifier = Modifier, statusBarInset: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier.fillMaxWidth().then(if (statusBarInset) Modifier.statusBarsPadding() else Modifier)
-        .padding(horizontal = 16.dp, vertical = 12.dp), content = content)
+        .padding(horizontal = Space.lg, vertical = Space.md), content = content)
 }
 
 @Composable
 private fun HeaderBar(title: String, subtitle: String?, onBack: (() -> Unit)?) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
         val style = com.saathi.app.SaathiApp.container.settings.flow.collectAsState().value.replyStyle
         if (onBack != null) RoundIconButton(Icons.AutoMirrored.Filled.ArrowBack, tr(style, "Back", "वापस", "Wapas"), onBack)
         Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
             Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
-            subtitle?.let { Text(it, fontSize = 17.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
@@ -159,15 +170,14 @@ fun TwoLine(
     modifier: Modifier = Modifier,
     mainStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
     secondColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    secondSize: androidx.compose.ui.unit.TextUnit = 17.sp,
+    secondStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodySmall,
     mainColor: Color = Color.Unspecified,
     align: TextAlign? = null,
 ) {
     Column(modifier) {
         Text(main, style = mainStyle, color = mainColor, textAlign = align)
         if (!second.isNullOrBlank() && second != main) {
-            Text(second, fontSize = secondSize, lineHeight = secondSize * 1.35f, color = secondColor, textAlign = align,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+            Text(second, style = secondStyle, color = secondColor, textAlign = align)
         }
     }
 }
@@ -175,7 +185,7 @@ fun TwoLine(
 /** An icon on a soft tinted circle (or rounded square), the leading mark of cards and rows. */
 @Composable
 fun IconBubble(icon: ImageVector, tint: Color, bg: Color, size: androidx.compose.ui.unit.Dp = 48.dp, round: Boolean = false) {
-    Box(Modifier.size(size).clip(if (round) CircleShape else RoundedCornerShape(12.dp)).background(bg), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(size).clip(if (round) CircleShape else MaterialTheme.shapes.medium).background(bg), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.54f))
     }
 }
@@ -192,18 +202,18 @@ fun SectionCard(
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.primary,
     tintBg: Color = MaterialTheme.colorScheme.primaryContainer,
-    container: Color = Color.White,
+    container: Color = OnFill,
     border: Color = com.saathi.app.ui.theme.Edge,
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
-    Surface(shape = RoundedCornerShape(16.dp), color = container, border = BorderStroke(1.5.dp, border), modifier = modifier.fillMaxWidth()) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    Surface(shape = MaterialTheme.shapes.medium, color = container, border = BorderStroke(Border.control, border), modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.lg)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
                 icon?.let { IconBubble(it, tint, tintBg) }
                 Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
                     Text(title, style = MaterialTheme.typography.titleMedium)
-                    subtitle?.let { Text(it, fontSize = 17.sp, lineHeight = 23.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 trailing?.invoke()
             }
@@ -217,14 +227,14 @@ fun SectionCard(
 fun StatusPill(text: String, color: Color, filled: Boolean = true, icon: ImageVector? = null, dot: Boolean = false) {
     Row(
         Modifier.clip(RoundedCornerShape(50)).background(if (filled) color else color.copy(alpha = 0.12f))
-            .then(if (filled) Modifier else Modifier.border(1.5.dp, color.copy(alpha = 0.5f), RoundedCornerShape(50)))
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .then(if (filled) Modifier else Modifier.border(Border.control, color.copy(alpha = 0.5f), RoundedCornerShape(50)))
+            .padding(horizontal = Space.md, vertical = Space.xs),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.sm),
     ) {
-        val fg = if (filled) Color.White else color
+        val fg = if (filled) OnFill else color
         if (dot) Box(Modifier.size(9.dp).clip(CircleShape).background(fg))
         icon?.let { Icon(it, null, tint = fg, modifier = Modifier.size(18.dp)) }
-        Text(text, fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = fg)
+        Text(text, style = MaterialTheme.typography.labelSmall, color = fg)
     }
 }
 
@@ -237,7 +247,7 @@ fun IconButtonBig(
     modifier: Modifier = Modifier,
     second: String? = null,
     color: Color = MaterialTheme.colorScheme.primary,
-    contentColor: Color = Color.White,
+    contentColor: Color = OnFill,
     border: Color? = null,
     enabled: Boolean = true,
     height: androidx.compose.ui.unit.Dp = 64.dp,
@@ -246,15 +256,15 @@ fun IconButtonBig(
     Button(
         onClick = onClick, enabled = enabled, interactionSource = press,
         modifier = modifier.fillMaxWidth().heightIn(min = height).then(pressMotion),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor),
-        border = border?.let { BorderStroke(1.5.dp, it) },
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+        border = border?.let { BorderStroke(Border.control, it) },
+        contentPadding = PaddingValues(horizontal = Space.lg, vertical = Space.md),
     ) {
         icon?.let { Icon(it, null, modifier = Modifier.size(26.dp)) }
         Column(Modifier.padding(start = if (icon != null) 12.dp else 0.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-            if (!second.isNullOrBlank() && second != text) Text(second, fontSize = 16.sp, lineHeight = 20.sp,
+            if (!second.isNullOrBlank() && second != text) Text(second, style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center, color = contentColor.copy(alpha = 0.85f))
         }
     }
@@ -264,8 +274,8 @@ fun IconButtonBig(
 @Composable
 fun RoundIconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     val (press, pressMotion) = rememberPress()
-    Surface(onClick = onClick, interactionSource = press, shape = CircleShape, color = Color.White,
-        border = BorderStroke(1.5.dp, com.saathi.app.ui.theme.Edge),
+    Surface(onClick = onClick, interactionSource = press, shape = CircleShape, color = Paper,
+        border = BorderStroke(Border.control, com.saathi.app.ui.theme.Edge),
         modifier = Modifier.size(52.dp).then(pressMotion).semantics { contentDescription = label }) {
         Box(contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(26.dp))
@@ -288,10 +298,10 @@ fun BigButton(
         onClick = onClick,
         enabled = enabled,
         interactionSource = press,
-        modifier = modifier.fillMaxWidth().heightIn(min = 64.dp).then(pressMotion),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = Touch.button).then(pressMotion),
+        shape = MaterialTheme.shapes.medium,
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(horizontal = Space.xl, vertical = Space.lg),
     ) { Text(text, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
 }
 
@@ -303,8 +313,8 @@ fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modi
 /** The end of a task: a large green tick, one sentence, and an optional small line ("Added to calendar"). */
 @Composable
 fun SuccessView(title: String, line: String, note: String? = null, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier.fillMaxWidth().padding(vertical = Space.lg), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Space.md)) {
         DrawnTick(Modifier.size(120.dp))
         Text(title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading(); liveRegion = LiveRegionMode.Polite })
@@ -357,21 +367,21 @@ fun InfoCard(
         modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) {
             contentDescription = listOfNotNull(badge, title, body).joinToString(". ")
         },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = Paper),
+        border = BorderStroke(Border.hairline, MaterialTheme.colorScheme.outline),
     ) {
         // The accent stripe is drawn, not laid out: an intrinsic-height row mis-measures Devanagari text.
         Row(Modifier.drawBehind { if (accent != null) drawRect(accent, size = Size(8.dp.toPx(), size.height)) }) {
             Row(Modifier.padding(start = if (accent != null) 26.dp else 18.dp, top = 18.dp, end = 18.dp, bottom = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
                 if (icon != null) {
                     Box(
                         Modifier.size(52.dp).clip(CircleShape).background(tint.copy(alpha = 0.14f)),
                         contentAlignment = Alignment.Center,
                     ) { Text(icon, fontSize = 26.sp) }
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
                     if (badge != null) Pill(badge, tint)
                     Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.fillMaxWidth())
                     if (body != null) Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
@@ -389,11 +399,11 @@ fun Pill(text: String, color: Color, filled: Boolean = false) {
     val fg = readable(shade)
     Text(
         text,
-        style = MaterialTheme.typography.labelLarge.copy(fontSize = 17.sp),
-        color = if (filled) Color.White else fg,
+        style = MaterialTheme.typography.labelMedium,
+        color = if (filled) OnFill else fg,
         modifier = Modifier.clip(RoundedCornerShape(50))
             .background(if (filled) shade else shade.copy(alpha = 0.13f))
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = Space.md, vertical = Space.xs),
     )
 }
 
@@ -421,13 +431,13 @@ fun ActionRow(
         interactionSource = press,
         modifier = modifier.fillMaxWidth().heightIn(min = 96.dp).then(pressMotion)
             .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = label },
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, border),
+        shape = MaterialTheme.shapes.medium,
+        color = OnFill,
+        border = BorderStroke(Border.hairline, border),
     ) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            Box(Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)).background(tintBg), contentAlignment = Alignment.Center) {
+        Row(Modifier.padding(horizontal = Space.lg, vertical = Space.lg), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
+            Box(Modifier.size(64.dp).clip(MaterialTheme.shapes.medium).background(tintBg), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(34.dp))
             }
             Text(label, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -448,12 +458,12 @@ fun relativeTime(ts: Long, style: ReplyStyle, now: Long = System.currentTimeMill
 
 @Composable
 fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).semantics { heading() })
+    Text(text, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.fillMaxWidth().padding(top = Space.sm).semantics { heading() })
 }
 
 @Composable
 fun EmptyNote(text: String) {
-    Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxWidth().padding(Space.xxl), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

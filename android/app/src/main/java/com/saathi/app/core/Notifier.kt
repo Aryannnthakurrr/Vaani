@@ -22,7 +22,7 @@ class Notifier(private val context: Context) {
     fun createChannels(style: ReplyStyle = ReplyStyle.EN) {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannels(listOf(
-            NotificationChannel(CH_ASSISTANT, tr(style, "Saathi assistant", "साथी सहायक", "Saathi assistant"), NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CH_ASSISTANT, tr(style, "Vaani assistant", "वाणी सहायक", "Vaani assistant"), NotificationManager.IMPORTANCE_LOW),
             NotificationChannel(CH_ALERTS, tr(style, "Scam alerts", "धोखे की चेतावनी", "Scam alerts"), NotificationManager.IMPORTANCE_HIGH).apply {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 600, 200, 600, 200, 600)

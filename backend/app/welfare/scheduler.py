@@ -54,11 +54,11 @@ def last_seen_phrase(last_ms: int | None, now: datetime) -> str:
 def alert_text(device: Device, now: datetime) -> str:
     if not device.last_heartbeat_ms:
         return (
-            f"Saathi welfare check: {device.user_name} ji hasn't used their phone for a long time. "
+            f"Vaani welfare check: {device.user_name} ji hasn't used their phone for a long time. "
             "Please check on them."
         )
     return (
-        f"Saathi welfare check: {device.user_name} ji hasn't used their phone since "
+        f"Vaani welfare check: {device.user_name} ji hasn't used their phone since "
         f"{last_seen_phrase(device.last_heartbeat_ms, now)}. Please check on them."
     )
 

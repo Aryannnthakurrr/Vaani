@@ -73,21 +73,21 @@ object Permissions {
                 "Taaki main aapke paas ki jagah aur hospital dhoondh sakoon, aur emergency mein ambulance ko bata sakoon ki aap kahan hain.") },
             { has(it, Manifest.permission.ACCESS_COARSE_LOCATION) },
             runtime = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)))
-        add(PermissionStep("accessibility", "🤝", { tr(it, "Let Saathi help in other apps", "साथी को दूसरे ऐप्स में मदद करने दें", "Saathi ko doosre apps mein madad karne dein") },
-            { tr(it, "Open Accessibility, find Saathi and turn it on. If it is grey, first allow restricted settings.",
-                "एक्सेसिबिलिटी खोलिए, साथी ढूँढिए और चालू कीजिए। अगर बटन धुंधला है, तो पहले प्रतिबंधित सेटिंग की अनुमति दीजिए।",
-                "Accessibility kholiye, Saathi dhoondhiye aur on kijiye. Agar button grey hai, to pehle restricted settings allow kijiye.") },
+        add(PermissionStep("accessibility", "🤝", { tr(it, "Let Vaani help in other apps", "वाणी को दूसरे ऐप्स में मदद करने दें", "Vaani ko doosre apps mein madad karne dein") },
+            { tr(it, "Open Accessibility, find Vaani and turn it on. If it is grey, first allow restricted settings.",
+                "एक्सेसिबिलिटी खोलिए, वाणी ढूँढिए और चालू कीजिए। अगर बटन धुंधला है, तो पहले प्रतिबंधित सेटिंग की अनुमति दीजिए।",
+                "Accessibility kholiye, Vaani dhoondhiye aur on kijiye. Agar button grey hai, to pehle restricted settings allow kijiye.") },
             ::accessibilityOn, settingsIntent = { Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS) }))
         add(PermissionStep("notif_listener", "📬", { tr(it, "Read my notifications", "मेरी सूचनाएँ पढ़ें", "Meri notifications padhein") },
             { tr(it, "So I can tell you about bills and deliveries. Codes and OTPs never leave your phone.",
                 "ताकि मैं बिल और डिलीवरी के बारे में बता सकूँ। कोड और ओटीपी कभी फ़ोन से बाहर नहीं जाते।",
                 "Taaki main bills aur delivery ke baare mein bata sakoon. OTP kabhi phone se bahar nahi jaate.") },
             ::notificationListenerOn, settingsIntent = { Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }))
-        add(PermissionStep("overlay", "🎙️", { tr(it, "Show the Saathi button", "साथी बटन दिखाएँ", "Saathi button dikhayein") },
+        add(PermissionStep("overlay", "🎙️", { tr(it, "Show the Vaani button", "वाणी बटन दिखाएँ", "Vaani button dikhayein") },
             { tr(it, "So the talk button stays on top of every app.", "ताकि बात करने वाला बटन हर ऐप के ऊपर दिखे।", "Taaki baat karne wala button har app ke upar dikhe.") },
             { Settings.canDrawOverlays(it) },
             settingsIntent = { Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${it.packageName}")) }))
-        add(PermissionStep("battery", "🔋", { tr(it, "Keep Saathi running", "साथी को चालू रखें", "Saathi ko chalu rakhein") },
+        add(PermissionStep("battery", "🔋", { tr(it, "Keep Vaani running", "वाणी को चालू रखें", "Vaani ko chalu rakhein") },
             { tr(it, "So the phone does not stop me while I watch for scams.", "ताकि फ़ोन मुझे बंद न करे।", "Taaki phone mujhe band na kare.") },
             { it.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(it.packageName) },
             settingsIntent = { Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${it.packageName}")) }))

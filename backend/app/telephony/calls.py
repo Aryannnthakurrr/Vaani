@@ -32,7 +32,7 @@ def normalize_number(raw: str) -> str:
 
 
 def allowed_numbers() -> list[str]:
-    """CALL_ALLOWED_NUMBERS in the order written: Saathi never dials anything else."""
+    """CALL_ALLOWED_NUMBERS in the order written: Vaani never dials anything else."""
     return [
         n for n in (normalize_number(x) for x in os.environ.get("CALL_ALLOWED_NUMBERS", "").split(",")) if n
     ]

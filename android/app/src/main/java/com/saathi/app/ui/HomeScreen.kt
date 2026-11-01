@@ -1,5 +1,10 @@
 package com.saathi.app.ui
 
+import com.saathi.app.ui.theme.Touch
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.Border
+import com.saathi.app.ui.theme.OnFill
+import com.saathi.app.ui.theme.Paper
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -148,39 +153,15 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
                     s("I'm listening. Tell me what you need.", "मैं सुन रही हूँ। बताइए क्या चाहिए।", "Main sun rahi hoon. Bataiye kya chahiye.")
                 },
                 userLine = liveLines.lastOrNull { it.role == "user" }?.text ?: heard,
-                modifier = Modifier.padding(pad).padding(horizontal = 24.dp),
+                modifier = Modifier.padding(pad).padding(horizontal = Space.xxl),
             )
             return@AnimatedContent
         }
         // Scaffold already consumed the status-bar inset, so the header must use its top padding itself.
         Column(Modifier.fillMaxSize().padding(top = pad.calculateTopPadding(), bottom = pad.calculateBottomPadding())
-            .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            .verticalScroll(rememberScrollState()).padding(horizontal = Space.xl, vertical = Space.md),
+            verticalArrangement = Arrangement.spacedBy(Space.lg)) {
             HomeHeader(settings.userName, style) { navigate("settings") }
-
-            // Warnings come first, where they are seen; hidden on a quiet day.
-            if (alerts > 0) {
-                StatusCard(
-                    icon = Icons.Filled.Shield, tint = Danger, bg = Danger50, iconBg = Danger.copy(alpha = 0.12f),
-                    title = s("$alerts warnings today", "आज $alerts चेतावनी", "Aaj $alerts warnings"),
-                    second = a("$alerts warnings today", "आज $alerts सुरक्षा चेतावनियाँ"),
-                    titleColor = Danger, chevron = true, onClick = { navigate("alerts") },
-                    modifier = Modifier.riseIn(0),
-                )
-            }
-            // Whether Saathi is really guarding messages and calls (the permissions), not a decoration.
-            if (shieldOn) StatusCard(
-                icon = Icons.Filled.GppGood, tint = Leaf, bg = Leaf50, iconBg = Color.White,
-                title = s("Saathi is keeping you safe", "साथी आपकी सुरक्षा कर रही है", "Saathi aapko safe rakh rahi hai"),
-                second = a("Saathi is keeping you safe", "साथी आपकी सुरक्षा के लिए तैयार है"),
-                titleColor = Ink, trailing = { StatusPill("LIVE", Leaf, filled = false, dot = true) },
-                onClick = { navigate("alerts") }, modifier = Modifier.riseIn(1),
-            ) else StatusCard(
-                icon = Icons.Filled.GppMaybe, tint = Amber, bg = Amber50, iconBg = Color.White,
-                title = s("Scam Shield is off. Tap to turn on", "धोखा-रक्षक बंद है। चालू करने के लिए दबाइए", "Scam Shield band hai. On karne ke liye dabaiye"),
-                second = a("Scam Shield is off", "धोखा-रक्षक बंद है"),
-                titleColor = Ink, chevron = true, onClick = { navigate("alerts") }, modifier = Modifier.riseIn(1),
-            )
 
             TileRow {
                 // Straight to the Doctor screen, which starts the conversation itself and shows it getting ready.
@@ -202,12 +183,37 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
                 Tile(s("Teach me", "मुझे सिखाओ", "Sikhao"), a("Teach me", "मुझे सिखाएँ"), Icons.AutoMirrored.Filled.Help,
                     { c.assistant.startGuide(null) }, Modifier.weight(1f).riseIn(7), enabled = !busy)
             }
+
+            // Safety status below the actions: today's warnings (hidden on a quiet day), then whether the scam shield
+            // is really guarding messages and calls (the permissions), not a decoration.
+            if (alerts > 0) {
+                StatusCard(
+                    icon = Icons.Filled.Shield, tint = Danger, bg = Danger50, iconBg = Danger.copy(alpha = 0.12f),
+                    title = s("$alerts warnings today", "आज $alerts चेतावनी", "Aaj $alerts warnings"),
+                    second = a("$alerts warnings today", "आज $alerts सुरक्षा चेतावनियाँ"),
+                    titleColor = Danger, chevron = true, onClick = { navigate("alerts") },
+                    modifier = Modifier.riseIn(8),
+                )
+            }
+            if (shieldOn) StatusCard(
+                icon = Icons.Filled.GppGood, tint = Leaf, bg = Leaf50, iconBg = OnFill,
+                title = s("Vaani is keeping you safe", "वाणी आपकी सुरक्षा कर रही है", "Vaani aapko safe rakh rahi hai"),
+                second = a("Vaani is keeping you safe", "वाणी आपकी सुरक्षा के लिए तैयार है"),
+                titleColor = Ink, trailing = { StatusPill("LIVE", Leaf, filled = false, dot = true) },
+                onClick = { navigate("alerts") }, modifier = Modifier.riseIn(9),
+            ) else StatusCard(
+                icon = Icons.Filled.GppMaybe, tint = Amber, bg = Amber50, iconBg = OnFill,
+                title = s("Scam Shield is off. Tap to turn on", "धोखा-रक्षक बंद है। चालू करने के लिए दबाइए", "Scam Shield band hai. On karne ke liye dabaiye"),
+                second = a("Scam Shield is off", "धोखा-रक्षक बंद है"),
+                titleColor = Ink, chevron = true, onClick = { navigate("alerts") }, modifier = Modifier.riseIn(9),
+            )
+
             // Rarely needed (mostly by family): a quiet link instead of a tile.
             val (press, pressMotion) = rememberPress()
             Surface(onClick = { navigate("log") }, interactionSource = press, color = Color.Transparent,
-                modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 56.dp).then(pressMotion).riseIn(8)) {
-                Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = Touch.min).then(pressMotion).riseIn(10)) {
+                Row(Modifier.padding(horizontal = Space.md), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
                     Icon(Icons.Filled.History, null, tint = Muted)
                     Text(s("History", "इतिहास", "History") + " / " + a("History", "पुराना इतिहास"),
                         style = MaterialTheme.typography.titleMedium, textDecoration = TextDecoration.Underline, color = Ink)
@@ -228,24 +234,24 @@ private fun HomeHeader(name: String, style: ReplyStyle, onSettings: () -> Unit) 
         hour < 12 -> tr(style, "Good morning", "सुप्रभात", "Good morning")
         hour < 17 -> tr(style, "Good afternoon", "नमस्ते", "Namaste")
         else -> tr(style, "Good evening", "शुभ संध्या", "Good evening")
-    } + ji?.let { ", $it ji" }.orEmpty()
+    } + ji?.let { ", $it ji" }.orEmpty() // no-break space: "ji" never sits alone on a line
     val greetingAlt = when {
         hour < 12 -> alt(style, "Good morning", "सुप्रभात")
         hour < 17 -> alt(style, "Good afternoon", "नमस्ते")
         else -> alt(style, "Good evening", "शुभ संध्या")
-    } + ji?.let { if (style == ReplyStyle.HI) ", $it ji" else ", $it जी" }.orEmpty()
+    } + ji?.let { if (style == ReplyStyle.HI) ", $it ji" else ", $it जी" }.orEmpty()
     val today = LocalDate.now()
     val hiDate = today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("hi", "IN")))
     val enDate = today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("en", "IN")))
 
     Row(verticalAlignment = Alignment.Top) {
         TwoLine(if (style == ReplyStyle.HI) hiDate else enDate, if (style == ReplyStyle.HI) enDate else hiDate, Modifier.weight(1f),
-            mainStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp), mainColor = Muted, secondColor = Muted)
+            mainStyle = MaterialTheme.typography.titleSmall, mainColor = Muted, secondColor = Muted)
         RoundIconButton(Icons.Outlined.Settings, tr(style, "Settings", "सेटिंग्स", "Settings"), onSettings)
     }
     Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
         Text(greeting, style = MaterialTheme.typography.headlineLarge, color = Ink)
-        Text(greetingAlt, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        Text(greetingAlt, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -256,18 +262,18 @@ private fun StatusCard(
     onClick: () -> Unit, modifier: Modifier = Modifier, chevron: Boolean = false, trailing: (@Composable () -> Unit)? = null,
 ) {
     val (press, pressMotion) = rememberPress()
-    Surface(onClick = onClick, interactionSource = press, shape = RoundedCornerShape(16.dp), color = bg,
-        border = BorderStroke(1.5.dp, tint.copy(alpha = 0.35f)),
+    Surface(onClick = onClick, interactionSource = press, shape = MaterialTheme.shapes.medium, color = bg,
+        border = BorderStroke(Border.control, tint.copy(alpha = 0.35f)),
         modifier = modifier.fillMaxWidth().then(pressMotion).semantics(mergeDescendants = true) { role = Role.Button }) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.padding(Space.lg), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
             IconBubble(icon, tint, iconBg, size = 52.dp, round = true)
             // A pill goes under the words, not beside them, so the title keeps the card's width.
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
                 TwoLine(title, second, mainStyle = MaterialTheme.typography.titleMedium, mainColor = titleColor,
                     secondColor = if (titleColor == Danger) Danger else Leaf)
                 trailing?.invoke()
             }
-            if (chevron) Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+            if (chevron) Box(Modifier.size(40.dp).clip(CircleShape).background(Paper), contentAlignment = Alignment.Center) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = tint)
             }
         }
@@ -277,7 +283,7 @@ private fun StatusCard(
 @Composable
 private fun TileRow(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
     // Both tiles of a row take the taller one's height.
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(14.dp), content = content)
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Space.lg), content = content)
 
 /**
  * One action: a white outlined card, the icon on a pale teal square, the label and its second-language line.
@@ -298,9 +304,9 @@ private fun Tile(
         onClick = onClick,
         enabled = enabled,
         interactionSource = press,
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.5.dp, Edge),
+        shape = MaterialTheme.shapes.medium,
+        color = OnFill,
+        border = BorderStroke(Border.control, Edge),
         modifier = modifier.fillMaxHeight().heightIn(min = 148.dp).then(pressMotion).alpha(if (enabled) 1f else 0.45f)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
@@ -309,19 +315,18 @@ private fun Tile(
     ) {
         // Icon on top, words below across the whole tile: long Hinglish labels ("Saamaan jaanchein") wrap
         // between words instead of breaking inside one, even with the phone's large text.
-        Column(Modifier.heightIn(min = 148.dp).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.heightIn(min = 148.dp).padding(Space.lg), verticalArrangement = Arrangement.spacedBy(Space.md)) {
             Row(verticalAlignment = Alignment.Top) {
                 IconBubble(icon, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, size = 48.dp)
                 Box(Modifier.weight(1f))
                 badge?.let {
                     Box(Modifier.size(32.dp).background(MaterialTheme.colorScheme.primary, CircleShape), contentAlignment = Alignment.Center) {
-                        Text(it, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(it, color = OnFill, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
             TwoLine(label, second, Modifier.fillMaxWidth(),
-                mainStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 21.sp, lineHeight = 26.sp), mainColor = Ink,
-                secondSize = 17.sp)
+                mainStyle = MaterialTheme.typography.titleSmall, mainColor = Ink)
         }
     }
 }
@@ -332,7 +337,7 @@ private fun MicBar(state: AssistantState, live: LiveState?, busy: Boolean, talki
     val idle = state == AssistantState.IDLE && !busy
     // While the talking view is up it already shows what is happening; the bar only adds a line while a task runs.
     val status = when {
-        talking && muted -> tr(style, "Mic is muted. Saathi cannot hear you.", "माइक बंद है। साथी आपको सुन नहीं सकती।", "Mic band hai. Saathi aapko sun nahi sakti.")
+        talking && muted -> tr(style, "Mic is muted. Vaani cannot hear you.", "माइक बंद है। वाणी आपको सुन नहीं सकती।", "Mic band hai. Vaani aapko sun nahi sakti.")
         talking -> null
         live == LiveState.CONNECTING -> tr(style, "Connecting…", "जुड़ रही हूँ…", "Connect ho rahi hoon…")
         state == AssistantState.RUNNING -> tr(style, "Working on it. Press Stop anytime.", "काम कर रही हूँ। कभी भी रोकें।", "Kaam kar rahi hoon. Kabhi bhi Stop dabaiye.")
@@ -342,8 +347,8 @@ private fun MicBar(state: AssistantState, live: LiveState?, busy: Boolean, talki
     val endLabel = if (live != null && !busy) tr(style, "End conversation", "बातचीत बंद करें", "Baat band karein") else tr(style, "Stop", "रोको", "Stop")
     Surface(color = MaterialTheme.colorScheme.background) {
         Column(Modifier.navigationBarsPadding()) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            HorizontalDivider(thickness = Border.hairline, color = MaterialTheme.colorScheme.outlineVariant)
+            Column(Modifier.padding(horizontal = Space.lg, vertical = Space.md), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
                 status?.let {
                     Text(it, style = MaterialTheme.typography.bodyLarge, color = Muted,
                         modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }, textAlign = TextAlign.Center)
@@ -352,17 +357,17 @@ private fun MicBar(state: AssistantState, live: LiveState?, busy: Boolean, talki
                 if (canMute) {
                     val (mutePress, muteMotion) = rememberPress()
                     Button(onClick = onMute, interactionSource = mutePress,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).then(muteMotion),
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = Touch.button).then(muteMotion),
+                        shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (muted) Ink else Color.White,
-                            contentColor = if (muted) Color.White else Ink),
-                        border = if (muted) null else BorderStroke(1.5.dp, Edge),
+                            containerColor = if (muted) Ink else OnFill,
+                            contentColor = if (muted) OnFill else Ink),
+                        border = if (muted) null else BorderStroke(Border.control, Edge),
                     ) {
                         Icon(if (muted) Icons.Filled.MicOff else Icons.Filled.Mic, null, modifier = Modifier.size(28.dp))
                         Text(
                             if (muted) tr(style, "Unmute", "माइक चालू करें", "Mic chalu karein") else tr(style, "Mute", "माइक बंद करें", "Mic band karein"),
-                            style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 10.dp))
+                            style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = Space.md))
                     }
                 }
                 val (press, pressMotion) = rememberPress()
@@ -370,22 +375,22 @@ private fun MicBar(state: AssistantState, live: LiveState?, busy: Boolean, talki
                     onClick = onClick,
                     interactionSource = press,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp).then(pressMotion),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (idle) MaterialTheme.colorScheme.primary else Danger50,
-                        contentColor = if (idle) Color.White else Danger),
-                    border = if (idle) null else BorderStroke(1.5.dp, Danger.copy(alpha = 0.4f)),
+                        contentColor = if (idle) OnFill else Danger),
+                    border = if (idle) null else BorderStroke(Border.control, Danger.copy(alpha = 0.4f)),
                 ) {
                     // The mic sits on a lighter disc, like the Stitch talk button.
-                    Box(Modifier.size(48.dp).clip(CircleShape).background(if (idle) Color.White.copy(alpha = 0.2f) else Danger.copy(alpha = 0.1f)),
+                    Box(Modifier.size(48.dp).clip(CircleShape).background(if (idle) OnFill.copy(alpha = 0.2f) else Danger.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center) {
                         Icon(if (idle) Icons.Filled.Mic else Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(28.dp))
                     }
-                    Column(Modifier.padding(start = 14.dp)) {
-                        Text(if (idle) tr(style, "Talk to Saathi", "साथी से बात करें", "Saathi se baat karein") else endLabel,
+                    Column(Modifier.padding(start = Space.lg)) {
+                        Text(if (idle) tr(style, "Talk to Vaani", "वाणी से बात करें", "Vaani se baat karein") else endLabel,
                             style = MaterialTheme.typography.titleMedium)
-                        if (idle) Text(alt(style, "Talk to Saathi", "साथी से बात करें"), fontSize = 17.sp,
-                            color = Color.White.copy(alpha = 0.85f))
+                        if (idle) Text(alt(style, "Talk to Vaani", "वाणी से बात करें"), style = MaterialTheme.typography.bodySmall,
+                            color = OnFill.copy(alpha = 0.85f))
                     }
                 }
             }

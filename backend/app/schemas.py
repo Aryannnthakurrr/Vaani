@@ -360,7 +360,7 @@ class FamilyContact(BaseModel):
 
 class WelfareConfig(BaseModel):
     device_id: str
-    user_name: str = "Saathi user"
+    user_name: str = "Vaani user"
     contacts: list[FamilyContact] = Field(default_factory=list)
     check_time: str = "12:00"
 

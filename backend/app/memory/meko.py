@@ -109,7 +109,7 @@ class MekoMemory:
         return str(_get(made, "conversation_id", "id"))
 
     async def datapack(self, device: str) -> str:
-        """The elder's own datapack: everything Saathi stores about them, and nothing about anyone else."""
+        """The elder's own datapack: everything Vaani stores about them, and nothing about anyone else."""
 
         async def make() -> str:
             name = elder_for(device)

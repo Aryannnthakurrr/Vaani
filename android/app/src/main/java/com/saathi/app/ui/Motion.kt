@@ -8,7 +8,13 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,14 +45,33 @@ val Arrive = FastOutSlowInEasing
 fun rememberPress(): Pair<MutableInteractionSource, Modifier> {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    // Keyboard, D-pad or switch access: a clear accent ring, since Material 3 shows almost nothing on focus.
+    val focused by source.collectIsFocusedAsState()
     val view = LocalView.current
     LaunchedEffect(pressed) { if (pressed) view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY) }
+    val still = reducedMotion()
     val scale by animateFloatAsState(
-        if (pressed) 0.96f else 1f,
-        spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+        if (pressed && !still) 0.98f else 1f,
+        spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "press",
     )
-    return source to Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+    val ring = with(LocalDensity.current) { com.saathi.app.ui.theme.Border.focus.toPx() }
+    val corner = with(LocalDensity.current) { 6.dp.toPx() }
+    return source to Modifier.graphicsLayer { scaleX = scale; scaleY = scale }.drawWithContent {
+        drawContent()
+        if (focused) drawRoundRect(com.saathi.app.ui.theme.Focus, topLeft = Offset(-ring, -ring),
+            size = Size(size.width + 2 * ring, size.height + 2 * ring), cornerRadius = CornerRadius(corner),
+            style = Stroke(width = ring))
+    }
+}
+
+/** The phone's "Remove animations" accessibility setting: everything then appears in place, without motion. */
+@Composable
+fun reducedMotion(): Boolean {
+    val context = LocalView.current.context
+    return remember {
+        android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }
 }
 
 /**
@@ -54,6 +79,7 @@ fun rememberPress(): Pair<MutableInteractionSource, Modifier> {
  * [fromX] say where it comes from.
  */
 fun Modifier.riseIn(order: Int = 0, fromY: Dp = 18.dp, fromX: Dp = 0.dp): Modifier = composed {
+    if (reducedMotion()) return@composed Modifier
     val progress = remember { Animatable(0f) }
     val density = LocalDensity.current
     LaunchedEffect(Unit) {

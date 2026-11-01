@@ -1,5 +1,9 @@
 package com.saathi.app.ui
 
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.Border
+import com.saathi.app.ui.theme.OnFill
+import com.saathi.app.ui.theme.Paper
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -137,21 +141,21 @@ fun AlertsScreen(container: AppContainer, onBack: () -> Unit) {
             trailing = { Icon(Icons.Filled.CheckCircle, null, tint = Leaf, modifier = Modifier.size(30.dp)) },
         ) {
             StatusPill(s("ACTIVE", "सक्रिय", "ACTIVE") + " • " + a("ACTIVE", "सक्रिय"), Leaf, dot = true)
-            Surface(shape = RoundedCornerShape(12.dp), color = Soft) {
+            Surface(shape = MaterialTheme.shapes.medium, color = Soft) {
                 TwoLine(
                     s("I check every message and warn you during suspicious calls. OTPs never leave your phone.",
                         "मैं हर संदेश जाँचती हूँ और संदिग्ध कॉल पर आपको सावधान करती हूँ। ओटीपी कभी फ़ोन से बाहर नहीं जाते।",
                         "Main har message check karti hoon aur suspicious call par aapko savdhaan karti hoon. OTP kabhi phone se bahar nahi jaate."),
                     a("I check every message and warn you during suspicious calls. OTPs never leave your phone.",
                         "हम हर संदेश और कॉल पर नज़र रखते हैं। आपकी जानकारी व ओटीपी हमेशा सुरक्षित हैं।"),
-                    Modifier.padding(16.dp), mainStyle = MaterialTheme.typography.bodyLarge, mainColor = Ink,
+                    Modifier.padding(Space.lg), mainStyle = MaterialTheme.typography.bodyLarge, mainColor = Ink,
                 )
             }
-            Row(Modifier.clip(RoundedCornerShape(50)).background(Leaf50).padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.clip(RoundedCornerShape(50)).background(Leaf50).padding(horizontal = Space.lg, vertical = Space.sm),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
                 Icon(Icons.Filled.Lock, null, tint = Leaf, modifier = Modifier.size(20.dp))
                 Text(s("Checked on this phone", "जाँच इसी फ़ोन पर होती है", "Check isi phone par hota hai"),
-                    fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Leaf)
+                    style = MaterialTheme.typography.labelMedium, color = Leaf)
             }
         } else SectionCard(
             Icons.Filled.GppMaybe, s("Scam Shield is off", "धोखा-रक्षक बंद है", "Scam Shield band hai"),
@@ -171,33 +175,33 @@ fun AlertsScreen(container: AppContainer, onBack: () -> Unit) {
 
         // "Recent alerts" with how many came in the last day.
         val fresh = shown.count { it.ts >= System.currentTimeMillis() - 24 * 3600_000L }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth().padding(top = Space.sm), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.md)) {
             Icon(Icons.Filled.NotificationsActive, null, tint = MaterialTheme.colorScheme.primary)
             Text(s("Recent alerts", "हाल के अलर्ट", "Recent alerts"), style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f).semantics { heading() })
-            if (fresh > 0) Text(s("$fresh new", "$fresh नए", "$fresh naye"), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Muted)
+            if (fresh > 0) Text(s("$fresh new", "$fresh नए", "$fresh naye"), style = MaterialTheme.typography.labelMedium, color = Muted)
         }
         if (shown.isEmpty()) {
-            EmptyNote(if (shieldOn) s("No alerts. Saathi is watching your messages and calls for scams.",
-                "कोई अलर्ट नहीं। साथी आपके संदेशों और कॉल पर धोखे के लिए नज़र रख रहा है।",
-                "Koi alert nahi. Saathi aapke messages aur calls par dhokhe ke liye nazar rakh raha hai.")
+            EmptyNote(if (shieldOn) s("No alerts. Vaani is watching your messages and calls for scams.",
+                "कोई अलर्ट नहीं। वाणी आपके संदेशों और कॉल पर धोखे के लिए नज़र रख रहा है।",
+                "Koi alert nahi. Vaani aapke messages aur calls par dhokhe ke liye nazar rakh raha hai.")
                 else s("No alerts yet.", "अभी कोई अलर्ट नहीं।", "Abhi koi alert nahi."))
         }
         shown.forEach { e -> AlertCard(e, c, style, settings.notifyFamilyOnScam, settings.contacts.map { it.name }) }
 
         // Ask for help: closes this screen and opens the conversation on Home.
-        Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(1.5.dp, Edge), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBubble(Icons.Filled.RecordVoiceOver, Color.White, MaterialTheme.colorScheme.primary, size = 60.dp, round = true)
-                Text(s("Need help from Saathi?", "साथी से मदद चाहिए?", "Saathi se madad chahiye?"), style = MaterialTheme.typography.titleLarge,
+        Surface(shape = MaterialTheme.shapes.medium, color = Paper, border = BorderStroke(Border.control, Edge), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(Space.xl), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.md)) {
+                IconBubble(Icons.Filled.RecordVoiceOver, OnFill, MaterialTheme.colorScheme.primary, size = 60.dp, round = true)
+                Text(s("Need help from Vaani?", "वाणी से मदद चाहिए?", "Vaani se madad chahiye?"), style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center)
                 Text(s("If something is unclear, just ask out loud. I am here to help.",
                     "अगर कोई बात समझ न आए, तो बस बोलकर पूछें। हम आपकी मदद के लिए यहाँ हैं।",
                     "Agar koi baat samajh na aaye, to bas bol kar poochiye. Main madad ke liye yahan hoon."),
                     style = MaterialTheme.typography.bodyLarge, color = Muted, textAlign = TextAlign.Center)
-                IconButtonBig(s("Speak to Saathi", "साथी से बोलें", "Saathi se boliye"), Icons.Filled.Mic,
-                    { onBack(); c.assistant.onMicTapped() }, second = a("Speak to Saathi", "बोलिए / साथी से बात करें"))
+                IconButtonBig(s("Speak to Vaani", "वाणी से बोलें", "Vaani se boliye"), Icons.Filled.Mic,
+                    { onBack(); c.assistant.onMicTapped() }, second = a("Speak to Vaani", "बोलिए / वाणी से बात करें"))
             }
         }
     }
@@ -224,18 +228,18 @@ private fun kindTitle(type: String, style: ReplyStyle) = when (type) {
 @Composable
 private fun ListenCard(title: String, second: String, line: String, playing: Boolean, onPlay: () -> Unit, playLabel: String) {
     val (press, pressMotion) = rememberPress()
-    Surface(onClick = onPlay, interactionSource = press, shape = RoundedCornerShape(16.dp), color = Leaf50,
-        border = BorderStroke(1.5.dp, Leaf.copy(alpha = 0.35f)),
+    Surface(onClick = onPlay, interactionSource = press, shape = MaterialTheme.shapes.medium, color = Leaf50,
+        border = BorderStroke(Border.control, Leaf.copy(alpha = 0.35f)),
         modifier = Modifier.fillMaxWidth().then(pressMotion).semantics(mergeDescendants = true) {
             role = Role.Button; contentDescription = "$title. $line. $playLabel"
         }) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            IconBubble(Icons.Filled.VolumeUp, Color.White, MaterialTheme.colorScheme.primary, size = 52.dp, round = true)
+        Row(Modifier.padding(Space.lg), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
+            IconBubble(Icons.Filled.VolumeUp, OnFill, MaterialTheme.colorScheme.primary, size = 52.dp, round = true)
             Column(Modifier.weight(1f)) {
                 TwoLine(title, second, mainStyle = MaterialTheme.typography.titleMedium, secondColor = Leaf)
-                Text(line, fontSize = 17.sp, lineHeight = 23.sp, color = Ink)
+                Text(line, style = MaterialTheme.typography.bodySmall, color = Ink)
             }
-            Box(Modifier.size(56.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(56.dp).clip(CircleShape).background(Paper), contentAlignment = Alignment.Center) {
                 Icon(if (playing) Icons.Filled.Stop else Icons.Filled.PlayArrow, null, tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp))
             }
@@ -271,27 +275,27 @@ private fun AlertCard(e: EventEntity, c: AppContainer, style: ReplyStyle, family
         value = e.sourceMsgId?.let { c.db.messages().byId(it)?.redactedText }
     }
 
-    Surface(shape = RoundedCornerShape(16.dp), color = Color.White, border = BorderStroke(1.5.dp, color.copy(alpha = 0.45f)),
+    Surface(shape = MaterialTheme.shapes.medium, color = Paper, border = BorderStroke(Border.control, color.copy(alpha = 0.45f)),
         modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(Space.lg), verticalArrangement = Arrangement.spacedBy(Space.lg)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                 StatusPill(label, color, icon = if (e.level == "red") Icons.Filled.Warning else null)
-                Text(relativeTime(e.ts, style), fontSize = 17.sp, color = Muted)
+                Text(relativeTime(e.ts, style), style = MaterialTheme.typography.bodySmall, color = Muted)
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg)) {
                 IconBubble(icon, color, tint, size = 52.dp, round = true)
                 TwoLine(kindTitle(e.type, style), second, Modifier.weight(1f), mainStyle = MaterialTheme.typography.titleLarge,
                     secondColor = color)
             }
-            if (reason.isNotBlank()) Surface(shape = RoundedCornerShape(12.dp), color = tint.copy(alpha = 0.6f)) {
-                TwoLine(reason, reasonAlt, Modifier.fillMaxWidth().padding(14.dp), mainStyle = MaterialTheme.typography.bodyLarge,
+            if (reason.isNotBlank()) Surface(shape = MaterialTheme.shapes.medium, color = tint.copy(alpha = 0.6f)) {
+                TwoLine(reason, reasonAlt, Modifier.fillMaxWidth().padding(Space.lg), mainStyle = MaterialTheme.typography.bodyLarge,
                     mainColor = Ink)
             }
             message?.takeIf { it.isNotBlank() }?.let { text ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Soft).padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Soft).padding(Space.lg),
+                    horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                     Icon(Icons.Filled.Warning, null, tint = color, modifier = Modifier.size(22.dp).offset(y = 2.dp))
-                    Text("“${text.take(120)}${if (text.length > 120) "…" else ""}”", fontSize = 18.sp, lineHeight = 25.sp,
+                    Text("“${text.take(120)}${if (text.length > 120) "…" else ""}”", style = MaterialTheme.typography.bodySmall,
                         fontStyle = FontStyle.Italic, color = Ink)
                 }
             }
@@ -300,22 +304,22 @@ private fun AlertCard(e: EventEntity, c: AppContainer, style: ReplyStyle, family
                     if (e.level != "info") IconButtonBig(s("Block a number", "नंबर ब्लॉक करें", "Number block karein"), Icons.Filled.Block,
                         { openBlockedNumbers(ctx) }, second = a("Block a number", "हमेशा के लिए ब्लॉक करें"), color = Danger)
                     IconButtonBig(s("View call log", "कॉल की सूची देखें", "Call list dekhiye"), Icons.Filled.Call, { openCallLog(ctx) },
-                        color = Color.White, contentColor = Ink, border = Edge, height = 56.dp)
+                        color = Paper, contentColor = Ink, border = Edge, height = 56.dp)
                 }
                 "message", "link" -> IconButtonBig(s("Open Messages", "संदेश खोलें", "Messages kholiye"), Icons.AutoMirrored.Filled.Message,
-                    { openMessages(ctx) }, color = Color.White, contentColor = Ink, border = Edge, height = 56.dp)
+                    { openMessages(ctx) }, color = Paper, contentColor = Ink, border = Edge, height = 56.dp)
             }
             // A red call is reported to family on Telegram when they are set up (CallGuard).
             if (e.type == "call" && e.level == "red" && familyOn && family.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Soft).padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(Soft).padding(Space.md),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                     family.take(3).forEach { n ->
                         Box(Modifier.size(36.dp).clip(CircleShape).background(Leaf50), contentAlignment = Alignment.Center) {
-                            Text(n.take(1).uppercase(), fontWeight = FontWeight.Bold, color = Leaf, fontSize = 17.sp)
+                            Text(n.take(1).uppercase(), fontWeight = FontWeight.Bold, color = Leaf, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     Text(s("Family is told on Telegram", "परिवार को टेलीग्राम पर बताया जाता है", "Family ko Telegram par bataya jaata hai"),
-                        fontSize = 17.sp, modifier = Modifier.weight(1f))
+                        style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                     Icon(Icons.AutoMirrored.Filled.Send, null, tint = Leaf)
                 }
             }

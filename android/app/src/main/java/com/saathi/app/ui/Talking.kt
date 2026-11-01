@@ -1,5 +1,6 @@
 package com.saathi.app.ui
 
+import com.saathi.app.ui.theme.Space
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -64,8 +65,8 @@ fun TalkingView(
             ripples.removeAll { t - it.first > RIPPLE_S }
         }
     }
-    Column(modifier.fillMaxSize().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically)) {
+    Column(modifier.fillMaxSize().padding(vertical = Space.xxl), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Space.xxl, Alignment.CenterVertically)) {
         Canvas(Modifier.size(280.dp).clearAndSetSemantics { }) {
             val r = size.minDimension / 2f
             // Quiet: a slow breath. Talking: the circle swells with the voice.

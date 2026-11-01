@@ -1,5 +1,9 @@
 package com.saathi.app.features.care
 
+import com.saathi.app.ui.theme.Ink
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.OnFill
+import com.saathi.app.ui.theme.Paper
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ContextWrapper
@@ -106,19 +110,19 @@ fun EmergencyScreen(c: AppContainer, onBack: () -> Unit) {
                 DispatchFailure.UNREACHABLE -> s("Could not request an ambulance.\nCall 108 now.", "एम्बुलेंस नहीं बुला पाए।\nअभी 108 पर फ़ोन कीजिए।",
                     "Ambulance nahi bula paye.\nAbhi 108 par call kijiye.")
             },
-                color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                color = OnFill, fontSize = 34.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
             WhitePill(s("Call 108", "108 पर फ़ोन करें", "108 par call karein")) { c.emergency.call108(context) }
             if (ui.familyAlerted) {
-                Text(s("Your family has been alerted.", "आपके परिवार को बता दिया गया है।", "Aapke family ko bata diya gaya hai."), color = Color.White)
+                Text(s("Your family has been alerted.", "आपके परिवार को बता दिया गया है।", "Aapke family ko bata diya gaya hai."), color = OnFill)
             }
             TextButton(onClick = { c.emergency.close(); onBack() }) {
-                Text(s("Close", "बंद करें", "Band karein"), color = Color.White, fontSize = 20.sp, textDecoration = TextDecoration.Underline)
+                Text(s("Close", "बंद करें", "Band karein"), color = OnFill, fontSize = 20.sp, textDecoration = TextDecoration.Underline)
             }
         }
         EmergencyPhase.CANCELLED -> Column(
-            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).systemBarsPadding().padding(Space.lg),
+            verticalArrangement = Arrangement.spacedBy(Space.lg),
         ) {
             val context = LocalContext.current
             com.saathi.app.ui.SuccessView(s("Cancelled", "रद्द किया गया", "Cancel kiya gaya"),
@@ -140,10 +144,10 @@ private tailrec fun android.content.Context.activity(): Activity? = when (this) 
 
 @Composable
 private fun RedPage(content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFFD32F2F), Color(0xFF8B1515))))) {
+    Box(Modifier.fillMaxSize().background(Danger)) {
         Column(
-            Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = Space.xxl, vertical = Space.lg).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Space.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) { content() }
     }
@@ -151,10 +155,10 @@ private fun RedPage(content: @Composable () -> Unit) {
 
 @Composable
 private fun WhitePill(text: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(50), color = Color.White, shadowElevation = 6.dp,
+    Surface(onClick = onClick, shape = RoundedCornerShape(50), color = Paper, shadowElevation = 6.dp,
         modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
         Box(contentAlignment = Alignment.Center) {
-            Text(text, color = Danger, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+            Text(text, color = Danger, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(Space.lg))
         }
     }
 }
@@ -165,7 +169,7 @@ private fun Countdown(ui: EmergencyUi, s: Tr, c: AppContainer) {
     RedPage {
         Spacer(Modifier.height(36.dp))
         Text("⚠  " + s("SENDING AN AMBULANCE IN", "एम्बुलेंस भेजी जा रही है", "AMBULANCE BHEJI JA RAHI HAI"),
-            color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp, textAlign = TextAlign.Center)
+            color = OnFill, style = MaterialTheme.typography.titleSmall, letterSpacing = 2.sp, textAlign = TextAlign.Center)
         val progress by animateFloatAsState(ui.secondsLeft / ui.totalSeconds.coerceAtLeast(1).toFloat(),
             tween(950, easing = LinearEasing), label = "countdown")
         Box(Modifier.size(250.dp), contentAlignment = Alignment.Center) {
@@ -173,44 +177,44 @@ private fun Countdown(ui: EmergencyUi, s: Tr, c: AppContainer) {
                 val w = 14.dp.toPx()
                 val arc = Size(size.width - w, size.height - w)
                 val at = Offset(w / 2, w / 2)
-                drawArc(Color.White.copy(alpha = .25f), 0f, 360f, false, at, arc, style = Stroke(w))
-                drawArc(Color.White, -90f, 360f * progress, false, at, arc, style = Stroke(w, cap = StrokeCap.Round))
+                drawArc(OnFill.copy(alpha = .25f), 0f, 360f, false, at, arc, style = Stroke(w))
+                drawArc(OnFill, -90f, 360f * progress, false, at, arc, style = Stroke(w, cap = StrokeCap.Round))
             }
-            Text("${ui.secondsLeft}", color = Color.White, fontSize = 110.sp, fontWeight = FontWeight.Black,
+            Text("${ui.secondsLeft}", color = OnFill, fontSize = 110.sp, fontWeight = FontWeight.Black,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         }
         Text(s("Your location and symptoms will be shared with the ambulance crew.",
             "आपकी लोकेशन और तकलीफ़ एम्बुलेंस टीम को भेजी जाएगी।", "Aapki location aur takleef ambulance team ko bheji jayegi."),
-            color = Color.White, fontSize = 19.sp, textAlign = TextAlign.Center)
+            color = OnFill, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
         ui.area?.let { Chip("📍  $it") }
         com.saathi.app.ui.VoiceWave({ c.assistant.voiceLevel() },
-            s("Say \"I'm OK\" or \"send now\"", "\"मैं ठीक हूँ\" या \"अभी भेजो\" बोलिए", "\"Main theek hoon\" ya \"abhi bhejo\" boliye"), Color.White)
+            s("Say \"I'm OK\" or \"send now\"", "\"मैं ठीक हूँ\" या \"अभी भेजो\" बोलिए", "\"Main theek hoon\" ya \"abhi bhejo\" boliye"), OnFill)
         if (ui.askLandmark) {
             var landmark by remember { mutableStateOf(c.emergency.landmark) }
             OutlinedTextField(
                 value = landmark,
                 onValueChange = { landmark = it; c.emergency.landmark = it },
                 label = { Text(s("Address or landmark (optional)", "पता या पहचान की जगह", "Address ya landmark")) },
-                modifier = Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(8.dp)),
+                modifier = Modifier.fillMaxWidth().background(Paper, MaterialTheme.shapes.small),
             )
         }
         Spacer(Modifier.height(12.dp))
         // The biggest target on the screen: someone who is fine must be able to stop this instantly.
         WhitePill("✕  " + s("Cancel, I'm OK", "रोकें, मैं ठीक हूँ", "Rokein, main theek hoon")) { c.emergency.imOk() }
         TextButton(onClick = { c.emergency.sendNow() }) {
-            Text(s("Send now", "अभी भेजें", "Abhi bhejein"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            Text(s("Send now", "अभी भेजें", "Abhi bhejein"), color = OnFill, fontSize = 22.sp, fontWeight = FontWeight.Bold,
                 textDecoration = TextDecoration.Underline)
         }
         TextButton(onClick = { c.emergency.call108(context) }) {
-            Text(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), color = Color.White.copy(alpha = .85f), fontSize = 17.sp)
+            Text(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), color = OnFill.copy(alpha = .85f), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
 @Composable
 private fun Chip(text: String) {
-    Text(text, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-        modifier = Modifier.background(Color(0x55000000), RoundedCornerShape(50)).padding(horizontal = 20.dp, vertical = 9.dp))
+    Text(text, color = OnFill, style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier.background(Ink.copy(alpha = 0.33f), RoundedCornerShape(50)).padding(horizontal = Space.xl, vertical = Space.sm))
 }
 
 @Composable
@@ -238,26 +242,26 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
         Box(Modifier.fillMaxWidth().height(MAP_DP.dp)) {
             AmbulanceMap(ui, s("You", "आप", "Aap"), s("Ambulance", "एम्बुलेंस", "Ambulance"), Modifier.fillMaxSize())
             Text(s("Simulation: no real ambulance is sent", "सिमुलेशन: असली एम्बुलेंस नहीं भेजी गई", "Simulation: asli ambulance nahi bheji gayi"),
-                color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 12.dp)
-                    .background(Color(0xDD2B2B2B), RoundedCornerShape(50)).padding(horizontal = 18.dp, vertical = 9.dp))
+                color = OnFill, style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = Space.md)
+                    .background(Ink.copy(alpha = 0.87f), RoundedCornerShape(50)).padding(horizontal = Space.lg, vertical = Space.sm))
         }
         Column(
             Modifier.fillMaxWidth().offset(y = (-22).dp)
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp))
-                .padding(horizontal = 20.dp, vertical = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = Space.xl, vertical = Space.xxl),
+            verticalArrangement = Arrangement.spacedBy(Space.lg),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("●  " + title.uppercase(), color = Danger, fontSize = 15.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold,
+                Text("●  " + title.uppercase(), color = Danger, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite })
                 // The fleet id only: the registration number is already in the ambulance box below.
                 ui.vehicleId?.takeIf { it != ui.vehicle }?.let {
-                    Text(it, fontSize = 14.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                    Text(it, style = MaterialTheme.typography.labelSmall, lineHeight = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
-                            .padding(horizontal = 12.dp, vertical = 5.dp))
+                        modifier = Modifier.padding(start = Space.sm).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
+                            .padding(horizontal = Space.md, vertical = Space.xs))
                 }
             }
             if (moving && ui.etaSec != null) {
@@ -265,8 +269,8 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
                     val minutes = (eta + 30) / 60
                     Text(if (eta >= 60) s("$minutes min", "$minutes मिनट", "$minutes min") else s("$eta sec", "$eta सेकंड", "$eta sec"), fontSize = 54.sp, lineHeight = 56.sp, fontWeight = FontWeight.Black,
                         style = Tight)
-                    ui.distanceM?.let { Text(s("%.1f km away", "%.1f किमी दूर", "%.1f km door").format(it / 1000.0), fontSize = 19.sp,
-                        lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, style = Tight) }
+                    ui.distanceM?.let { Text(s("%.1f km away", "%.1f किमी दूर", "%.1f km door").format(it / 1000.0),
+                        style = MaterialTheme.typography.bodySmall.merge(Tight), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 val start = ui.startDistanceM
                 val done = if (start != null && start > 0) (1f - (ui.distanceM ?: start) / start.toFloat()).coerceIn(0.02f, 1f) else 0.02f
@@ -274,7 +278,7 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
                 LinearProgressIndicator(progress = { shown }, modifier = Modifier.fillMaxWidth().height(6.dp), color = Danger,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant, strokeCap = StrokeCap.Round, gapSize = 0.dp, drawStopIndicator = {})
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                 Fact("🚑", when (ui.vehicleType) {
                     "ALS" -> s("ALS · Advanced Life Support", "ALS · एडवांस्ड लाइफ़ सपोर्ट", "ALS · Advanced Life Support")
                     "BLS" -> s("BLS · Basic Life Support", "BLS · बेसिक लाइफ़ सपोर्ट", "BLS · Basic Life Support")
@@ -282,25 +286,25 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
                 }, ui.vehicle, Modifier.weight(1f))
                 Fact("👤", s("Driver", "ड्राइवर", "Driver"), ui.driver, Modifier.weight(1f))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
                 Fact("💉", s("Paramedic nurse", "पैरामेडिक नर्स", "Paramedic nurse"), ui.paramedic, Modifier.weight(1f))
                 Fact("₹", s("Estimated fare", "अनुमानित किराया", "Estimated fare"),
                     ui.startDistanceM?.let { "₹${fare(it)} · " + s("pay later", "बाद में दें", "baad mein dein") }, Modifier.weight(1f))
             }
             Column(
-                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp)).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium).padding(Space.lg),
+                verticalArrangement = Arrangement.spacedBy(Space.sm),
             ) {
                 Text("🛡  " + s("Shared with the driver and nurse", "ड्राइवर और नर्स को बताया गया", "Driver aur nurse ko bataya gaya"),
-                    fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                 Text(ui.brief.ifBlank { s("No symptoms described. The crew will check on arrival.",
                     "कोई तकलीफ़ नहीं बताई गई। टीम पहुँचकर जाँच करेगी।", "Koi takleef nahi batayi gayi. Team pahunch kar check karegi.") },
-                    fontSize = 16.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                ui.area?.let { Text("📍  $it", fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold) }
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ui.area?.let { Text("📍  $it", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold) }
             }
             if (ui.cancelFailed) {
                 Text(s("Could not cancel. The ambulance may still come.", "रद्द नहीं हो पाया। एम्बुलेंस अब भी आ सकती है।",
-                    "Cancel nahi ho paya. Ambulance ab bhi aa sakti hai."), color = Danger, fontSize = 19.sp, lineHeight = 24.sp,
+                    "Cancel nahi ho paya. Ambulance ab bhi aa sakti hai."), color = Danger, style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
             }
             // Once an ambulance is assigned a 108 call would only send a second one, unless cancelling it just failed.
@@ -308,16 +312,16 @@ private fun Tracking(ui: EmergencyUi, s: Tr, c: AppContainer, onBack: () -> Unit
                 BigButton(s("Call 108", "108 पर फ़ोन करें", "108 par call karein"), { c.emergency.call108(context) }, color = Danger)
             }
             if (ui.cancelling) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.md, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 3.dp, color = Danger)
-                    Text(s("Cancelling the ambulance…", "एम्बुलेंस रद्द कर रहे हैं…", "Ambulance cancel kar rahe hain…"), fontSize = 18.sp)
+                    Text(s("Cancelling the ambulance…", "एम्बुलेंस रद्द कर रहे हैं…", "Ambulance cancel kar rahe hain…"), style = MaterialTheme.typography.bodySmall)
                 }
             } else if (ui.phase == EmergencyPhase.TRACKING || ui.status == "ARRIVED_AT_SCENE") { // no cancelling once on board
                 TextButton(onClick = { c.emergency.imOk() }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (ui.cancelFailed) s("Try cancelling again", "फिर से रद्द करें", "Phir se cancel karein")
                         else s("I'm OK, cancel the ambulance", "मैं ठीक हूँ, एम्बुलेंस रद्द करें", "Main theek hoon, ambulance cancel karein"),
-                        color = Danger, fontSize = 18.sp, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline)
+                        color = Danger, style = MaterialTheme.typography.titleSmall, textDecoration = TextDecoration.Underline)
                 }
             }
             if (ui.status == "ARRIVED_AT_HOSPITAL" || ui.status == "COMPLETED") {
@@ -334,14 +338,14 @@ private fun fare(startDistanceM: Int): Int = ((800 + 60 * startDistanceM / 1000.
 
 @Composable
 private fun Fact(icon: String, label: String, value: String?, modifier: Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        Box(Modifier.size(44.dp).background(Danger.copy(alpha = .10f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(Space.md), verticalAlignment = Alignment.Top) {
+        Box(Modifier.size(44.dp).background(Danger.copy(alpha = .10f), MaterialTheme.shapes.medium), contentAlignment = Alignment.Center) {
             Text(icon, fontSize = 20.sp, color = Danger, fontWeight = FontWeight.Bold)
         }
         // Tight line heights: the app font (Mukta) has tall default lines that made these boxes sprawl.
         Column {
-            Text(label, fontSize = 14.sp, lineHeight = 17.sp, maxLines = 2, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value ?: "…", fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold, maxLines = 2,
+            Text(label, style = MaterialTheme.typography.labelSmall, lineHeight = 17.sp, maxLines = 2, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value ?: "…", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
         }
     }

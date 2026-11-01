@@ -66,7 +66,7 @@ class RealCallClient(private val settings: () -> Settings) {
                 SaathiJson.decodeFromString(RealCallState.serializer(), text)
             }
         } catch (e: IOException) {
-            throw RealCallUnavailable("Can't reach the Saathi server.")
+            throw RealCallUnavailable("Can't reach the Vaani server.")
         }
     }
 

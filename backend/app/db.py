@@ -15,7 +15,7 @@ from typing import Any
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
     device_id TEXT PRIMARY KEY,
-    user_name TEXT NOT NULL DEFAULT 'Saathi user',
+    user_name TEXT NOT NULL DEFAULT 'Vaani user',
     contacts_json TEXT NOT NULL DEFAULT '[]',
     check_time TEXT,
     last_heartbeat_ms INTEGER,

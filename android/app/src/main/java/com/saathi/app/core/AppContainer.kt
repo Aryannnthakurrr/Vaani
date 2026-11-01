@@ -27,7 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 class AppContainer(val context: Context) {
     /** A failure in one background job is logged, never allowed to crash the whole app. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
-        Log.e("Saathi", "background job failed", e)
+        Log.e("Vaani", "background job failed", e)
     })
     val settings = SettingsStore(context, scope)
     val db: SaathiDb by lazy { SaathiDb.create(context) }
@@ -37,7 +37,8 @@ class AppContainer(val context: Context) {
 
     init {
         com.saathi.app.core.net.DeviceAuth.key = { settings.current.deviceKey }
-        com.saathi.app.core.net.DeviceAuth.profile = { settings.current.profileId.ifEmpty { null } }
+        // The demo user's datapack, also when only the name matches one (see ProfileManager.memoryId).
+        com.saathi.app.core.net.DeviceAuth.profile = { profiles.memoryId() }
     }
 
     private val realBackend = BackendClient({ settings.current.backendUrl }, { settings.current.deviceId })

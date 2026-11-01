@@ -135,13 +135,13 @@ class OverlayController(private val ctx: Context, private val container: AppCont
     }
 
     private fun bubbleLabel(st: VoiceStatus) = when (st) {
-        VoiceStatus.IDLE -> s("Saathi is not listening. Tap to talk. Long press to open Saathi.",
-            "साथी अभी नहीं सुन रही। बात करने के लिए दबाइए। साथी खोलने के लिए दबाए रखिए।",
-            "Saathi abhi nahi sun rahi. Baat karne ke liye dabaiye. Saathi kholne ke liye dabaye rakhiye.")
+        VoiceStatus.IDLE -> s("Vaani is not listening. Tap to talk. Long press to open Vaani.",
+            "वाणी अभी नहीं सुन रही। बात करने के लिए दबाइए। वाणी खोलने के लिए दबाए रखिए।",
+            "Vaani abhi nahi sun rahi. Baat karne ke liye dabaiye. Vaani kholne ke liye dabaye rakhiye.")
         VoiceStatus.CONNECTING -> s("Connecting. Tap to end.", "जुड़ रही हूँ। बंद करने के लिए दबाइए।", "Connect ho rahi hoon. Band karne ke liye dabaiye.")
-        VoiceStatus.LISTENING -> s("Saathi is listening. Tap to end.", "साथी सुन रही है। बंद करने के लिए दबाइए।", "Saathi sun rahi hai. Band karne ke liye dabaiye.")
-        VoiceStatus.SPEAKING -> s("Saathi is speaking. Tap to end.", "साथी बोल रही है। बंद करने के लिए दबाइए।", "Saathi bol rahi hai. Band karne ke liye dabaiye.")
-        VoiceStatus.WORKING -> s("Saathi is working. Tap to stop.", "साथी काम कर रही है। रोकने के लिए दबाइए।", "Saathi kaam kar rahi hai. Rokne ke liye dabaiye.")
+        VoiceStatus.LISTENING -> s("Vaani is listening. Tap to end.", "वाणी सुन रही है। बंद करने के लिए दबाइए।", "Vaani sun rahi hai. Band karne ke liye dabaiye.")
+        VoiceStatus.SPEAKING -> s("Vaani is speaking. Tap to end.", "वाणी बोल रही है। बंद करने के लिए दबाइए।", "Vaani bol rahi hai. Band karne ke liye dabaiye.")
+        VoiceStatus.WORKING -> s("Vaani is working. Tap to stop.", "वाणी काम कर रही है। रोकने के लिए दबाइए।", "Vaani kaam kar rahi hai. Rokne ke liye dabaiye.")
     }
 
     /** Returns true when the ring layer was just added, so the caption and Stop chip must be put back on top of it. */

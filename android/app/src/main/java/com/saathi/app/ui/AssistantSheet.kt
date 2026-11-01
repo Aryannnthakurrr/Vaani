@@ -1,5 +1,7 @@
 package com.saathi.app.ui
 
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.Border
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -87,12 +89,12 @@ fun BoxScope.AssistantSheet(c: AppContainer) {
         Surface(
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             color = MaterialTheme.colorScheme.background,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            border = BorderStroke(Border.hairline, MaterialTheme.colorScheme.outline),
             shadowElevation = 16.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 20.dp, vertical = 22.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = Space.xl, vertical = Space.xxl),
+                verticalArrangement = Arrangement.spacedBy(Space.lg)) {
                 when (val card = last.value) {
                     is Prompt.Ask -> AskCard(card, c, ::s)
                     is Prompt.Confirm -> ConfirmCard(card, c, ::s)
@@ -114,10 +116,10 @@ private fun AskCard(p: Prompt.Ask, c: AppContainer, s: (String, String, String) 
     VoiceWave({ c.assistant.voiceLevel() }, s("Speak, or type below", "बोलिए, या नीचे लिखिए", "Boliye, ya neeche likhiye"),
         MaterialTheme.colorScheme.primary)
     OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodyLarge,
-        shape = RoundedCornerShape(18.dp), singleLine = true,
+        shape = MaterialTheme.shapes.medium, singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { send() }),
         placeholder = { Text(s("Your answer", "आपका जवाब", "Aapka jawab")) })
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
         BigButton(s("OK", "ठीक है", "Theek hai"), { send() }, Modifier.weight(1f), enabled = text.isNotBlank())
         SecondaryButton(s("Cancel", "रद्द करें", "Cancel"), { p.answer.complete(null) }, Modifier.weight(1f))
     }
@@ -142,7 +144,7 @@ private fun DoneCard(card: AssistantScreen.Caption) {
 
 @Composable
 private fun ResultCard(r: AssistantScreen.Result) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.lg),
         modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }) {
         Box(Modifier.size(64.dp).background(if (r.ok) Leaf50 else Amber50, CircleShape), contentAlignment = Alignment.Center) {
             Text(if (r.ok) "✓" else "!", fontSize = 32.sp, color = if (r.ok) Leaf else Amber, textAlign = TextAlign.Center)

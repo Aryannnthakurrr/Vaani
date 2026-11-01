@@ -45,8 +45,8 @@ def start_reply(
     """`pages` are (user name, dashboard URL) for every device that already lists this chat as family."""
     who = f" {first_name}" if first_name else ""
     text = (
-        f"Namaste{who}! Your Saathi chat ID is {chat_id}.\n"
-        "Open Saathi → Settings → Family contacts, and enter this number to receive welfare and scam alerts."
+        f"Namaste{who}! Your Vaani chat ID is {chat_id}.\n"
+        "Open Vaani → Settings → Family contacts, and enter this number to receive welfare and scam alerts."
     )
     for name, url in pages or []:
         text += f"\nFamily page for {name}: {url}"

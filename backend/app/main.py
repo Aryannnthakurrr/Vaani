@@ -1,4 +1,4 @@
-"""Saathi backend entry point: `uvicorn app.main:app --port 8000`."""
+"""Vaani backend entry point: `uvicorn app.main:app --port 8000`."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             poller.cancel()
 
 
-app = FastAPI(title="Saathi backend", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Vaani backend", version="0.1.0", lifespan=lifespan)
 
 
 @app.middleware("http")

@@ -19,8 +19,8 @@ class GuideMode(private val c: AppContainer, private val runner: TaskRunner) {
         val scenario = if (c.settings.current.replayMode) replayScenario(goal) else null
         val (screen, performer) = runner.io(scenario) ?: run {
             val style = c.settings.current.replyStyle
-            val msg = tr(style, "Please turn on Saathi in Accessibility settings first.", "पहले एक्सेसिबिलिटी सेटिंग में साथी चालू कीजिए।",
-                "Pehle Accessibility settings mein Saathi on kijiye.")
+            val msg = tr(style, "Please turn on Vaani in Accessibility settings first.", "पहले एक्सेसिबिलिटी सेटिंग में वाणी चालू कीजिए।",
+                "Pehle Accessibility settings mein Vaani on kijiye.")
             ui.say(msg)
             return AgentOutcome.Failed(msg)
         }

@@ -1,6 +1,6 @@
 """Simulated clinic call (SPEC §7.7 stretch): Saathi phones the clinic on the patient's behalf.
 
-Without telephony, a teammate types the clinic's side; each turn the backend returns Saathi's next line.
+Without telephony, a teammate types the clinic's side; each turn the backend returns Vaani's next line.
 This module holds the schemas and the deterministic mock conversation, which is also the fallback when
 Gemini fails.
 """
@@ -220,11 +220,11 @@ def _booking_turn(req: ClinicCallRequest) -> ClinicCallTurn:
         why = f" {name} needs {req.reason}." if req.reason else ""
         ask = f" Do you have {needs}?" if needs else " Can you help with that?"
         return ClinicCallTurn(say={
-            "en": f"Namaste. I am Saathi, an AI assistant calling on behalf of {name}.{why}{ask}",
-            "hi": f"नमस्ते। मैं साथी हूँ, {name} की ओर से फ़ोन कर रही AI सहायक।"
+            "en": f"Namaste. I am Vaani, an AI assistant calling on behalf of {name}.{why}{ask}",
+            "hi": f"नमस्ते। मैं वाणी हूँ, {name} की ओर से फ़ोन कर रही AI सहायक।"
                   + (f" उन्हें {req.reason} के लिए आना है।" if req.reason else "")
                   + (f" क्या आपके यहाँ {needs} है?" if needs else " क्या आप मदद कर सकते हैं?"),
-            "hinglish": f"Namaste. Main Saathi hoon, {name} ki taraf se call kar rahi AI assistant."
+            "hinglish": f"Namaste. Main Vaani hoon, {name} ki taraf se call kar rahi AI assistant."
                         + (f" Unhe {req.reason} ke liye aana hai." if req.reason else "")
                         + (f" Kya aapke yahan {needs} hai?" if needs else " Kya aap help kar sakte hain?"),
         }[style])  # fmt: skip
@@ -260,7 +260,7 @@ def mock_turn(req: ClinicCallRequest) -> ClinicCallTurn:
     if agent_turns == 0:
         return ClinicCallTurn(
             say=(
-                f"Namaste. I am Saathi, an AI assistant calling on behalf of {req.patient_name}. "
+                f"Namaste. I am Vaani, an AI assistant calling on behalf of {req.patient_name}. "
                 f"I would like to confirm the appointment with {doctor} on {when(req.appointment)}. Is that confirmed?"
             )
         )

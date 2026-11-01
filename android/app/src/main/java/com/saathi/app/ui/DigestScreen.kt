@@ -1,5 +1,6 @@
 package com.saathi.app.ui
 
+import com.saathi.app.ui.theme.Space
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -70,7 +71,7 @@ fun DigestScreen(container: AppContainer, onBack: () -> Unit, onCallClinic: () -
         if (items.isNotEmpty()) {
             val scams = items.count { it.category == "scam_suspected" }
             val bills = items.count { it.category == "bill_due" || it.category == "subscription_renewal" }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.sm), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
                 if (bills > 0) Pill("🧾 " + tr(style, "$bills to pay", "$bills भुगतान", "$bills payments"), MaterialTheme.colorScheme.primary)
                 if (scams > 0) Pill("⚠️ " + tr(style, "$scams warnings", "$scams चेतावनी", "$scams warnings"), Danger)
                 Pill("✉️ " + tr(style, "${items.size} in total", "कुल ${items.size}", "Total ${items.size}"), Leaf)

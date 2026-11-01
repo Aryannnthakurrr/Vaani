@@ -19,7 +19,7 @@ class CalendarWriter(private val context: Context) {
         title = appt.doctor?.let { "Appointment: $it" } ?: "Doctor appointment",
         location = listOfNotNull(appt.clinic, appt.address).joinToString(", "),
         description = listOfNotNull(
-            appt.phone?.let { "Clinic phone: $it" }, appt.fee?.let { "Fee: $it" }, "Booked with Saathi",
+            appt.phone?.let { "Clinic phone: $it" }, appt.fee?.let { "Fee: $it" }, "Booked with Vaani",
         ).joinToString("\n"),
         startIso = appt.startIso,
         endIso = null,

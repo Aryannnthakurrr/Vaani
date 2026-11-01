@@ -47,7 +47,7 @@ object LocalClinicCall {
         val lastClinic = clinicLines.lastOrNull().orEmpty()
         val doctor = req.appointment.doctor ?: "the doctor"
         if (agentTurns == 0) {
-            return ClinicCallTurn("Namaste. I am Saathi, an AI assistant calling on behalf of ${req.patientName}. " +
+            return ClinicCallTurn("Namaste. I am Vaani, an AI assistant calling on behalf of ${req.patientName}. " +
                 "I would like to confirm the appointment with $doctor on ${whenText(req.appointment)}. Is that confirmed?")
         }
         // The first clear yes or no decides; later lines answer the waiting-time question ("no, 20 minutes").

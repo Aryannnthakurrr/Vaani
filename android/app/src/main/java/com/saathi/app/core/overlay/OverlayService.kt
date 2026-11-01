@@ -79,8 +79,8 @@ class OverlayService : Service() {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(com.saathi.app.core.voice.tr(SaathiApp.container.settings.current.replyStyle,
-                "Saathi is here. Tap the green mic button to talk.", "साथी यहाँ है। बात करने के लिए हरा माइक बटन दबाइए।",
-                "Saathi yahan hai. Baat karne ke liye green mic button dabaiye."))
+                "Vaani is here. Tap the green mic button to talk.", "वाणी यहाँ है। बात करने के लिए हरा माइक बटन दबाइए।",
+                "Vaani yahan hai. Baat karne ke liye green mic button dabaiye."))
             .setOngoing(true)
             .setContentIntent(SaathiApp.container.notifier.openAppIntent())
             .build()

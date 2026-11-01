@@ -72,7 +72,7 @@ class WelfareManager(private val container: AppContainer) {
      */
     suspend fun pushConfig(): Boolean = runCatching {
         val s = container.settings.fresh()
-        container.backend.welfareConfig(WelfareConfig(s.deviceId, s.userName.ifBlank { "Saathi user" }, s.contacts, s.welfareCheckTime))
+        container.backend.welfareConfig(WelfareConfig(s.deviceId, s.userName.ifBlank { "Vaani user" }, s.contacts, s.welfareCheckTime))
     }.isSuccess
 
     /** Triggers the backend alert path now; returns a sentence for the Settings screen. */
@@ -91,9 +91,9 @@ class WelfareManager(private val container: AppContainer) {
                     (r.text?.let { "\n$it" } ?: "")
             }
         }.getOrElse {
-            tr(style, "Could not reach the Saathi server. Check the backend address in Settings.",
-                "साथी सर्वर से जुड़ नहीं पाए। सेटिंग्स में बैकएंड पता देखिए।",
-                "Saathi server se connect nahi ho paya. Settings mein backend address dekhiye.")
+            tr(style, "Could not reach the Vaani server. Check the backend address in Settings.",
+                "वाणी सर्वर से जुड़ नहीं पाए। सेटिंग्स में बैकएंड पता देखिए।",
+                "Vaani server se connect nahi ho paya. Settings mein backend address dekhiye.")
         }
     }
 }

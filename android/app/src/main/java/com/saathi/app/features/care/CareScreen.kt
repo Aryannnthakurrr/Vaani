@@ -1,5 +1,9 @@
 package com.saathi.app.features.care
 
+import com.saathi.app.ui.theme.Space
+import com.saathi.app.ui.theme.Border
+import com.saathi.app.ui.theme.OnFill
+import com.saathi.app.ui.theme.Paper
 import android.app.Activity
 import android.content.ContextWrapper
 import com.saathi.app.ui.SecureWindow
@@ -101,7 +105,7 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
             return@SaathiScaffold
         }
         Text(s("I am an AI assistant, not a doctor. In an emergency, call 108.", "मैं AI सहायक हूँ, डॉक्टर नहीं। इमरजेंसी में 108 पर फ़ोन करें।",
-            "Main AI assistant hoon, doctor nahi. Emergency mein 108 par call karein."), fontSize = 16.sp, lineHeight = 22.sp,
+            "Main AI assistant hoon, doctor nahi. Emergency mein 108 par call karein."), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         // Keyed by position in the whole conversation, so only a new message animates in, not the ones already shown.
@@ -176,11 +180,11 @@ private fun Bubble(line: ChatLine) {
         Surface(
             shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp,
                 bottomStart = if (line.fromUser) 22.dp else 6.dp, bottomEnd = if (line.fromUser) 6.dp else 22.dp),
-            color = if (line.fromUser) Accent50 else Color.White,
-            border = if (line.fromUser) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            color = if (line.fromUser) Accent50 else OnFill,
+            border = if (line.fromUser) null else BorderStroke(Border.hairline, MaterialTheme.colorScheme.outline),
             modifier = Modifier.widthIn(max = 320.dp).semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            Text(line.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
+            Text(line.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = Space.lg, vertical = Space.md))
         }
     }
 }
@@ -188,14 +192,14 @@ private fun Bubble(line: ChatLine) {
 @Composable
 private fun Answering(asking: CareFlow.Asking, c: AppContainer, s: (String, String, String) -> String) {
     when (asking) {
-        CareFlow.Asking.YES_NO -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        CareFlow.Asking.YES_NO -> Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
             BigButton(s("Yes", "हाँ", "Haan"), { c.care.tap(true) }, Modifier.weight(1f), color = Leaf)
             SecondaryButton(s("No", "नहीं", "Nahi"), { c.care.tap(false) }, Modifier.weight(1f))
         }
         CareFlow.Asking.TEXT -> {
             var text by remember { mutableStateOf("") }
             OutlinedTextField(text, { text = it }, Modifier.fillMaxWidth(), textStyle = MaterialTheme.typography.bodyLarge,
-                shape = RoundedCornerShape(18.dp),
+                shape = MaterialTheme.shapes.medium,
                 // The wave above already says "speak"; the box only offers typing.
                 placeholder = { Text(s("Or type here", "या यहाँ लिखिए", "Ya yahan likhiye")) })
             if (text.isNotBlank()) BigButton(s("Send", "भेजें", "Bhejein"), { c.care.offerText(text); text = "" })
@@ -208,14 +212,14 @@ private fun Answering(asking: CareFlow.Asking, c: AppContainer, s: (String, Stri
 private fun NoteCard(note: IntakeNote, s: (String, String, String) -> String) {
     var open by remember { mutableStateOf(false) }
     val urgent = note.emergency.answer != "NO"
-    Surface(shape = RoundedCornerShape(20.dp), color = if (urgent) Danger50 else Accent50, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Surface(shape = MaterialTheme.shapes.medium, color = if (urgent) Danger50 else Accent50, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(Space.lg), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             Text(if (urgent) s("Could be an emergency", "इमरजेंसी हो सकती है", "Emergency ho sakti hai")
                 else s("See a ${note.specialty} doctor", "${note.specialty} डॉक्टर को दिखाएँ", "${note.specialty} doctor ko dikhayein"),
                 style = MaterialTheme.typography.titleLarge)
-            Text(s("AI-generated. Not a diagnosis.", "AI द्वारा। यह निदान नहीं है।", "AI se. Diagnosis nahi."), fontSize = 15.sp, color = Muted)
+            Text(s("AI-generated. Not a diagnosis.", "AI द्वारा। यह निदान नहीं है।", "AI se. Diagnosis nahi."), style = MaterialTheme.typography.bodySmall, color = Muted)
             TextButton({ open = !open }) { Text(if (open) s("Hide note", "नोट छिपाएँ", "Note chhupayein") else s("Show note", "नोट देखें", "Note dekhein")) }
-            if (open) Text(note.noteText, fontSize = 14.sp)
+            if (open) Text(note.noteText, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -232,15 +236,15 @@ private fun HospitalCard(row: HospitalRow, style: ReplyStyle, s: (String, String
     }
     val details = listOfNotNull(row.hospital.etaMinutes?.let { minutes(it, s) }, r?.feeInr?.let { "₹$it" },
         r?.slots?.firstOrNull()?.let { CareText.time(it.start, style) }).joinToString(" · ")
-    Surface(shape = RoundedCornerShape(20.dp), color = Color.White, border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
+    Surface(shape = MaterialTheme.shapes.medium, color = Paper, border = BorderStroke(Border.control, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Accent50), contentAlignment = Alignment.Center) {
+        Row(Modifier.padding(Space.lg), horizontalArrangement = Arrangement.spacedBy(Space.lg), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(52.dp).clip(MaterialTheme.shapes.medium).background(Accent50), contentAlignment = Alignment.Center) {
                 Icon(Icons.Outlined.LocalHospital, null, tint = MaterialTheme.colorScheme.primary)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
                 Text(row.hospital.name, style = MaterialTheme.typography.titleMedium)
-                if (details.isNotBlank()) Text(details, fontSize = 17.sp, color = Muted)
+                if (details.isNotBlank()) Text(details, style = MaterialTheme.typography.bodySmall, color = Muted)
                 Pill(status, color)
             }
             if (r == null) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp, color = Amber)
@@ -255,16 +259,16 @@ private fun RecommendationCard(rec: Recommendation, ui: CareUi, running: Boolean
     // Book and No thanks only while the flow can still take them: never buttons that do nothing.
     val answering = running && !ui.declined
     val p = rec.primary
-    Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
+    Surface(shape = MaterialTheme.shapes.medium, color = Paper, border = BorderStroke(Border.control, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
             Pill(s("Best option", "सबसे अच्छा", "Best option"), Leaf)
             Text(p.hospitalName, style = MaterialTheme.typography.headlineMedium)
             p.doctorName?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
             Text(CareText.time(rec.slot.start, style), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             val facts = listOfNotNull((p.etaMinutes ?: ui.hospitals.firstOrNull { it.hospital.id == p.hospitalId }?.hospital?.etaMinutes)
                 ?.let { minutes(it, s) }, p.feeInr?.let { "₹$it" }).joinToString(" · ")
-            if (facts.isNotBlank()) Text(facts, fontSize = 18.sp, color = Muted)
+            if (facts.isNotBlank()) Text(facts, style = MaterialTheme.typography.bodySmall, color = Muted)
         }
     }
     if (answering) {
@@ -300,7 +304,7 @@ private tailrec fun android.content.Context.activity(): Activity? = when (this) 
 
 @Composable
 private fun Working(text: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
+    Row(Modifier.fillMaxWidth().padding(vertical = Space.sm), horizontalArrangement = Arrangement.spacedBy(Space.lg),
         verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
         Text(text, style = MaterialTheme.typography.titleMedium)

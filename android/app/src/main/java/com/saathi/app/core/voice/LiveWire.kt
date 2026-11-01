@@ -32,9 +32,13 @@ object LiveWire {
     private val b64d = Base64.getDecoder()
 
     /** [context]: short facts from other workflows (the next appointment), never numbers or messages. */
-    fun config(replyStyle: String, context: String? = null): String =
-        if (context == null) obj("config", "reply_style" to JsonPrimitive(replyStyle))
-        else obj("config", "reply_style" to JsonPrimitive(replyStyle), "context" to JsonPrimitive(context))
+    /** [locked]: the user chose this language in Settings (not "Auto"), so Saathi keeps to it whatever they speak. */
+    fun config(replyStyle: String, context: String? = null, locked: Boolean = false): String =
+        obj("config", *listOfNotNull(
+            "reply_style" to JsonPrimitive(replyStyle),
+            context?.let { "context" to JsonPrimitive(it) },
+            ("language_locked" to JsonPrimitive(true)).takeIf { locked },
+        ).toTypedArray())
 
     fun audio(pcm: ByteArray, length: Int = pcm.size): String =
         obj("audio", "pcm_b64" to JsonPrimitive(b64.encodeToString(if (length == pcm.size) pcm else pcm.copyOf(length))))
@@ -88,7 +92,7 @@ class TranscriptLog(private val max: Int = 20) {
         if (open != null) {
             lines[lines.lastIndex] = open.copy(text = join(open.text, t.text), final = t.final)
         } else if (t.text.isNotBlank()) {
-            // Keep a trailing space: the next piece ("Saathi") must not stick to this one ("I am ").
+            // Keep a trailing space: the next piece ("Vaani") must not stick to this one ("I am ").
             lines += TranscriptLine(t.role, t.text.trimStart(), t.final)
         }
         while (lines.size > max) lines.removeAt(0)

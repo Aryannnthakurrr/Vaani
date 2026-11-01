@@ -180,7 +180,7 @@ class CodeSkills:
             self.store.set(skill.id, status="active")
             self.store.retire_older(KIND, NAME, skill.version)
             self.store.event(skill.id, "activated", shadow_matches=matches)
-            await self._tell(f"Saathi now understands common requests on its own (v{skill.version}), "
+            await self._tell(f"Vaani now understands common requests on its own (v{skill.version}), "
                              "so replies are faster and cheaper.")  # fmt: skip
 
     def _spawn(self, coro: Awaitable[Any]) -> None:
@@ -259,7 +259,7 @@ class CodeSkills:
         self.store.event(sid, "compiled", version=version, precision=held_score.precision,
                          coverage=held_score.coverage, tokens=tokens)  # fmt: skip
         if status == "tested":
-            await self._tell(f"Saathi wrote code to understand common requests by itself (v{version}): right on "
+            await self._tell(f"Vaani wrote code to understand common requests by itself (v{version}): right on "
                              f"{held_score.precision:.0%} of the test requests it answered, and it answered "
                              f"{held_score.coverage:.0%} of them. Approve it on the family page.")  # fmt: skip
         return sid

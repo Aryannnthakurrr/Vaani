@@ -14,8 +14,9 @@ import java.time.temporal.ChronoUnit
  */
 object AppointmentState {
     private val REFERS_TO_APPOINTMENT = Regex(
-        "(?i)\\b(my |the )?(doctor'?s?|doctor ke|doctor wal[ae]|clinic|appointment|apointment|checkup|check-up)\\b" +
-            "|डॉक्टर|अपॉइंटमेंट|क्लिनिक",
+        // Speech-to-text spells these many ways, in both scripts ("appoinment", डाक्टर, अपॉइन्टमेंट, अप्वाइंटमेंट).
+        "(?i)\\b(my |the )?(doctor'?s?|docter|doctor ke|doctor wal[ae]|clinic|app?oi?n?t?ment|checkup|check-up)\\b" +
+            "|ड[ॉाो]?क्टर|प(ॉ|ो|्वा)इ(ं|न्)टमें?ट|क्लि?ी?निक",
     )
 
     /** Start time; a time without an offset ("2026-11-01T11:00:00") is read in the phone's time zone. */

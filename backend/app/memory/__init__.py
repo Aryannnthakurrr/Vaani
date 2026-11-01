@@ -36,7 +36,7 @@ AUDIENCES: dict[str, frozenset[str]] = {
 
 
 # The parts of Saathi that learn things, each its own Meko agent, so every fact says who learnt it. With
-# `learned_from` (where: "booking call to Fortis Memorial", "told Saathi by voice") in each fact's metadata.
+# `learned_from` (where: "booking call to Fortis Memorial", "told Vaani by voice") in each fact's metadata.
 AGENTS: dict[str, str] = {
     "saathi-voice": "the voice assistant, from what the user said",
     "saathi-care": "the doctor feature, from hospital calls and bookings",
@@ -170,7 +170,7 @@ PLACEHOLDER_NAMES = {"", "the patient", "saathi user"}
 
 
 async def name_for(device: str, given: str | None = None) -> str | None:
-    """How to address the elder: what the app sent, else what they told Saathi, else the family's setup name."""
+    """How to address the elder: what the app sent, else what they told Vaani, else the family's setup name."""
     if given and given.strip().lower() not in PLACEHOLDER_NAMES:
         return given.strip()
     named = await get_memory().facts(device, ["name"])
@@ -185,7 +185,7 @@ async def name_for(device: str, given: str | None = None) -> str | None:
 
 
 def format_memories(items: list[tuple[str, str]]) -> str:
-    """Prompt block for what Saathi knows about the user, grouped by topic (empty string when nothing)."""
+    """Prompt block for what Vaani knows about the user, grouped by topic (empty string when nothing)."""
     if not items:
         return ""
     by_topic: dict[str, list[str]] = {}

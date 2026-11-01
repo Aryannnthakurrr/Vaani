@@ -131,7 +131,7 @@ object SafetyPolicy {
                 when {
                     uri.startsWith("tel:", true) || uri.startsWith("sms:", true) -> Verdict.Block("never dials or texts")
                     uri in trustedDeeplinks -> Verdict.Allow
-                    else -> Verdict.Block("deep link not built by Saathi")
+                    else -> Verdict.Block("deep link not built by Vaani")
                 }
             }
             AgentAction.CONFIRM -> {

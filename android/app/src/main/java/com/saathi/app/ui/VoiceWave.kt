@@ -49,7 +49,7 @@ fun VoiceWave(level: () -> Float, hint: String, color: Color, modifier: Modifier
                 drawLine(color, Offset(x, mid - half), Offset(x, mid + half), strokeWidth = gap * 0.55f, cap = StrokeCap.Round)
             }
         }
-        Text(hint, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

@@ -74,6 +74,6 @@ async def notify_family(
     device = db.get_device(req.device_id)
     if device is None:
         raise HTTPException(status_code=404, detail="device not configured; POST /welfare/config first")
-    text = f"Saathi Scam Shield: {device.user_name} ji may be talking to a scammer. {family_safe(req.summary)} Please call them."
+    text = f"Vaani Scam Shield: {device.user_name} ji may be talking to a scammer. {family_safe(req.summary)} Please call them."
     sent = await send_to_family(settings, db, device, "scam", text)
     return SendResult(text=text, sent=sent, logged=True)

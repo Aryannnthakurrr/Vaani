@@ -200,7 +200,7 @@ async def stored_appointment(
 async def learned(
     device: str = Depends(require_device), x_saathi_profile: str | None = Header(default=None)
 ) -> dict[str, Any]:
-    """Everything Saathi remembers about this user, each with the agent that learnt it and where."""
+    """Everything Vaani remembers about this user, each with the agent that learnt it and where."""
     memory = get_memory()
     entries = await memory.entries(_owner(device, x_saathi_profile)) if hasattr(memory, "entries") else []
     return {
