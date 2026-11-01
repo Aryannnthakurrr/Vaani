@@ -42,7 +42,7 @@ enum class AssistantState { IDLE, LISTENING, THINKING, RUNNING }
  */
 class Assistant(private val c: AppContainer) {
     val speech = SpeechInput(c.context, { c.backend }, ::keyterms, { c.settings.current.replyStyle }, ::nameHints, ::localNames,
-        focus = c.speaker.focus)
+        focus = com.saathi.app.core.voice.AudioFocus(c.context, exclusive = true))
     private val runner = TaskRunner(c)
     private val guide = GuideMode(c, runner)
 
