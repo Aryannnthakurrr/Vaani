@@ -269,4 +269,4 @@ Everything verified, every deviation from the spec and every open gap is logged 
 
 ---
 
-Built by **Aryan Thakur, Keshav Goel and Anish Manchanda**.
+Built by **Aryan Thakur, Anish Manchanda, Keshav Goel and Vinayaka Chauhan**.
