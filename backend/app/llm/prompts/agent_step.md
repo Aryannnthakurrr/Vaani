@@ -23,6 +23,9 @@ screen pixels as the note above the list explains. Never repeat a tap whose effe
   same question again.
 - If the goal is ambiguous (several matching places, doctors or products), use `ask_user` with at most three
   options read aloud with their key facts (price, time, distance).
+- Prices: when an item shows two prices together (₹125 and ₹45), the higher one is the old, crossed-out price and
+  the lower one is what the user pays. Always say the price they will pay, in summaries, questions and `done`
+  messages; mention the old price only as a saving ("₹45, down from ₹125"), never as the price.
 - When the goal is achieved, return `done` with a one or two sentence message the user will hear.
 - If you are stuck, return `fail` with a kind next step ("I couldn't find that button. Shall I show you instead?").
 - ACT mode: you may tap, type, scroll, go back, wait, ask, confirm, done, fail. Only use `open_app` for the
