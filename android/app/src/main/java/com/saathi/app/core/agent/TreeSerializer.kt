@@ -51,7 +51,11 @@ object TreeSerializer {
 
     /** Package + hash of node texts: used to detect "no progress" loops. */
     fun fingerprint(s: ScreenSnapshot): String =
-        s.pkg + ":" + s.nodes.joinToString("|") { it.label + if (it.checked) "*" else "" }.hashCode()
+        s.pkg + ":" + s.nodes.filterNot { CLOCK.matches(it.label.trim()) }
+            .joinToString("|") { it.label + if (it.checked) "*" else "" }.hashCode()
+
+    /** A clock, timer or video position ("08:24", "01:56", "1:02:33"): it ticks by itself, so it says nothing. */
+    private val CLOCK = Regex("""\d{1,2}:\d{2}(:\d{2})?(\s*/\s*\d{1,2}:\d{2}(:\d{2})?)?(\s*[AaPp][Mm])?""")
 
     private fun quote(t: String): String {
         val clean = t.replace('\n', ' ').replace("\"", "'").trim()

@@ -57,12 +57,18 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
 
     private var lastFingerprint: String? = null
 
+    /**
+     * What guide mode compares to tell that the user moved on. Only the app's own windows count (its pop-up sheets
+     * too): other windows on top change by themselves, like the screen recorder's running timer, which made guide
+     * mode think the step was done every two seconds, cut the instruction short and say it again. A window of
+     * another app (the share sheet, WhatsApp) still changes the package, so a real move is still seen.
+     */
     override suspend fun fingerprint(): String? {
         val svc = service() ?: return null
         val (_, roots) = roots(svc)
         val pkg = roots.firstOrNull()?.packageName?.toString() ?: AgentService.foreground.value
         val collected = ArrayList<NodeRef>()
-        roots.forEach { walk(it, 0, collected) }
+        roots.filter { it.packageName?.toString() == pkg }.forEach { walk(it, 0, collected) }
         return TreeSerializer.fingerprint(ScreenSnapshot(pkg, null, false, collected.map { it.info }))
     }
 
