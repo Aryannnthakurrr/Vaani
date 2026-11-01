@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import com.saathi.app.core.net.AgentAction
+import com.saathi.app.core.overlay.OverlayService
 import com.saathi.app.util.Packages
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -125,7 +126,19 @@ class AccessibilityActionExecutor(
         return dispatch(svc, GestureDescription.StrokeDescription(path, 0, 400))
     }
 
-    private suspend fun dispatch(svc: AgentService, stroke: GestureDescription.StrokeDescription): Boolean =
+    /** Saathi's own overlays let this gesture through to the app underneath, then become touchable again. */
+    private suspend fun dispatch(svc: AgentService, stroke: GestureDescription.StrokeDescription): Boolean {
+        val overlays = OverlayService.controller
+        overlays?.setTouchThrough(true)
+        try {
+            if (overlays != null) delay(60) // let the window manager apply the new touch regions first
+            return dispatchNow(svc, stroke)
+        } finally {
+            overlays?.setTouchThrough(false)
+        }
+    }
+
+    private suspend fun dispatchNow(svc: AgentService, stroke: GestureDescription.StrokeDescription): Boolean =
         suspendCancellableCoroutine { cont ->
             val ok = svc.dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(),
                 object : AccessibilityService.GestureResultCallback() {

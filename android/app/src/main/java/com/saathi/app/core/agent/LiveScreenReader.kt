@@ -116,7 +116,7 @@ class LiveScreenReader(private val service: () -> AgentService?) : ScreenSource 
                 bounds = listOf(r.left, r.top, r.right, r.bottom),
                 clickable = n.isClickable, editable = n.isEditable, scrollable = n.isScrollable,
                 checkable = n.isCheckable, checked = n.isChecked, focused = n.isFocused,
-                password = n.isPassword, depth = depth,
+                password = n.isPassword, depth = depth, pkg = n.packageName?.toString(),
             ))
         }
         for (i in 0 until n.childCount) n.getChild(i)?.let { walk(it, if (keep) depth + 1 else depth, out) }

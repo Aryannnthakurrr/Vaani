@@ -101,15 +101,22 @@ class AgentLoop(
 
             when (SafetyPolicy.preCheck(snap, mode, task.allowedPackages)) {
                 ScreenStop.SECRET_ENTRY -> {
-                    ui.sayPhrase("pin_screen")
-                    if (!ui.waitForUserDone(s("Say \"done\" when you have finished.", "हो जाए तो \"हो गया\" बोलिए।", "Ho jaye to \"ho gaya\" boliye."))) {
+                    // Spoken as text, not the recorded "pin_screen" clip: that one says "say done", and the mic is off now.
+                    ui.say(s("This screen needs your PIN. Please enter it yourself. I have turned off the mic.",
+                        "इस स्क्रीन पर आपका पिन चाहिए। कृपया इसे खुद डालिए। मैंने माइक बंद कर दिया है।",
+                        "Is screen par aapka PIN chahiye. Please ise khud daaliye. Maine mic band kar diya hai."))
+                    if (!ui.waitForUserDone(s("Tap \"Done\" when you have finished. I'm not listening now.",
+                            "हो जाए तो \"हो गया\" दबाइए। अभी मैं नहीं सुन रही।", "Ho jaye to \"Ho gaya\" dabaiye. Abhi main nahi sun rahi."))) {
                         return AgentOutcome.Cancelled
                     }
                     continue
                 }
                 ScreenStop.LOGIN -> {
-                    ui.sayPhrase("login_screen")
-                    if (!ui.waitForUserDone(s("Say \"done\" after logging in.", "लॉग इन के बाद \"हो गया\" बोलिए।", "Login ke baad \"ho gaya\" boliye."))) {
+                    ui.say(s("This app wants you to log in. Please log in yourself. I have turned off the mic.",
+                        "यह ऐप लॉग इन करने को कह रहा है। कृपया खुद लॉग इन कीजिए। मैंने माइक बंद कर दिया है।",
+                        "Yeh app login karne ko keh raha hai. Please khud login kijiye. Maine mic band kar diya hai."))
+                    if (!ui.waitForUserDone(s("Tap \"Done\" after logging in. I'm not listening now.",
+                            "लॉग इन के बाद \"हो गया\" दबाइए। अभी मैं नहीं सुन रही।", "Login ke baad \"Ho gaya\" dabaiye. Abhi main nahi sun rahi."))) {
                         return AgentOutcome.Cancelled
                     }
                     continue

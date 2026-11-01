@@ -56,6 +56,9 @@ class CallGuard(private val container: AppContainer) {
             number = incomingNumber
             savedContact = container.contacts.isSavedContact(incomingNumber)
         }
+        if (newState != TelephonyManager.EXTRA_STATE_IDLE && state == TelephonyManager.EXTRA_STATE_IDLE) {
+            runCatching { container.assistant.onPhoneCall() }
+        }
         when (newState) {
             TelephonyManager.EXTRA_STATE_RINGING -> if (state == TelephonyManager.EXTRA_STATE_IDLE) resetSignals()
             TelephonyManager.EXTRA_STATE_OFFHOOK -> if (state != TelephonyManager.EXTRA_STATE_OFFHOOK) {

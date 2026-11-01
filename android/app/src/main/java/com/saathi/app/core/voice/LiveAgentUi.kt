@@ -59,17 +59,9 @@ class LiveAgentUi(
         }
     }
 
+    /** PIN / password entry: the live mic is off until Done is tapped, so nothing said meanwhile reaches the cloud. */
     override suspend fun waitForUserDone(prompt: String): Boolean = screen.withDoneButton(prompt) { tapped ->
-        coroutineScope {
-            voice("[tell the user, then stop: $prompt]")
-            val said = async {
-                while (true) if (YesNo.isDone(nextTurn() ?: continue)) break
-                true
-            }
-            val done = select { tapped.onAwait { it }; said.onAwait { it } }
-            said.cancel()
-            done
-        }
+        live.handOffPrivately { tapped.await() }
     }
 
     override fun showHighlight(bounds: List<Int>?, instruction: String, gesture: String?) = screen.showHighlight(bounds, instruction, gesture)

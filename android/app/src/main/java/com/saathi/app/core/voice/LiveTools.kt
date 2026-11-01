@@ -66,7 +66,12 @@ class LiveTools(
     private val session: () -> LiveVoiceSession?,
 ) : ToolHandler {
 
-    override suspend fun handle(name: String, args: JsonObject): JsonElement = when (name) {
+    // A task already running would make a new one a no-op: say so, instead of "started" and then reporting the other
+    // task's result as if it were this one.
+    override suspend fun handle(name: String, args: JsonObject): JsonElement =
+        if ((name == "start_task" || name == "start_guide") && c.assistant.busy) {
+            LiveToolArgs.error("busy: another task is still running. Tell the user to wait for it, or say stop to end it.")
+        } else when (name) {
         "start_task" -> {
             val spec = LiveToolArgs.task(args)?.let(Tasks::forIntent)
             if (spec == Tasks.PRACTO && !c.assistant.wantsPracto(LiveToolArgs.slots(args), null)) {

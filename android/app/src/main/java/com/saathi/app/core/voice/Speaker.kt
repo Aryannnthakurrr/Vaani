@@ -63,12 +63,17 @@ class Speaker(
         val gen = generation.incrementAndGet()
         halt()
         _speaking.value = talking.incrementAndGet() > 0
+        focus.acquire()
         try {
             return block(gen)
         } finally {
+            focus.release()
             _speaking.value = talking.decrementAndGet() > 0
         }
     }
+
+    /** Shared with SpeechInput, so music stays paused from the question through the answer. */
+    val focus = AudioFocus(context)
 
     private fun current(gen: Int) = generation.get() == gen
 

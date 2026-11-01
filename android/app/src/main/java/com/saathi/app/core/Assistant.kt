@@ -41,7 +41,8 @@ enum class AssistantState { IDLE, LISTENING, THINKING, RUNNING }
  * Only one run at a time; the Stop chip cancels it immediately (coroutine cancellation).
  */
 class Assistant(private val c: AppContainer) {
-    val speech = SpeechInput(c.context, { c.backend }, ::keyterms, { c.settings.current.replyStyle }, ::nameHints, ::localNames)
+    val speech = SpeechInput(c.context, { c.backend }, ::keyterms, { c.settings.current.replyStyle }, ::nameHints, ::localNames,
+        focus = c.speaker.focus)
     private val runner = TaskRunner(c)
     private val guide = GuideMode(c, runner)
 
@@ -308,6 +309,9 @@ class Assistant(private val c: AppContainer) {
     /** A second tap on a tile while something runs is ignored (it used to cancel and restart); Stop ends it. */
     private fun busyJob(): Job? = job?.takeIf { it.isActive }
 
+    /** A task or guide is running, so a new one would be ignored. */
+    val busy: Boolean get() = busyJob() != null
+
     /**
      * "Cab to my appointment": the router never invents a place, so it leaves the destination empty and the cab app
      * fell back to a recent trip. The user's own words go in as the destination; TaskRunner turns them into the clinic.
@@ -365,6 +369,21 @@ class Assistant(private val c: AppContainer) {
         val r = AssistantScreen.Result(ok, message)
         screen.result(r)
         c.scope.launch { delay(RESULT_MS); screen.clearResult(r) }
+    }
+
+    /**
+     * A phone call rang or started: Saathi steps back. The conversation ends (its mic and voice would talk over the
+     * call), and a running task stops (it would keep tapping, and pull its app back over the call screen). Quietly:
+     * no "stopped" announcement over the ringtone. CallGuard's in-call warnings come after this and still play.
+     */
+    fun onPhoneCall() {
+        if (_live.value != null) endLive()
+        c.speaker.stop()
+        if (job?.isActive == true) {
+            job?.cancel()
+            runSeq.incrementAndGet()
+            endRun()
+        }
     }
 
     fun stop() {

@@ -22,6 +22,8 @@ data class ScreenNode(
     val focused: Boolean = false,
     val password: Boolean = false,
     val depth: Int = 0,
+    /** The app this element belongs to (pop-ups and chat heads can be another app's). Phone-side only. */
+    @kotlinx.serialization.Transient val pkg: String? = null,
 ) {
     val interactive: Boolean get() = clickable || editable || scrollable || checkable
     val label: String get() = listOfNotNull(text, desc, hint).firstOrNull { it.isNotBlank() } ?: ""

@@ -50,6 +50,8 @@ class SpeechInput(
     private val nameHints: () -> List<String> = { emptyList() },
     /** Every name the phone knows, phone book included; used only on the phone to fix near-miss names. */
     private val localNames: () -> List<String> = { emptyList() },
+    /** Pauses music while listening, so the recognizer hears the user and not a video. */
+    private val focus: AudioFocus? = null,
 ) {
     private val _listening = MutableStateFlow(false)
     val listening: StateFlow<Boolean> = _listening
@@ -83,6 +85,7 @@ class SpeechInput(
         // Android 14+ silences background recording unless the foreground service is typed "microphone".
         com.saathi.app.core.overlay.OverlayService.start(context, com.saathi.app.core.overlay.OverlayService.ACTION_MIC_ON)
         var askedCloud = false
+        focus?.acquire()
         try {
             if (cloudSpeech && System.currentTimeMillis() > cloudDownUntil) {
                 askedCloud = true
@@ -111,6 +114,7 @@ class SpeechInput(
             com.saathi.app.core.overlay.OverlayService.start(context, com.saathi.app.core.overlay.OverlayService.ACTION_MIC_OFF)
             _listening.value = false
             _level.value = 0f
+            focus?.release()
         }
     }
 

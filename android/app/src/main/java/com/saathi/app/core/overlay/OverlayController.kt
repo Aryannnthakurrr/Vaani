@@ -293,6 +293,35 @@ class OverlayController(private val ctx: Context, private val container: AppCont
         added.keys.forEach { it.visibility = if (hidden) View.INVISIBLE else View.VISIBLE }
     }
 
+    /** Windows made touch-through for the current agent gesture, so they can be put back afterwards. */
+    private val passedThrough = HashSet<View>()
+
+    /**
+     * While the agent dispatches a gesture (a tap by position, a swipe), Saathi's own caption, Stop chip and bubble
+     * let touches through: a gesture goes to the topmost touchable window, so a tap on the app's search bar used to
+     * land on the caption, and one near the bottom on Stop. Scam alerts and the forwarding question stay blocking.
+     * Main thread.
+     */
+    fun setTouchThrough(on: Boolean) {
+        if (on) {
+            for ((view, wm) in added) {
+                if (view === alertView || view === dialCheckView) continue
+                val lp = view.layoutParams as? WindowManager.LayoutParams ?: continue
+                if (lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE != 0) continue
+                lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                if (runCatching { wm.updateViewLayout(view, lp) }.isSuccess) passedThrough += view
+            }
+        } else {
+            for (view in passedThrough) {
+                val wm = added[view] ?: continue
+                val lp = view.layoutParams as? WindowManager.LayoutParams ?: continue
+                lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                runCatching { wm.updateViewLayout(view, lp) }
+            }
+            passedThrough.clear()
+        }
+    }
+
     // ---------------------------------------------------------------- scam alert
 
     /**

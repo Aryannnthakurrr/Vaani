@@ -12,25 +12,37 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.ui.graphics.toArgb
 
 /** Small View builders for overlays. Plain Views (not Compose) keep overlays light inside services. */
 internal object OverlayViews {
-    // Same calm palette as the app (ui/theme/Theme.kt): teal for Saathi, green for yes, soft grey for no, red only
-    // for danger, warm off-white cards with a thin warm border.
-    val ACCENT = Color.rgb(11, 122, 100)
-    val GREEN = Color.rgb(23, 114, 69)
-    val GREEN50 = Color.rgb(230, 244, 236)
-    val RED = Color.rgb(196, 33, 33)
-    val AMBER = Color.rgb(163, 90, 6)
-    val AMBER50 = Color.rgb(253, 241, 223)
-    val INK = Color.rgb(22, 32, 42)
-    val MUTED = Color.rgb(102, 112, 123)
-    val PAPER = Color.rgb(250, 248, 244)
-    val LINE = Color.rgb(230, 224, 213)
-    val SOFT = Color.rgb(238, 233, 223)
+    // Taken straight from the app's theme (ui/theme/Theme.kt), so the overlays over Uber or Pronto look exactly like
+    // the app itself: a white page, black type and black primary actions, thin grey outlines, square-ish corners and
+    // no shadows. Green only for yes/done, red only for danger, amber only for caution.
+    private fun argb(c: androidx.compose.ui.graphics.Color) = c.toArgb()
+    /** Saathi's own colour in overlays (the mic disc, rings, voice waves, OK): the app's primary, black. */
+    val ACCENT = argb(com.saathi.app.ui.theme.Ink)
+    val GREEN = argb(com.saathi.app.ui.theme.Leaf)
+    val GREEN50 = argb(com.saathi.app.ui.theme.Leaf50)
+    val RED = argb(com.saathi.app.ui.theme.Danger)
+    val AMBER = argb(com.saathi.app.ui.theme.Amber)
+    val AMBER50 = argb(com.saathi.app.ui.theme.Amber50)
+    val INK = argb(com.saathi.app.ui.theme.Ink)
+    val MUTED = argb(com.saathi.app.ui.theme.Muted)
+    val PAPER = argb(com.saathi.app.ui.theme.Paper)
+    val LINE = argb(com.saathi.app.ui.theme.Line)
+    /** Outline of cards, buttons and fields (4.5:1 on white), as in the app. */
+    val EDGE = argb(com.saathi.app.ui.theme.Edge)
+    val SOFT = argb(com.saathi.app.ui.theme.Soft)
 
-    /** The shared card look: off-white, rounded, a thin warm border and a soft shadow. */
-    fun card(ctx: Context) = rounded(PAPER, dp(ctx, 28).toFloat(), LINE, dp(ctx, 1))
+    /** The app's corner radius for cards, buttons and fields. Pills and circles stay round. */
+    private const val CORNER_DP = 4
+
+    /** The app's control outline, 1.5dp. */
+    private fun outline(ctx: Context) = maxOf(2, (1.5f * ctx.resources.displayMetrics.density).toInt())
+
+    /** The shared card look: white, square-ish, a thin grey outline, no shadow (it stands out over any app by its edge). */
+    fun card(ctx: Context) = rounded(PAPER, dp(ctx, CORNER_DP).toFloat(), EDGE, outline(ctx))
 
     /** Mukta, the app's font (ui/theme/Theme.kt), so overlays read like the app. */
     fun font(ctx: Context, bold: Boolean): Typeface? = runCatching {
@@ -60,7 +72,7 @@ internal object OverlayViews {
         setTextColor(fg)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
         typeface = font(ctx, bold = true)
-        background = rounded(bg, dp(ctx, 22).toFloat())
+        background = rounded(bg, dp(ctx, CORNER_DP).toFloat())
         minHeight = dp(ctx, 80)
         contentDescription = label
         setOnClickListener { onClick() }
@@ -74,7 +86,6 @@ internal object OverlayViews {
         typeface = font(ctx, bold = true)
         // Clear but not alarming: white with red text, like the app's quiet buttons.
         background = rounded(Color.WHITE, dp(ctx, 40).toFloat(), RED, dp(ctx, 2))
-        elevation = dp(ctx, 8).toFloat()
         setPadding(dp(ctx, 28), dp(ctx, 12), dp(ctx, 28), dp(ctx, 12))
         minHeight = dp(ctx, 64)
         contentDescription = label
@@ -90,7 +101,6 @@ internal object OverlayViews {
             orientation = LinearLayout.VERTICAL
             background = card(ctx)
             setPadding(dp(ctx, 20), dp(ctx, 16), dp(ctx, 20), dp(ctx, 16))
-            elevation = dp(ctx, 10).toFloat()
             addView(status)
             addView(label)
             addView(button, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -111,7 +121,6 @@ internal object OverlayViews {
             orientation = LinearLayout.VERTICAL
             background = card(ctx)
             setPadding(dp(ctx, 22), dp(ctx, 24), dp(ctx, 22), dp(ctx, 22))
-            elevation = dp(ctx, 16).toFloat()
             addView(text(ctx, summary, 26f, INK, bold = true).apply { contentDescription = summary })
             // Moves with the user's voice: say "haan" or "nahi", or tap.
             addView(VoiceWaveView(ctx, level, ACCENT), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 48))
@@ -130,7 +139,6 @@ internal object OverlayViews {
         gravity = Gravity.CENTER_HORIZONTAL
         background = card(ctx)
         setPadding(dp(ctx, 24), dp(ctx, 28), dp(ctx, 24), dp(ctx, 28))
-        elevation = dp(ctx, 16).toFloat()
         addView(text(ctx, if (ok) "✓" else "!", 56f, if (ok) GREEN else AMBER, bold = true).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(if (ok) GREEN50 else AMBER50) }
@@ -152,7 +160,7 @@ internal object OverlayViews {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
             setTextColor(INK)
             minHeight = dp(ctx, 72)
-            background = rounded(Color.WHITE, dp(ctx, 16).toFloat(), LINE, dp(ctx, 2))
+            background = rounded(Color.WHITE, dp(ctx, CORNER_DP).toFloat(), EDGE, outline(ctx))
             setPadding(dp(ctx, 16), dp(ctx, 12), dp(ctx, 16), dp(ctx, 12))
             imeOptions = EditorInfo.IME_ACTION_DONE
             isSingleLine = true
@@ -169,7 +177,6 @@ internal object OverlayViews {
             orientation = LinearLayout.VERTICAL
             background = card(ctx)
             setPadding(dp(ctx, 20), dp(ctx, 20), dp(ctx, 20), dp(ctx, 20))
-            elevation = dp(ctx, 16).toFloat()
             addView(text(ctx, question, 22f, INK, bold = true))
             // Saathi is listening for a spoken answer too, not only the text box.
             addView(VoiceWaveView(ctx, level, ACCENT), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 44))
@@ -195,7 +202,7 @@ internal object OverlayViews {
      * under the title.
      */
     fun alertCard(ctx: Context, alert: ScamAlert, safeLabel: String, onSafe: (TextView) -> Unit): View {
-        val bg = if (alert.level == AlertLevel.RED) RED else Color.rgb(176, 110, 0)
+        val bg = if (alert.level == AlertLevel.RED) RED else AMBER
         val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
         val header = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -206,8 +213,7 @@ internal object OverlayViews {
         }
         val card = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(bg, dp(ctx, 28).toFloat())
-            elevation = dp(ctx, 16).toFloat()
+            background = rounded(bg, dp(ctx, CORNER_DP).toFloat())
             setPadding(dp(ctx, 22), dp(ctx, 22), dp(ctx, 22), dp(ctx, 20))
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
             addView(header)
@@ -235,8 +241,7 @@ internal object OverlayViews {
         val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
         val card = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(PAPER, dp(ctx, 28).toFloat(), AMBER, dp(ctx, 3))
-            elevation = dp(ctx, 16).toFloat()
+            background = rounded(PAPER, dp(ctx, CORNER_DP).toFloat(), AMBER, dp(ctx, 3))
             setPadding(dp(ctx, 22), dp(ctx, 22), dp(ctx, 22), dp(ctx, 20))
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
             addView(alertText(ctx, "⚠️  $question", 26f, INK, bold = true))
@@ -258,7 +263,7 @@ internal object OverlayViews {
         ctx: Context, alert: ScamAlert, hangUpLabel: String?, safeLabel: String,
         onHangUp: () -> Unit, onSafe: (TextView) -> Unit,
     ): View {
-        val bg = if (alert.level == AlertLevel.RED) RED else Color.rgb(176, 110, 0)
+        val bg = if (alert.level == AlertLevel.RED) RED else AMBER
         return LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -277,7 +282,7 @@ internal object OverlayViews {
                 .apply { topMargin = dp(ctx, 14) }
             if (hangUpLabel != null) addView(bigButton(ctx, "📞  $hangUpLabel", INK, onHangUp), full)
             val safe = bigButton(ctx, safeLabel, Color.TRANSPARENT, {}).apply {
-                background = rounded(Color.argb(40, 255, 255, 255), dp(ctx, 22).toFloat(), Color.WHITE, dp(ctx, 3))
+                background = rounded(Color.argb(40, 255, 255, 255), dp(ctx, CORNER_DP).toFloat(), Color.WHITE, dp(ctx, 3))
             }
             safe.setOnClickListener { onSafe(safe) }
             addView(safe, full)

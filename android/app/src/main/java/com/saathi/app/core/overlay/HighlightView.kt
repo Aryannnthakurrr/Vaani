@@ -10,6 +10,10 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.view.View
 import android.view.animation.LinearInterpolator
+import androidx.compose.ui.graphics.toArgb
+
+/** The app's keyboard/switch focus colour (ui/theme/Theme.kt Focus): the ring marks "tap here", like focus. */
+private val FOCUS = com.saathi.app.ui.theme.Focus.toArgb()
 
 /**
  * Full-screen, touch-transparent layer that draws a pulsing ring around [target] (screen coordinates) or, for
@@ -22,19 +26,19 @@ class HighlightView(context: Context) : View(context) {
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 6 * density
-        color = Color.rgb(11, 122, 100) // the app's teal, not a loud yellow
+        color = FOCUS // the app's focus colour (deep teal), not a loud yellow
     }
     private val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 14 * density
-        color = Color.argb(90, 11, 122, 100)
+        color = Color.argb(90, Color.red(FOCUS), Color.green(FOCUS), Color.blue(FOCUS))
     }
     private val scrim = Paint().apply { color = Color.argb(70, 0, 0, 0) }
     private val arrow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 10 * density
         strokeCap = Paint.Cap.ROUND
-        color = Color.rgb(11, 122, 100)
+        color = FOCUS
     }
     private var phase = 0f
     private val loc = IntArray(2)

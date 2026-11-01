@@ -14,10 +14,10 @@ import kotlin.math.sin
 /**
  * The floating mic bubble, drawn by hand so it can show what Saathi is doing:
  * - idle: white disc, mic with a red slash (not listening)
- * - connecting: teal disc, mic, a ring going round
- * - listening: teal disc, mic, a soft ring that grows with the user's voice
- * - speaking: teal disc, bars that move like speech
- * - working: teal disc, a stop square (a tap stops the task), a ring going round
+ * - connecting: black disc, mic, a ring going round
+ * - listening: black disc, mic, a soft ring that grows with the user's voice
+ * - speaking: black disc, bars that move like speech
+ * - working: black disc, a stop square (a tap stops the task), a ring going round
  * Only moving states animate, so the idle bubble costs nothing.
  */
 internal class BubbleView(ctx: Context, private val level: () -> Float) : View(ctx) {
@@ -28,7 +28,7 @@ internal class BubbleView(ctx: Context, private val level: () -> Float) : View(c
     private val mic = ContextCompat.getDrawable(ctx, R.drawable.ic_mic)!!.mutate()
     private val micOff = ContextCompat.getDrawable(ctx, R.drawable.ic_mic_off)!!.mutate()
     private val disc = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1.5f * d; color = OverlayViews.LINE }
+    private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1.5f * d; color = OverlayViews.EDGE }
     private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = OverlayViews.ACCENT }
     private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = 3.5f * d; strokeCap = Paint.Cap.ROUND; color = OverlayViews.ACCENT
@@ -36,11 +36,6 @@ internal class BubbleView(ctx: Context, private val level: () -> Float) : View(c
     private val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; strokeCap = Paint.Cap.ROUND }
     private val oval = RectF()
     private var smooth = 0f
-
-    init {
-        // The soft shadow under the disc needs a software layer; the view is small, so this is cheap.
-        setLayerType(LAYER_TYPE_SOFTWARE, null)
-    }
 
     override fun onDraw(canvas: Canvas) {
         val cx = width / 2f
@@ -64,8 +59,8 @@ internal class BubbleView(ctx: Context, private val level: () -> Float) : View(c
             else -> Unit
         }
 
+        // No shadow (the app has none): the idle white disc is outlined so it still shows over a white app.
         disc.color = if (idle) Color.WHITE else OverlayViews.ACCENT
-        disc.setShadowLayer(6 * d, 0f, 2 * d, Color.argb(70, 0, 0, 0))
         canvas.drawCircle(cx, cy, r, disc)
         if (idle) canvas.drawCircle(cx, cy, r, rim)
 

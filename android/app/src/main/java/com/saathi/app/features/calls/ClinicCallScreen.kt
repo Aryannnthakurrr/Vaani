@@ -65,7 +65,9 @@ import com.saathi.app.ui.theme.Leaf
 import com.saathi.app.ui.theme.Accent
 import com.saathi.app.ui.theme.AccentDark
 import com.saathi.app.util.SaathiJson
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -104,9 +106,15 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
     var seconds by remember { mutableStateOf(0) }
     var realId by remember { mutableStateOf<String?>(null) }
     var pollJob by remember { mutableStateOf<Job?>(null) }
+    /** The call being placed, in the app's scope: it outlives this screen, so a call placed after End or Back is hung up. */
+    var placing by remember { mutableStateOf<Deferred<Result<String>>?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val realCalls = remember { RealCallClient { c.settings.current } }
+    fun hangUpWhenPlaced(pending: Deferred<Result<String>>?) {
+        pending ?: return
+        c.scope.launch { pending.await().getOrNull()?.let { id: String -> runCatching { realCalls.hangUp(id) } } }
+    }
     val patient = settings.userName.ifBlank { "the patient" }
     val shown = callAppt ?: upcoming
 
@@ -139,8 +147,10 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
         seconds = 0
         mode = CallMode.REAL
         status = tr(style, "Dialling the clinic…", "क्लिनिक को फ़ोन लगा रहे हैं…", "Clinic ko phone laga rahe hain…")
+        val pending = c.scope.async { runCatching { realCalls.start(RealCallStart(patient, a, style.wire)).id } }
+        placing = pending
         pollJob = scope.launch {
-            val started = runCatching { realCalls.start(RealCallStart(patient, a, style.wire)) }
+            val started = pending.await()
             started.onFailure { e ->
                 // Setup problems (Bolna not configured, number not allowed) are for the family/developer, not the user.
                 val setup = e.message.orEmpty().let { "BOLNA" in it || "ALLOWED" in it }
@@ -156,7 +166,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
                 mode = CallMode.CHOOSE
                 return@launch
             }
-            val id = started.getOrThrow().id
+            val id = started.getOrThrow()
             realId = id
             // Poll until the backend says the call is over; the transcript grows as the clinic speaks.
             var misses = 0
@@ -188,6 +198,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
         scope.launch {
             val id = realId
             if (id == null) {
+                hangUpWhenPlaced(placing) // it may still connect: hang it up the moment it does
                 finish(tr(style, "The call was stopped before it connected.", "कॉल जुड़ने से पहले ही रोक दी गई।",
                     "Call judne se pehle hi rok di gayi."), "real")
                 return@launch
@@ -207,6 +218,7 @@ fun ClinicCallScreen(c: AppContainer, onBack: () -> Unit) {
     DisposableEffect(Unit) {
         onDispose {
             val id = realId
+            if (mode == CallMode.REAL && summary == null && id == null) hangUpWhenPlaced(placing)
             if (mode == CallMode.REAL && summary == null && id != null) {
                 val a = callAppt
                 c.scope.launch {

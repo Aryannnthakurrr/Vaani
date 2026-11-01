@@ -119,9 +119,14 @@ object SafetyPolicy {
         if (mode == AgentMode.GUIDE && action.action !in GUIDE_ACTIONS) {
             return Verdict.Block("guide mode never ${action.action}s")
         }
+        // The screen's main app is checked before asking the model; an element can still be another app's pop-up,
+        // notification or chat head lying on top, and those are off limits too.
+        fun foreign(node: ScreenNode?) = mode == AgentMode.ACT && node?.pkg != null &&
+            node.pkg !in allowedPackages && node.pkg !in SYSTEM_PACKAGES
         return when (action.action) {
             AgentAction.TAP -> {
                 val node = s.node(action.id) ?: return Verdict.Block("no element ${action.id}")
+                if (foreign(node)) return Verdict.Block("${node.pkg} is not on the allowlist")
                 if (s.pkg == Packages.SETTINGS && isRestrictedSettingsRow(node)) return Verdict.Block("Settings: only text size, sound and display")
                 if (!confirmed && pressesConfirm(s, node)) Verdict.NeedsConfirm(confirmLabel(s, node)) else Verdict.Allow
             }
@@ -130,11 +135,13 @@ object SafetyPolicy {
                 val y = action.y ?: return Verdict.Block("missing y")
                 if (s.screenshotB64 == null && !s.needsScreenshot) return Verdict.Block("coordinates only with a screenshot")
                 val node = s.nodeAt(x, y)
+                if (foreign(node)) return Verdict.Block("${node?.pkg} is not on the allowlist")
                 if (s.pkg == Packages.SETTINGS && isRestrictedSettingsRow(node)) return Verdict.Block("Settings: only text size, sound and display")
                 if (!confirmed && node != null && pressesConfirm(s, node)) Verdict.NeedsConfirm(confirmLabel(s, node)) else Verdict.Allow
             }
             AgentAction.TYPE -> {
                 val node = s.node(action.id) ?: return Verdict.Block("no element ${action.id}")
+                if (foreign(node)) return Verdict.Block("${node.pkg} is not on the allowlist")
                 val text = action.text.orEmpty()
                 when {
                     !node.editable -> Verdict.Block("element ${action.id} is not a text box")

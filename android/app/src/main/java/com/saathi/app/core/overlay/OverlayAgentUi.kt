@@ -102,21 +102,12 @@ class OverlayAgentUi(
         awaitCancellation()
     }
 
-    override suspend fun waitForUserDone(prompt: String): Boolean = withDoneButton(prompt) { tapped ->
-        coroutineScope {
-            val byVoice = async {
-                // Listen in short turns until the user says "done"; the Stop chip cancels the whole run.
-                while (!YesNo.isDone(speech.listen()?.transcript)) delay(300)
-                true
-            }
-            val done = select {
-                tapped.onAwait { it }
-                byVoice.onAwait { it }
-            }
-            byVoice.cancel()
-            done
-        }
-    }
+    /**
+     * Used while the user types a PIN, OTP or password themselves. The mic stays off the whole time (someone may
+     * read the PIN aloud as they type it, and speech goes to the cloud): only the Done button ends the wait. The
+     * Stop chip still cancels the whole run.
+     */
+    override suspend fun waitForUserDone(prompt: String): Boolean = withDoneButton(prompt) { tapped -> tapped.await() }
 
     // ------------------------------------------------------------------ shared with LiveAgentUi
 
