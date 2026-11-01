@@ -1,4 +1,4 @@
-"""Skill sandbox runner (see docs/LEARNING.md §1 Sandbox).
+"""Skill sandbox runner (see docs/features/LEARNING.md §1 Sandbox).
 
 Reads JSON from stdin: {"code": str, "entry": str, "cases": [input, ...]}.
 Each case runs in a fresh, isolated interpreter (`python -I`) with a wall-clock timeout, so module-level

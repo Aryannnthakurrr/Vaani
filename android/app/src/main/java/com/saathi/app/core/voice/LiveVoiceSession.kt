@@ -36,7 +36,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 
-/** Runs the tools Gemini Live asks for (docs/LEARNING.md §2) and returns a JSON result for the model. */
+/** Runs the tools Gemini Live asks for (docs/features/LEARNING.md §2) and returns a JSON result for the model. */
 fun interface ToolHandler {
     suspend fun handle(name: String, args: JsonObject): JsonElement
 }

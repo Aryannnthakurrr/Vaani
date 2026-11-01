@@ -1,4 +1,4 @@
-"""Runs compiled Python skills out of process (docs/LEARNING.md §1 Sandbox).
+"""Runs compiled Python skills out of process (docs/features/LEARNING.md §1 Sandbox).
 
 `SKILL_SANDBOX=docker` (the server): every job is a fresh `saathi-skill-sandbox` container with no network, a
 read-only root, 128 MB, half a CPU, 32 pids, no capabilities, and an unprivileged user.

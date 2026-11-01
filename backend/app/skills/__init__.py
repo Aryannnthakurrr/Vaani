@@ -1,4 +1,4 @@
-"""Self-learning skills: compile repeated agent work into tested routines and code (docs/LEARNING.md §1)."""
+"""Self-learning skills: compile repeated agent work into tested routines and code (docs/features/LEARNING.md §1)."""
 
 from __future__ import annotations
 

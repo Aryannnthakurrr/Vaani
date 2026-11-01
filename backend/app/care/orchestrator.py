@@ -1,6 +1,6 @@
 """Path B end to end (workflow §5): find → rank → parallel inquiry calls → recommend → booking call.
 
-Runs as background tasks; progress reaches the app as session events (docs/CARE.md). The calendar entry is written
+Runs as background tasks; progress reaches the app as session events (docs/features/CARE.md). The calendar entry is written
 on the phone (the app already owns calendar access), from the `booking_status: confirmed` event.
 """
 

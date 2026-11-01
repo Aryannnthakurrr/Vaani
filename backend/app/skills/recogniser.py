@@ -1,4 +1,4 @@
-"""Code skills: the strong model writes Python that replaces an LLM route (docs/LEARNING.md §1, `answer` kind).
+"""Code skills: the strong model writes Python that replaces an LLM route (docs/features/LEARNING.md §1, `answer` kind).
 
 The first one is the voice intent router. Every LLM answer to `/intent` is kept as a training sample. Once there
 are enough, gemini-4-argon writes `recognise(text) -> {"intent", "slots"} | None`, where None means "not sure,

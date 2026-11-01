@@ -1,6 +1,6 @@
 # Saathi: an AI companion that operates Android for elderly, disabled, and non-technical users
 
-> Original product spec, saved verbatim as `docs/SPEC.md`. The developer guide is `docs/DEVELOPING.md`;
+> Original product spec, saved verbatim as `docs/engineering/SPEC.md`. The developer guide is `docs/engineering/DEVELOPING.md`;
 > what was actually built, verified and deviated from is in `NOTES.md`.
 
 > You are building this project end to end. Read this whole file before writing code.
@@ -51,7 +51,7 @@ Saathi is an Android app plus a small Python backend. The user talks to it in Hi
 
 ```
 saathi/
-├── docs/SPEC.md               # this file
+├── docs/engineering/SPEC.md               # this file
 ├── NOTES.md                   # running log of deviations, verified package names, model IDs
 ├── README.md                  # setup + demo instructions for humans
 ├── .env.example               # all config keys, documented

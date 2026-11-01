@@ -1,4 +1,4 @@
-"""WS /live/voice — the elder's realtime spoken conversation, relayed to Gemini Live (docs/LEARNING.md §2).
+"""WS /live/voice — the elder's realtime spoken conversation, relayed to Gemini Live (docs/features/LEARNING.md §2).
 
 The app streams 16 kHz PCM up and plays 24 kHz PCM down. Phone-side tools (start_task, start_guide, open_screen,
 read_updates, check_link) are forwarded to the app and their results returned to the model; `remember` is handled
@@ -90,7 +90,7 @@ VOICE_TOOLS: list[dict[str, Any]] = [
      "parameters_json_schema": _obj({"topic": {"type": "string", "enum": list(TOPICS)}, "key": _S}, ["topic"])},
 ]  # fmt: skip
 
-# Care mode (`?care=<session id>`, docs/CARE.md): the doctor intake as a live conversation. The model only relays
+# Care mode (`?care=<session id>`, docs/features/CARE.md): the doctor intake as a live conversation. The model only relays
 # what the user said; app/care/triage.py (safety net, note, route) decides the questions and the outcome.
 CARE_TOOLS: list[dict[str, Any]] = [
     {"name": "intake_turn", "description": "Pass on what the user just said about their symptoms or in answer to your "

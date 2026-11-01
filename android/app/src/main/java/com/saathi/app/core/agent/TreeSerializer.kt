@@ -1,7 +1,7 @@
 package com.saathi.app.core.agent
 
 /**
- * Turns a [ScreenSnapshot] into the compact text the model reads (SPEC §6.1, docs/CONTRACTS.md):
+ * Turns a [ScreenSnapshot] into the compact text the model reads (SPEC §6.1, docs/engineering/CONTRACTS.md):
  *
  * ```
  * package=com.ubercab title="Uber" secure=false

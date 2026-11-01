@@ -9,7 +9,7 @@ from app.schemas import IntentResponse, Slots
 # Order matters: the first intent whose pattern matches wins.
 _INTENTS: list[tuple[str, str]] = [
     (
-        # First: symptoms and emergencies go to triage (docs/CARE.md), even "call an ambulance".
+        # First: symptoms and emergencies go to triage (docs/features/CARE.md), even "call an ambulance".
         "care",
         r"not feeling well|feeling (?:unwell|sick)|\bunwell\b|tabiy?at|tabeeyat|bimaa?r|\bsymptom|\bambulance\b|"
         r"emergency|\bdard\b|\bpain\b|bukhaa?r|\bfever\b|chakkar|dizzy|vomit|\bulti\b|breathless|saa?ns|"

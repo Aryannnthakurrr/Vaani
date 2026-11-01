@@ -28,7 +28,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
 /**
- * The symptom-to-care conversation on the phone (docs/CARE.md). Everything is spoken and shown; every question takes
+ * The symptom-to-care conversation on the phone (docs/features/CARE.md). Everything is spoken and shown; every question takes
  * a spoken answer, a typed one, or a button tap, whichever comes first. Path A (emergency) hands over to
  * [EmergencyFlow]; Path B runs here: hospitals → calls → "Should I book?" → booking call → calendar.
  */

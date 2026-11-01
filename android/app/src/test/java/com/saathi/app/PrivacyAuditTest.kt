@@ -14,7 +14,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The measured half of docs/PRIVACY_AUDIT.md: every message in fixtures/privacy/messages.json goes down the same
+ * The measured half of docs/privacy/PRIVACY_AUDIT.md: every message in fixtures/privacy/messages.json goes down the same
  * path as a real notification (vault tokens → InboxPipeline gate → BackendClient redaction) and we count each secret
  * that would still leave the phone. Writes build/privacy/phone_audit.json for scripts/privacy_audit.py.
  */

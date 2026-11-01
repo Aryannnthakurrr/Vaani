@@ -209,7 +209,7 @@ None of these depend on the model behaving well.
 - **One honest gap:** agent-step screen text and screenshots are **not** passed through `Redactor` on the phone.
   That redaction runs only on classification, appointment extraction and digest calls
   (`android/.../core/net/BackendClient.kt`). The backend also stores each step's screen text in `skill_run_steps`
-  so it can learn routines. `docs/PRIVACY_AUDIT.md` lists 7 days of retention for screen-task step history.
+  so it can learn routines. `docs/privacy/PRIVACY_AUDIT.md` lists 7 days of retention for screen-task step history.
 
 ### 1.6 Worked example: "book a cab to Saket"
 
@@ -243,8 +243,8 @@ the current timeouts, fallback and hedging (NOTES.md, "Silent speech on Samsung,
 ### 1.7 Learning: Uber runs become a routine
 
 Successful ACT runs of one task (`task_hint` = `uber_book`) are compiled into a **routine**: declarative JSON steps,
-not code (`backend/app/skills/routine.py`, `compiler.py`, `engine.py`; `docs/LEARNING.md`,
-`docs/COMPILED_CODE.md`).
+not code (`backend/app/skills/routine.py`, `compiler.py`, `engine.py`; `docs/features/LEARNING.md`,
+`docs/features/COMPILED_CODE.md`).
 
 - **Matching.** Each step lists strings it `expect`s on screen and finds its target **by text, hint, desc or regex**
   on today's screen. Stored node IDs are never used.
@@ -264,7 +264,7 @@ not code (`backend/app/skills/routine.py`, `compiler.py`, `engine.py`; `docs/LEA
 
   Routine actions then pass the same `_checked` schema on the backend and the same `SafetyPolicy` on the phone,
   so the yes/no question for "Confirm Uber Go" is asked exactly as before.
-- **Measured offline only.** `docs/SIMULATION.md` (mock backend, 2 rides a week for 30 days) found 38% fewer
+- **Measured offline only.** `docs/evaluation/SIMULATION.md` (mock backend, 2 rides a week for 30 days) found 38% fewer
   model steps for cab rides once the routine is active. No live measurement exists.
 
 ---
@@ -390,7 +390,7 @@ What code does with `tap_xy`:
   point.
 - **Pixel-only secret screens** (a PIN pad with no accessible nodes) are not detected by code.
 - **Agent-step screen text and screenshots are not redacted** on the phone before sending, and step screen text is
-  kept on the server for learning (7 days, `docs/PRIVACY_AUDIT.md`).
+  kept on the server for learning (7 days, `docs/privacy/PRIVACY_AUDIT.md`).
 - **The confirm summary is written by the model.** Code checks only that it exists, not that the fare in it matches
   the screen. An on-device OCR price check (`PriceGuard`, commit `1b96ea7`) was added and later **removed** (commit
   `6086c3b`). It is not in the current code.
@@ -399,5 +399,5 @@ What code does with `tap_xy`:
 - **Screenshots need Android 11+**, and window-only capture needs Android 14+. Older phones briefly hide Saathi's
   overlays instead.
 - **The routine savings figure (38%) comes from an offline simulation**, not from live use.
-- **Small mismatches between docs and code:** `docs/LEARNING.md` says routine targets can match by viewId, but
+- **Small mismatches between docs and code:** `docs/features/LEARNING.md` says routine targets can match by viewId, but
   `routine.Target` has no viewId field. The serializer also never sends view ids to the model.

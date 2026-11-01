@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Record backup demo videos (SPEC §15) on a running emulator/device into docs/demo/.
+# Record backup demo videos (SPEC §15) on a running emulator/device into docs/media/demo/.
 # Needs: debug build installed via dev_install.sh, backend running, Settings → Developer → Demo replay ON.
 # Usage: record_demos.sh [cab|guide|camera|scam|all]
 set -euo pipefail
 source "$(dirname "$0")/_env.sh"
 require "$ADB"
 export MSYS_NO_PATHCONV=1
-OUT="$REPO_ROOT/docs/demo"
+OUT="$REPO_ROOT/docs/media/demo"
 mkdir -p "$OUT"
 
 say() { "$ADB" shell am broadcast -a com.saathi.app.DEBUG_SAY --es text "'$1'" -p "$PKG" >/dev/null; }
@@ -24,7 +24,7 @@ record() {
   wait "$rec" || true
   ( cd "$OUT" && "$ADB" pull "/sdcard/saathi_$name.mp4" "$name.mp4" >/dev/null )
   "$ADB" shell rm -f "/sdcard/saathi_$name.mp4"
-  echo "  -> docs/demo/$name.mp4"
+  echo "  -> docs/media/demo/$name.mp4"
 }
 
 cab() { home_screen; say "Apollo Hospital jaane ke liye cab book kar do"; sleep 22; say "haan"; sleep 15; }

@@ -3,10 +3,10 @@
 Saathi is an Android app (`android/`, Kotlin + Compose) and a FastAPI backend (`backend/`) that let elderly,
 disabled and non-technical users operate Android by voice in English, Hindi and Hinglish.
 
-- **The original product spec is [docs/SPEC.md](docs/SPEC.md).** Read it before changing behaviour.
-- **What was built, verified, deviated from and still missing is in [NOTES.md](NOTES.md).** Add to it whenever you
+- **The original product spec is [docs/engineering/SPEC.md](SPEC.md).** Read it before changing behaviour.
+- **What was built, verified, deviated from and still missing is in [NOTES.md](../../NOTES.md).** Add to it whenever you
   deviate from the spec, verify a package name or model ID, or find a gap.
-- **The app ↔ backend contract is [docs/CONTRACTS.md](docs/CONTRACTS.md).** Change both sides together.
+- **The app ↔ backend contract is [docs/engineering/CONTRACTS.md](CONTRACTS.md).** Change both sides together.
 
 ## Build and test
 

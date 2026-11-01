@@ -68,7 +68,7 @@ cd backend && .venv/Scripts/python -m pytest -q    # 95 tests
 | 17 | **Dark mode** | `adb shell cmd uimode night yes` | Every screen readable in dark. |
 | 18 | **Typed answers** | Any question overlay (e.g. 7) | Type in the box and press OK. Typed "haan"/"no" also answers confirm sheets. |
 
-To record backup videos of 5, 9, 10 and the scam flow: `bash scripts/record_demos.sh all` (output goes to `docs/demo/`).
+To record backup videos of 5, 9, 10 and the scam flow: `bash scripts/record_demos.sh all` (output goes to `docs/media/demo/`).
 
 ## 4. Real Android phone
 

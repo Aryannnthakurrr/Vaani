@@ -1,4 +1,4 @@
-"""Pydantic models shared by every route. The action schema mirrors docs/CONTRACTS.md."""
+"""Pydantic models shared by every route. The action schema mirrors docs/engineering/CONTRACTS.md."""
 
 from __future__ import annotations
 

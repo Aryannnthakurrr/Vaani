@@ -14,7 +14,7 @@ HEADERS = {"X-Saathi-Device": DEVICE}
 
 
 def serialize_screen(screen: dict) -> str:
-    """Python twin of the Android serializer (docs/CONTRACTS.md format)."""
+    """Python twin of the Android serializer (docs/engineering/CONTRACTS.md format)."""
     lines = [
         f'package={screen["package"]} title="{screen.get("title", "")}" secure={str(screen.get("secure", False)).lower()}'
     ]

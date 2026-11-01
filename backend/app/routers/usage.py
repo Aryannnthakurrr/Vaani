@@ -1,4 +1,4 @@
-"""GET /usage: a device's own request, byte and model-token counts since the server started (docs/CONTRACTS.md)."""
+"""GET /usage: a device's own request, byte and model-token counts since the server started (docs/engineering/CONTRACTS.md)."""
 
 from __future__ import annotations
 

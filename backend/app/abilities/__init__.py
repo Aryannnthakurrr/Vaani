@@ -1,4 +1,4 @@
-"""Personal compiled abilities: work the LLM used to do for one user, now done by tested code (docs/PERSONAL_ABILITIES.md).
+"""Personal compiled abilities: work the LLM used to do for one user, now done by tested code (docs/features/PERSONAL_ABILITIES.md).
 
 The app-wide skills in `app/skills` learn tasks everyone does (booking a cab). An ability is personal: it was
 compiled from one user's own repeated requests (Ramesh's sugar readings, Sunita's BP, Arjun's spending), keeps that

@@ -286,7 +286,7 @@ class Assistant(private val c: AppContainer) {
         }
     }
 
-    /** The symptom-to-care flow (docs/CARE.md): what "I need a doctor" means unless Practo or a named doctor was asked for. */
+    /** The symptom-to-care flow (docs/features/CARE.md): what "I need a doctor" means unless Practo or a named doctor was asked for. */
     fun startCare(firstWords: String? = null) {
         c.care.start(firstWords)
         openScreen("care")

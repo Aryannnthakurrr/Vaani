@@ -57,7 +57,7 @@ class AgentLoop(
 ) {
     private val history = mutableListOf<HistoryItem>()
 
-    /** One id for the whole run: every step and the final outcome carry it (docs/LEARNING.md §1). */
+    /** One id for the whole run: every step and the final outcome carry it (docs/features/LEARNING.md §1). */
     val runId: String = UUID.randomUUID().toString()
 
     suspend fun run(goal: String, mode: AgentMode, task: TaskContext = TaskContext()): AgentOutcome {

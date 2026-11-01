@@ -24,7 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Privacy guarantees (docs/PRIVACY_PITCH.md §8, docs/PRIVACY_AUDIT.md). */
+/** Privacy guarantees (docs/privacy/PRIVACY_PITCH.md §8, docs/privacy/PRIVACY_AUDIT.md). */
 class PrivacyTest {
     @Test
     fun linksLoseTheirPersonalPartsLikeOnTheServer() {

@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
-/** Wire types for the backend's `/care` routes (docs/CARE.md). Unknown fields are ignored. */
+/** Wire types for the backend's `/care` routes (docs/features/CARE.md). Unknown fields are ignored. */
 
 @Serializable
 data class CareLocation(

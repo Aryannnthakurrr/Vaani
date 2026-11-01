@@ -1,4 +1,4 @@
-"""Privacy guarantees that must not regress (docs/PRIVACY_PITCH.md §8, docs/PRIVACY_AUDIT.md)."""
+"""Privacy guarantees that must not regress (docs/privacy/PRIVACY_PITCH.md §8, docs/privacy/PRIVACY_AUDIT.md)."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def test_the_server_never_checks_the_full_link(client, monkeypatch) -> None:
     assert seen == ["https://x.in/reset"]
 
 
-# ------------------------------------------------------------------ 10. the audit itself (docs/PRIVACY_AUDIT.md)
+# ------------------------------------------------------------------ 10. the audit itself (docs/privacy/PRIVACY_AUDIT.md)
 
 
 def _audit():  # type: ignore[no-untyped-def]

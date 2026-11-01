@@ -46,7 +46,7 @@ data class CareUi(
 data class LiveAsk(val askId: String, val hospitalName: String, val doctor: String, val slot: String, val fee: String)
 
 /**
- * Folds backend events (docs/CARE.md) into [CareUi]. Pure, so it is JVM-tested. Intake events are ignored here:
+ * Folds backend events (docs/features/CARE.md) into [CareUi]. Pure, so it is JVM-tested. Intake events are ignored here:
  * the intake replies drive the conversation directly.
  */
 object CareReducer {

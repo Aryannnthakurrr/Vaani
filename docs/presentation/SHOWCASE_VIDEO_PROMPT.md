@@ -408,7 +408,7 @@ DO NOT CLAIM
 - The month-long simulation also has a fourth profile, Kamla Devi (wheelchair, hard of hearing), who gets an XL
   cab. She has no abilities.
 
-**App case studies** ([APP_CASE_STUDIES.md](APP_CASE_STUDIES.md)):
+**App case studies** ([APP_CASE_STUDIES.md](../features/APP_CASE_STUDIES.md)):
 
 | | Uber | Pronto |
 |---|---|---|
@@ -420,7 +420,7 @@ DO NOT CLAIM
 
 Recorded fixture screens: Uber, Pronto, Amazon, Flipkart, Practo, gallery share, Settings font size and dark mode.
 
-**Doctor feature** ([HEALTHCARE_KT.md](HEALTHCARE_KT.md), [CARE.md](CARE.md)):
+**Doctor feature** ([HEALTHCARE_KT.md](../features/HEALTHCARE_KT.md), [CARE.md](../features/CARE.md)):
 - 16 red flags; at most 3 intake questions; a 15 s countdown.
 - Ambulance statuses: received, assigned, en route, at scene, patient on board, to hospital, completed.
 - Search widens 8 → 15 → 25 km. Weights:
@@ -437,19 +437,19 @@ Recorded fixture screens: Uber, Pronto, Amazon, Flipkart, Practo, gallery share,
   rating.
 - Number masking: `MASK_HOSPITAL_NUMBERS=1` and `CALL_ALLOWED_NUMBERS`.
 
-**Compiled code** ([COMPILED_CODE.md](COMPILED_CODE.md)):
+**Compiled code** ([COMPILED_CODE.md](../features/COMPILED_CODE.md)):
 - **Routines:** 3 runs to compile; 30% held out, of which 90% must replay; 3 agreeing shadow runs; degraded on 2
   misses in the last 5; a canary check on 1 step in 20.
 - **Recognisers:** 40 samples; 95% precision; 30% coverage; 20 shadow agreements.
 - **Sandbox:** Docker with `--network none --read-only --memory 128m --cpus 0.5 --pids-limit 32 --cap-drop ALL`.
   Runs take 0.52–0.61 s on the droplet.
 
-**Memory** ([MEKO_STATE.md](MEKO_STATE.md)):
+**Memory** ([MEKO_STATE.md](../features/MEKO_STATE.md)):
 - Seven agents: voice, care, tasks, inbox, camera, abilities, family.
 - One datapack per person.
 - The live check found 11 memories for Ramesh, 10 for Sunita and 10 for Arjun.
 
-**Privacy** ([PRIVACY_AUDIT.md](PRIVACY_AUDIT.md), [PRIVACY_PITCH.md](PRIVACY_PITCH.md)):
+**Privacy** ([PRIVACY_AUDIT.md](../privacy/PRIVACY_AUDIT.md), [PRIVACY_PITCH.md](../privacy/PRIVACY_PITCH.md)):
 - The four headline numbers in the prompt.
 - How long data is kept: the care session 6 h; call transcripts until the booking is done; task steps 7 days;
   messages and the private-values vault 30 days.
@@ -460,7 +460,7 @@ Recorded fixture screens: Uber, Pronto, Amazon, Flipkart, Practo, gallery share,
   - coordinate taps (Pronto) are not bounds-checked;
   - the yes gate for them relies on a labelled element being under the point.
 
-**Cost** ([SIMULATION.md](SIMULATION.md), [LEARNING.md](LEARNING.md)):
+**Cost** ([SIMULATION.md](../evaluation/SIMULATION.md), [LEARNING.md](../features/LEARNING.md)):
 - About 55,568 tokens per person per month (estimated).
 - The cab routine cuts AI steps by 38%.
 - Message traffic is about 3.1 KB a month.

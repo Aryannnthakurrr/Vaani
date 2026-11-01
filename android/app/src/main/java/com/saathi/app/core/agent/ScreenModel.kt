@@ -36,7 +36,7 @@ data class ScreenNode(
     fun allText(): String = listOfNotNull(text, desc, hint).joinToString(" ")
 }
 
-/** File format of a fixture screen (docs/CONTRACTS.md). */
+/** File format of a fixture screen (docs/engineering/CONTRACTS.md). */
 @Serializable
 data class ScreenFixture(
     val `package`: String,

@@ -1,4 +1,4 @@
-"""What the doctor feature remembers after a booking, so later requests can use it (docs/MEKO_STATE.md).
+"""What the doctor feature remembers after a booking, so later requests can use it (docs/features/MEKO_STATE.md).
 
 A confirmed booking becomes one keyed fact, `doctor/next_appointment`, written as the `saathi-care` agent with where
 it was learnt ("booking call to Fortis Memorial Gurugram"). The text is what the voice assistant reads ("Appointment

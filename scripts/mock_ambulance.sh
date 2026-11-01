@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the mock Ambulance Dispatch API on :9000 (docs/CARE.md). It simulates a dispatch service; it never contacts
+# Run the mock Ambulance Dispatch API on :9000 (docs/features/CARE.md). It simulates a dispatch service; it never contacts
 # a real one. Reads MOCK_AMBULANCE_API_KEY, SIM_SPEED_MULTIPLIER and GOOGLE_MAPS_API_KEY from the environment or .env.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

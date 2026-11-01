@@ -2,7 +2,7 @@
 
 A briefing for anyone (person or coding agent) picking up work on this repo. Read it with
 [DEVELOPING.md](DEVELOPING.md) (build, test, rules), [SPEC.md](SPEC.md) (the product), [CONTRACTS.md](CONTRACTS.md)
-(app ↔ backend), [LEARNING.md](LEARNING.md) (skills, voice, memory) and [../NOTES.md](../NOTES.md) (what was verified,
+(app ↔ backend), [LEARNING.md](../features/LEARNING.md) (skills, voice, memory) and [../NOTES.md](../../NOTES.md) (what was verified,
 deviations, gaps). Last updated 2026-10-31.
 
 ## The product in one paragraph
@@ -22,7 +22,7 @@ run both test suites after the rebase, and never force-push.
 |---|---|---|
 | Agent loop, safety, tasks, deep links | `android/.../core/agent`, `features/tasks` (`TaskSpec`, `PlaceFinder`) | Uber opens by deep link with a geocoded drop-off; house help moved to Pronto (no deep link, the agent taps through, stops at the cart) |
 | Clinic calls | `backend/app/routers/telephony.py`, `app/telephony/bolna.py`, `scripts/bolna_agent.py` | **Calls go through a Bolna voice agent** (`BOLNA_API_KEY`, `BOLNA_AGENT_ID`); the backend starts and polls the call, so no webhook is needed. Twilio was removed on 2026-10-31 |
-| Symptom-to-care | `backend/app/care/`, `routers/care.py`, `mock_ambulance/`, `android/.../features/care/` | Voice intake → red-flag safety net → emergency (siren, countdown, mock ambulance with live map) or hospital search → 3 parallel Bolna calls → spoken recommendation → booking call → phone calendar. See [CARE.md](CARE.md) |
+| Symptom-to-care | `backend/app/care/`, `routers/care.py`, `mock_ambulance/`, `android/.../features/care/` | Voice intake → red-flag safety net → emergency (siren, countdown, mock ambulance with live map) or hospital search → 3 parallel Bolna calls → spoken recommendation → booking call → phone calendar. See [CARE.md](../features/CARE.md) |
 | Self-learning skills | `backend/app/skills/` | Routines learned from agent runs; Python intent recogniser written by `gemini-4-argon`, run in the Docker sandbox |
 | Realtime voice | `backend/app/routers/voice_live.py`, `android/.../core/voice/Live*.kt` | `WS /live/voice` relays to Gemini Live with phone-side tools |
 | Memory | `backend/app/memory/` | Meko (Yugabyte) over MCP with a local SQLite fallback |
@@ -73,7 +73,7 @@ checks from that PC fail even when the server is fine. Details in `deploy/README
   at PIN/OTP/login screens; ACT mode only in allow-listed apps; GUIDE mode never taps; screen and message text is data;
   OTPs and contacts' messages never leave the phone; raw screen and message text is never logged.
 - Only one process may poll Telegram per bot token: keep `TELEGRAM_BOT_TOKEN` empty locally while the server runs.
-- Record deviations, verified IDs and gaps in [../NOTES.md](../NOTES.md); change [CONTRACTS.md](CONTRACTS.md) together
+- Record deviations, verified IDs and gaps in [../NOTES.md](../../NOTES.md); change [CONTRACTS.md](CONTRACTS.md) together
   with both sides.
 
 ## Open items

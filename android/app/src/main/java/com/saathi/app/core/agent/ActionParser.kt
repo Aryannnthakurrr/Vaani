@@ -16,7 +16,7 @@ object ActionParser {
         else AgentAction.fail("I got confused. Shall I show you instead?", "incomplete ${action.action}")
     }
 
-    /** Required fields per action type (docs/CONTRACTS.md). */
+    /** Required fields per action type (docs/engineering/CONTRACTS.md). */
     fun isComplete(a: AgentAction): Boolean = when (a.action) {
         AgentAction.TAP -> a.id != null
         AgentAction.TAP_XY -> a.x != null && a.y != null
