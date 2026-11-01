@@ -225,7 +225,8 @@ class Abilities:
         meta = {
             k: a.get(k) for k in ("doctor", "specialty", "clinic", "address", "lat", "lng", "learned_from")
         }
-        await memory.remember(user, text, remembered.KIND, remembered.KEY, agent=remembered.AGENT,
+        seed = getattr(memory, "seed", memory.remember)  # Meko gets it once, whichever backend seeds first
+        await seed(user, text, remembered.KIND, remembered.KEY, agent=remembered.AGENT,
                               start_iso=start.isoformat(), booking_ref="", phone="", source="persona_seed",
                               **meta)  # fmt: skip
 

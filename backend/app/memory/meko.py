@@ -27,6 +27,8 @@ from app.memory.local import norm_key
 
 log = logging.getLogger("saathi.memory.meko")
 TIMEOUT_S = 30.0
+MAX_PARALLEL = 2  # Meko rate-limits a token that fires many calls at once (PAT_RATE_LIMITED, measured 2026-11-01)
+RATE_LIMIT_WAITS_S = (5.0, 20.0)
 
 
 def elder_for(device: str) -> str:
@@ -49,8 +51,22 @@ class MekoMemory:
         self.ids = ids  # persistent key → Meko id map (LocalMemory)
         self._cache: dict[str, str] = {}
         self._locks: dict[str, asyncio.Lock] = {}
+        self._gate = asyncio.Semaphore(MAX_PARALLEL)
 
     async def _call(self, tool: str, args: dict[str, Any]) -> Any:
+        """One Meko tool call; at most MAX_PARALLEL at a time, and a rate-limited call waits and tries again."""
+        async with self._gate:
+            for wait in (*RATE_LIMIT_WAITS_S, None):
+                try:
+                    return await self._call_once(tool, args)
+                except RuntimeError as exc:
+                    if wait is None or "RATE_LIMIT" not in str(exc):
+                        raise
+                    log.info("meko %s rate-limited, retrying in %.0f s", tool, wait)
+                    await asyncio.sleep(wait)
+        raise RuntimeError("unreachable")
+
+    async def _call_once(self, tool: str, args: dict[str, Any]) -> Any:
         from mcp import ClientSession
         from mcp.client.streamable_http import streamable_http_client
         from mcp.shared._httpx_utils import create_mcp_http_client
@@ -98,15 +114,16 @@ class MekoMemory:
         async def make() -> str:
             name = elder_for(device)
             setup = await self._new_conversation(SETUP, "setup", {"kind": "setup"}, None)
-            try:
-                made = await self._call("datapack_create", {"name": name, "conversation_id": setup})
-            except RuntimeError:
-                # A persona's datapack may already exist, made by a teammate's backend on the same Meko account.
-                found = next((d for d in _items(await self._call("datapack_list", {}), "datapacks")
-                              if d.get("name") == name), None)  # fmt: skip
-                if not found:
-                    raise
-                made = found
+            # A persona's datapack may already exist, made by another backend on the same Meko account (or an earlier
+            # run): reuse it. The free tier caps how many datapacks an account has, so never make a second one.
+            if device.startswith("persona:"):
+                listed = await self._call("datapack_list", {"conversation_id": setup, "query": name, "limit": 50})
+                found = next((d for d in _items(listed, "datapacks")
+                              if (d.get("datapack_name") or d.get("name")) == name), None)  # fmt: skip
+                if found:
+                    log.info("using Meko datapack %s", name)
+                    return str(_get(found, "datapack_id", "id"))
+            made = await self._call("datapack_create", {"name": name, "conversation_id": setup})
             log.info("using Meko datapack %s", name if device.startswith("persona:") else "for an elder")
             return str(_get(made, "datapack_id", "id"))
 
@@ -170,7 +187,7 @@ class MekoMemory:
             "query": query, "limit": limit,
         })  # fmt: skip
         texts = (
-            m.get("memory") or m.get("text") or m.get("content") for m in _items(found, "memories", "results")
+            m.get("data") or m.get("memory") or m.get("text") or m.get("content") for m in _items(found, "memories", "results")
         )
         return list(dict.fromkeys(str(t) for t in texts if t))[:limit]  # the live search repeats hits
 
@@ -205,7 +222,7 @@ class MekoMemory:
             "datapack_id": await self.datapack(device), "conversation_id": await self.profile(device), "page_size": 200,
         })  # fmt: skip
         texts = (
-            m.get("memory") or m.get("text") or m.get("content") for m in _items(got, "memories", "results")
+            m.get("data") or m.get("memory") or m.get("text") or m.get("content") for m in _items(got, "memories", "results")
         )
         return {str(t).strip().lower() for t in texts if t}
 

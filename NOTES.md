@@ -798,3 +798,7 @@ Built from the team's workflow spec; the design, API and setup are in [docs/CARE
 - Persona seeding reconciles with Meko on every start (one `memory_get_all` per persona) instead of only when the
   local copy is empty, so Meko outages heal.
 - Docs: docs/MEKO_STATE.md, docs/COMPILED_CODE.md (the complete compiled-code reference).
+- Live Meko (2026-11-01): free tier caps datapacks per account (`FREE_TIER_DATAPACK_LIMIT`), so persona datapacks are
+  looked up by name before creating; bursts get `PAT_RATE_LIMITED`, so MekoMemory runs 2 calls at a time and retries
+  after 5 s / 20 s; listings return text as `data`. Verified: 11/10/10 memories in the three persona datapacks, each
+  under its learning agent, metadata intact (appointment with clinic, address, coordinates, learned_from).
