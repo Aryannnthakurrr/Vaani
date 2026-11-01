@@ -72,8 +72,8 @@ class Speaker(
         }
     }
 
-    /** Shared with SpeechInput, so music stays paused from the question through the answer. */
-    val focus = AudioFocus(context)
+    /** Other apps are turned down (not paused) while Saathi speaks. */
+    private val focus = AudioFocus(context, exclusive = false)
 
     private fun current(gen: Int) = generation.get() == gen
 
