@@ -226,6 +226,32 @@ internal object OverlayViews {
         }
     }
 
+    /**
+     * "Do you want to turn on call forwarding?": the dialer stays visible but dimmed behind (and can't be tapped),
+     * the question on a card at the bottom. A green No (the safe answer) and a soft grey Yes.
+     */
+    fun dialCheck(ctx: Context, question: String, body: String, no: String, yes: String, onNo: () -> Unit, onYes: () -> Unit): View {
+        val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
+        val card = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            background = rounded(PAPER, dp(ctx, 28).toFloat(), AMBER, dp(ctx, 3))
+            elevation = dp(ctx, 16).toFloat()
+            setPadding(dp(ctx, 22), dp(ctx, 22), dp(ctx, 22), dp(ctx, 20))
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
+            addView(alertText(ctx, "⚠️  $question", 26f, INK, bold = true))
+            addView(alertText(ctx, body, 21f, INK), full(12))
+            addView(bigButton(ctx, no, GREEN, onNo), full(18))
+            addView(bigButton(ctx, yes, SOFT, onYes, fg = INK).apply { minHeight = dp(ctx, 64) }, full(10))
+        }
+        return android.widget.FrameLayout(ctx).apply {
+            setBackgroundColor(Color.argb(150, 0, 0, 0))
+            isClickable = true // the dimmed dialer behind can't be tapped
+            setPadding(dp(ctx, 12), 0, dp(ctx, 12), dp(ctx, 36))
+            addView(card, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
+        }
+    }
+
     /** Full-screen red scam alert, for calls: the person has to look away from the call screen and act. */
     fun alertScreen(
         ctx: Context, alert: ScamAlert, hangUpLabel: String?, safeLabel: String,

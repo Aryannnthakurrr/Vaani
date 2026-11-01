@@ -63,6 +63,7 @@ class AppContainer(val context: Context) {
 
     val contacts by lazy { ContactsLookup(context) }
     val callGuard by lazy { CallGuard(this) }
+    val dialGuard by lazy { com.saathi.app.features.scam.DialGuard(this) }
     val ingestor by lazy { MessageIngestor(this) }
     val digest by lazy { DigestRepository(this) }
     val reminders by lazy { ReminderScheduler(context) }

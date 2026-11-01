@@ -42,17 +42,28 @@ class ScamReactor(private val container: AppContainer) {
         ))
         if (result.level < ScamLevel.AMBER) return
         val style = container.settings.current.replyStyle
-        val title = if (result.level == ScamLevel.RED) {
-            tr(style, "Dangerous message", "खतरनाक संदेश", "Khatarnaak message")
-        } else {
-            tr(style, "Be careful with this message", "इस संदेश से सावधान रहें", "Is message se savdhaan rahein")
+        val code = result.forwardingCode
+        val title = when {
+            code != null -> tr(style, "Call forwarding code", "कॉल फ़ॉरवर्डिंग कोड", "Call forwarding ka code")
+            result.level == ScamLevel.RED -> tr(style, "Dangerous message", "खतरनाक संदेश", "Khatarnaak message")
+            else -> tr(style, "Be careful with this message", "इस संदेश से सावधान रहें", "Is message se savdhaan rahein")
         }
         val key = result.phraseKey ?: "scam_amber_message"
-        // What to do, not just what's wrong.
-        val advice = tr(style, "Don't open the link, don't reply and don't share any OTP.",
-            "लिंक मत खोलिए, जवाब मत दीजिए और कोई ओटीपी मत बताइए।",
-            "Link mat kholiye, jawab mat dijiye aur koi OTP mat bataiye.")
-        val body = listOf(ReasonText.join(result.reasons, style), advice).filter { it.isNotBlank() }.joinToString("\n")
+        // What to do, not just what's wrong: for a forwarding code, the code itself and what dialling it does.
+        val advice = if (code != null) {
+            tr(style, "Don't dial $code. Your calls, and the bank's OTP calls, would go to another number.",
+                "$code डायल मत कीजिए। आपकी कॉल, और बैंक की ओटीपी कॉल भी, दूसरे नंबर पर जाने लगेंगी।",
+                "$code dial mat kijiye. Aapki calls, aur bank ki OTP calls bhi, doosre number par jaane lagengi.")
+        } else if (result.urls.isNotEmpty()) {
+            tr(style, "Don't open the link, don't reply and don't share any OTP.",
+                "लिंक मत खोलिए, जवाब मत दीजिए और कोई ओटीपी मत बताइए।",
+                "Link mat kholiye, jawab mat dijiye aur koi OTP mat bataiye.")
+        } else {
+            tr(style, "Don't reply, and don't share any OTP or PIN.", "जवाब मत दीजिए, और कोई ओटीपी या पिन मत बताइए।",
+                "Jawab mat dijiye, aur koi OTP ya PIN mat bataiye.")
+        }
+        val reasons = if (code != null) result.reasons - "ussd_forwarding" else result.reasons
+        val body = listOf(ReasonText.join(reasons, style), advice).filter { it.isNotBlank() }.joinToString("\n")
         val alert = ScamAlert(result.level.toAlertLevel(), title, body, key, from = fromLine(sourcePkg, sender, style))
         withContext(Dispatchers.Main) { container.alerts.show(alert) }
         container.scope.launch { container.speaker.sayPhrase(key, style) }

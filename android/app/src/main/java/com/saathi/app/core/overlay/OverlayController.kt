@@ -55,6 +55,7 @@ class OverlayController(private val ctx: Context, private val container: AppCont
     private var resultView: View? = null
     private var shownResult: AssistantScreen.Result? = null
     private var alertView: View? = null
+    private var dialCheckView: View? = null
 
     init {
         scope.launch {
@@ -328,6 +329,21 @@ class OverlayController(private val ctx: Context, private val container: AppCont
         return true
     }
 
+    /** The call-forwarding question over the dialer (DialGuard). Returns false when overlays can't be drawn. */
+    fun showDialCheck(question: String, body: String, no: String, yes: String, onNo: () -> Unit, onYes: () -> Unit): Boolean {
+        if (!canDraw()) return false
+        ui {
+            remove(dialCheckView)
+            val close = { remove(dialCheckView); dialCheckView = null }
+            val v = OverlayViews.dialCheck(ctx, question, body, no, yes,
+                onNo = { close(); onNo() }, onYes = { close(); onYes() })
+            if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                    Gravity.TOP, type = type) }) dialCheckView = v
+            vibrate()
+        }
+        return true
+    }
+
     private fun vibrate() {
         val vib = ctx.getSystemService(Vibrator::class.java) ?: return
         vib.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 700, 250, 700, 250, 700), -1))
@@ -337,7 +353,7 @@ class OverlayController(private val ctx: Context, private val container: AppCont
         scope.cancel()
         added.keys.toList().forEach { remove(it) }
         bubble = null; stopChip = null; caption = null; shownCaption = null; highlight = null
-        promptView = null; shownPrompt = null; resultView = null; shownResult = null; alertView = null
+        promptView = null; shownPrompt = null; resultView = null; shownResult = null; alertView = null; dialCheckView = null
     }
 
     // ---------------------------------------------------------------- window plumbing

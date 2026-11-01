@@ -39,8 +39,16 @@ class CallGuard(private val container: AppContainer) {
     @Volatile private var moneyApp = false
     @Volatile private var remoteApp = false
     @Volatile private var alerted = ScamLevel.NONE
+    /** When the last OTP arrived: scammers often trigger it just before they call, then ask for it. */
+    @Volatile private var lastOtpAt = 0L
+    @Volatile private var voipOtpAlertAt = 0L
 
     val inCall: Boolean get() = state == TelephonyManager.EXTRA_STATE_OFFHOOK
+
+    /** A WhatsApp / Meet style internet call: no phone call, but the audio is in call mode. */
+    private val inInternetCall: Boolean
+        get() = context.getSystemService(android.media.AudioManager::class.java)?.mode ==
+            android.media.AudioManager.MODE_IN_COMMUNICATION
 
     fun onCallStateChanged(newState: String, incomingNumber: String?) {
         if (!incomingNumber.isNullOrBlank()) {
@@ -51,6 +59,12 @@ class CallGuard(private val container: AppContainer) {
             TelephonyManager.EXTRA_STATE_RINGING -> if (state == TelephonyManager.EXTRA_STATE_IDLE) resetSignals()
             TelephonyManager.EXTRA_STATE_OFFHOOK -> if (state != TelephonyManager.EXTRA_STATE_OFFHOOK) {
                 offhookAt = System.currentTimeMillis()
+                // An OTP that came in just before an incoming call counts as one during it. (Not for calls the user
+                // places: their number isn't known here, so a call to family would look like a stranger.)
+                if (state == TelephonyManager.EXTRA_STATE_RINGING && offhookAt - lastOtpAt < OTP_BEFORE_CALL_MS) {
+                    otp = true
+                    evaluate("call_red_otp")
+                }
             }
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 resetSignals()
@@ -69,10 +83,36 @@ class CallGuard(private val container: AppContainer) {
         offhookAt = 0L
     }
 
+    /** Called for every OTP message, in a call or not. */
     fun onOtpArrived() {
-        if (!inCall) return
-        otp = true
-        evaluate("call_red_otp")
+        lastOtpAt = System.currentTimeMillis()
+        if (inCall) {
+            otp = true
+            evaluate("call_red_otp")
+        } else if (inInternetCall) {
+            warnOtpOnInternetCall()
+        }
+    }
+
+    /**
+     * WhatsApp calls don't say who is calling, so this can't be scored like a phone call. An OTP during one is
+     * still the classic scam, so the warning is the same plain advice: tell no one.
+     */
+    private fun warnOtpOnInternetCall() {
+        val now = System.currentTimeMillis()
+        if (now - voipOtpAlertAt < 60_000) return
+        voipOtpAlertAt = now
+        container.scope.launch {
+            val style = container.settings.current.replyStyle
+            container.db.events().insert(EventEntity(type = "call", level = ScamLevel.RED.wire,
+                reasons = "otp_during_call", detail = "internet_call", ts = now))
+            vibrate(strong = true)
+            val alert = ScamAlert(com.saathi.app.core.overlay.AlertLevel.RED,
+                tr(style, "Don't share this OTP", "यह ओटीपी किसी को मत बताइए", "Yeh OTP kisi ko mat bataiye"),
+                ReasonText.of("otp_during_call", style) + "\n" + otpAdvice(style), "call_red_otp")
+            withContext(Dispatchers.Main) { container.alerts.show(alert) }
+            container.speaker.sayPhrase("call_red_otp", style)
+        }
     }
 
     fun onForegroundPackage(pkg: String) {
@@ -118,13 +158,25 @@ class CallGuard(private val container: AppContainer) {
         val settings = container.settings.current
         val style = settings.replyStyle
         vibrate(risk.level == ScamLevel.RED)
-        val title = if (risk.level == ScamLevel.RED) {
-            tr(style, "Danger: this call may be a scam", "खतरा: यह कॉल धोखा हो सकती है", "Khatra: yeh call dhokha ho sakti hai")
-        } else {
-            tr(style, "Be careful on this call", "इस कॉल पर सावधान रहें", "Is call par savdhaan rahein")
+        val otpCase = "otp_during_call" in risk.reasons
+        val title = when {
+            // The one thing to do, as the title: an OTP on a call is never to be read out.
+            otpCase && risk.level == ScamLevel.RED ->
+                tr(style, "Danger: don't share the OTP on this call", "खतरा: इस कॉल पर ओटीपी मत बताइए", "Khatra: is call par OTP mat bataiye")
+            risk.level == ScamLevel.RED ->
+                tr(style, "Danger: this call may be a scam", "खतरा: यह कॉल धोखा हो सकती है", "Khatra: yeh call dhokha ho sakti hai")
+            else -> tr(style, "Be careful on this call", "इस कॉल पर सावधान रहें", "Is call par savdhaan rahein")
         }
+        val advice = listOfNotNull(
+            otpAdvice(style).takeIf { otpCase },
+            tr(style, "Don't send money because someone on a call asks.", "कॉल पर किसी के कहने से पैसे मत भेजिए।",
+                "Call par kisi ke kehne se paise mat bhejiye.").takeIf { "money_app_during_call" in risk.reasons },
+            tr(style, "Stop the screen sharing now.", "स्क्रीन शेयर अभी बंद कीजिए।", "Screen share abhi band kijiye.")
+                .takeIf { "remote_app_during_call" in risk.reasons },
+        )
+        val body = (listOf(ReasonText.join(risk.reasons, style)) + advice).joinToString("\n")
         val from = number?.takeIf { it.isNotBlank() }?.let { tr(style, "Call from $it", "$it से कॉल", "$it se call") }
-        val alert = ScamAlert(risk.level.toAlertLevel(), title, ReasonText.join(risk.reasons, style), phraseKey, inCall = true, from = from)
+        val alert = ScamAlert(risk.level.toAlertLevel(), title, body, phraseKey, inCall = true, from = from)
         withContext(Dispatchers.Main) { container.alerts.show(alert) }
         container.speaker.speakInCall(phraseKey, style)
         if (risk.level == ScamLevel.RED && settings.notifyFamilyOnScam) {
@@ -133,6 +185,11 @@ class CallGuard(private val container: AppContainer) {
             runCatching { container.backend.notifyFamily(summary) }
         }
     }
+
+    private fun otpAdvice(style: ReplyStyle) = tr(style,
+        "No bank, police, delivery or customer care ever asks for an OTP. Tell it to no one.",
+        "बैंक, पुलिस, डिलीवरी या कस्टमर केयर वाले कभी ओटीपी नहीं माँगते। किसी को मत बताइए।",
+        "Bank, police, delivery ya customer care wale kabhi OTP nahi maangte. Kisi ko mat bataiye.")
 
     private fun vibrate(strong: Boolean) {
         val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -158,5 +215,9 @@ class CallGuard(private val container: AppContainer) {
             container.scope.launch { container.speaker.speakInCall("call_press_red", container.settings.current.replyStyle) }
         }
         return ok
+    }
+
+    private companion object {
+        const val OTP_BEFORE_CALL_MS = 2 * 60 * 1000L
     }
 }

@@ -25,7 +25,7 @@ class MessageIngestor(private val container: AppContainer) {
 
     suspend fun ingest(sourcePkg: String, sender: String, text: String, ts: Long) {
         if (text.isBlank()) return
-        if (Redactor.detectOtp(text) != null && container.callGuard.inCall) container.callGuard.onOtpArrived()
+        if (Redactor.detectOtp(text) != null) container.callGuard.onOtpArrived()
 
         val fromContact = container.contacts.isSavedContact(sender)
         // Private values go into the on-device vault; the stored and sent text only carries tokens.

@@ -8,9 +8,11 @@ object ReasonText {
     fun of(code: String, style: ReplyStyle): String {
         val key = code.substringBefore(':')
         return when (key) {
-            "ussd_forwarding" -> tr(style, "Asks you to dial a code that sends your calls to a stranger.",
-                "ऐसा कोड डायल करने को कहता है जिससे आपकी कॉल किसी अनजान के पास चली जाएँ।",
-                "Aisa code dial karne ko kehta hai jisse aapki calls kisi anjaan ke paas chali jayein.")
+            "ussd_forwarding" -> tr(style, "Has a call forwarding code. Dialling it sends your calls to another number.",
+                "इसमें कॉल फ़ॉरवर्डिंग का कोड है। इसे डायल करने से आपकी कॉल दूसरे नंबर पर जाने लगेंगी।",
+                "Isme call forwarding ka code hai. Ise dial karne se aapki calls doosre number par jaane lagengi.")
+            "dialed_forwarding" -> tr(style, "A call forwarding code was typed in the phone app.",
+                "फ़ोन ऐप में कॉल फ़ॉरवर्डिंग का कोड लिखा गया।", "Phone app mein call forwarding ka code likha gaya.")
             "ussd_upi" -> tr(style, "Asks you to dial the UPI payment code.", "UPI भुगतान वाला कोड डायल करने को कहता है।",
                 "UPI payment wala code dial karne ko kehta hai.")
             "ussd_unknown" -> tr(style, "Asks you to dial an unusual phone code.", "अजीब फ़ोन कोड डायल करने को कहता है।",

@@ -7,9 +7,22 @@ data class UssdFinding(val code: String, val level: ScamLevel, val reason: Strin
  * dialling one silently diverts the user's calls (and OTP calls) to the scammer.
  */
 object UssdDetector {
+    // GSM codes, plus Jio's *401* (always), *403* (no answer), *405* (busy), *409* (unreachable).
     private val forwarding = listOf(
-        "**004*", "*004*", "**21*", "*21*", "**61*", "**62*", "**67*", "*61*", "*62*", "*67*", "*401*",
+        "**002*", "*002*", "**004*", "*004*", "**21*", "*21*", "**61*", "**62*", "**67*", "*61*", "*62*", "*67*",
+        "*401*", "*403*", "*405*", "*409*",
     )
+
+    /**
+     * The forwarding code in what is typed in the dialer ("*401*98765 43210"), once a number of at least 6 digits
+     * follows it; null otherwise. Spaces and dashes the dialer adds are ignored.
+     */
+    fun forwardingTarget(dialed: String): Pair<String, String>? {
+        val s = dialed.filter { it.isDigit() || it in "*#+" }
+        val prefix = forwarding.filter { s.startsWith(it) }.maxByOrNull { it.length } ?: return null
+        val target = s.removePrefix(prefix).trimEnd('#').substringBefore('*')
+        return if (target.count { it.isDigit() } >= 6) s to target else null
+    }
     private val harmless = setOf("*#06#", "*#*#4636#*#*")
     private val codeRegex = Regex("(?<![\\w*#])[*#]{1,4}\\d{1,4}[*#][\\d*#+]*")
     private val dialWords = Regex("(?i)\\b(dial|call|press|type|send)\\b|डायल|दबाएं|dabaye|dabao")

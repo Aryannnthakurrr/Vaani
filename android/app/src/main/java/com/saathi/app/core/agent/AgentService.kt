@@ -33,6 +33,14 @@ class AgentService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString()
+        // A call-forwarding code typed (or pre-filled from a link) in the phone app: ask before it is dialled.
+        runCatching {
+            val guard = SaathiApp.container.dialGuard
+            if (guard.isDialer(pkg)) when (event.eventType) {
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> guard.onDialerText(event.text.joinToString(""))
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> guard.scanWindow(rootInActiveWindow)
+            }
+        }
         val kind = when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> UiEventKind.WINDOW_CHANGED
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, AccessibilityEvent.TYPE_WINDOWS_CHANGED -> UiEventKind.CONTENT_CHANGED

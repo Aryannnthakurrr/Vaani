@@ -10,6 +10,8 @@ data class ScanResult(
     val phraseKey: String?,
     val urls: List<String>,
     val urlsToCheck: List<String>,
+    /** The call-forwarding code the message asks to dial ("*401*98765…"), shown in the alert. */
+    val forwardingCode: String? = null,
 )
 
 /** Pure, on-device message scanner (SPEC §7.6 F1). Runs on the raw text; nothing here touches the network. */
@@ -30,7 +32,8 @@ object MessageScanner {
             }
         }
 
-        UssdDetector.detect(text, fromContact)?.let { f ->
+        val ussd = UssdDetector.detect(text, fromContact)
+        ussd?.let { f ->
             when (f.level) {
                 ScamLevel.RED -> raise(ScamLevel.RED, f.reason, "scam_red_ussd")
                 ScamLevel.AMBER -> raise(ScamLevel.AMBER, f.reason, "scam_amber_message")
@@ -68,7 +71,8 @@ object MessageScanner {
             textHits.forEach { raise(hitLevel, it, if (hitLevel == ScamLevel.INFO) null else key) }
         }
 
-        return ScanResult(level, reasons, if (level >= ScamLevel.AMBER) phrase else null, urls, toCheck)
+        return ScanResult(level, reasons, if (level >= ScamLevel.AMBER) phrase else null, urls, toCheck,
+            forwardingCode = ussd?.takeIf { it.reason == "ussd_forwarding" }?.code)
     }
 
     /** Upgrades a scan with a backend (or fallback) link verdict. */
