@@ -88,7 +88,14 @@ class CareFlow(private val c: AppContainer) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                fail(e.message ?: s("Something went wrong.", "कुछ गड़बड़ हो गई।", "Kuch gadbad ho gayi."))
+                // Never read raw exception text aloud: it is English and technical.
+                fail(when {
+                    e is CareUnavailable && e.offline -> s("I can't reach the Vaani server. Please try again, or call 108 in an emergency.",
+                        "वाणी सर्वर से नहीं जुड़ पा रही। फिर से कोशिश कीजिए, या इमरजेंसी में 108 पर फ़ोन कीजिए।",
+                        "Vaani server se jud nahi pa rahi. Phir se koshish kijiye, ya emergency mein 108 par call kijiye.")
+                    else -> s("Something went wrong. Please try again.", "कुछ गड़बड़ हो गई। फिर से कोशिश कीजिए।",
+                        "Kuch gadbad ho gayi. Phir se koshish kijiye.")
+                })
             }
         }
     }
@@ -332,7 +339,8 @@ class CareFlow(private val c: AppContainer) {
                     "Main abhi $calling ko call kar rahi hoon. Isme kuch minute lagenge."))
             }
             when (ui.phase) {
-                CarePhase.RECOMMEND -> return recommend(session, ui.recommendation ?: return)
+                CarePhase.RECOMMEND -> return recommend(session, ui.recommendation
+                    ?: throw CareUnavailable("recommendation missing"))
                 CarePhase.NO_OPTIONS, CarePhase.ERROR -> return say(ui.message ?: s("I could not find an appointment.", "मुझे अपॉइंटमेंट नहीं मिला।", "Mujhe appointment nahi mila."))
                 else -> Unit // poll() long-polls, so the next round starts at once
             }
@@ -366,10 +374,17 @@ class CareFlow(private val c: AppContainer) {
 
     private suspend fun poll(session: String): CareUi {
         val events = runCatching { client.events(session, _ui.value.lastSeq, LONG_POLL_S) }
-            .getOrElse { delay(POLL_MS); emptyList() } // offline: don't spin
+            .onSuccess { pollFailures = 0 }
+            .getOrElse {
+                // Offline: don't spin, but don't wait forever either (a restarted server forgets the session).
+                if (++pollFailures >= MAX_POLL_FAILURES) { pollFailures = 0; throw CareUnavailable("lost the session", offline = true) }
+                delay(POLL_MS); emptyList()
+            }
         _ui.update { ui -> events.fold(ui) { acc, e -> CareReducer.apply(acc, e) } }
         return _ui.value
     }
+
+    private var pollFailures = 0
 
     private suspend fun recommend(session: String, rec: Recommendation) {
         say(rec.spokenText)
@@ -495,6 +510,8 @@ class CareFlow(private val c: AppContainer) {
 
     private companion object {
         const val POLL_MS = 1_500L
+        /** About a minute or more of failed polls in a row: the session is gone. */
+        const val MAX_POLL_FAILURES = 20
         /** How long the server may hold one events request open (long-poll). */
         const val LONG_POLL_S = 15
         const val SLOW_MS = 4_000L

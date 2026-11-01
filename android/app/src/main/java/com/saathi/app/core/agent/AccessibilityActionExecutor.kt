@@ -53,7 +53,9 @@ class AccessibilityActionExecutor(
 
     private suspend fun tap(svc: AgentService, ref: NodeRef?): Boolean {
         ref ?: return false
-        var n: AccessibilityNodeInfo? = ref.node.takeIf { it.refresh() }
+        // A node that is gone means the screen changed since it was read (the model or the user took a while): a
+        // blind tap at its old spot could press whatever is there now (Pay). Fail, and the loop looks again.
+        var n: AccessibilityNodeInfo? = ref.node.takeIf { it.refresh() } ?: return false
         while (n != null && !n.isClickable) n = n.parent
         if (n != null && n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
         return gestureTap(svc, ref.info.centerX, ref.info.centerY)

@@ -17,7 +17,8 @@ def family_key(settings: Settings, device_id: str) -> str:
 
 
 def key_matches(settings: Settings, device_id: str, key: str | None) -> bool:
-    return bool(key) and hmac.compare_digest(family_key(settings, device_id), key or "")
+    # Bytes: compare_digest raises TypeError on non-ASCII str, which turned "?key=é" into a 500.
+    return bool(key) and hmac.compare_digest(family_key(settings, device_id).encode(), (key or "").encode())
 
 
 def dashboard_path(settings: Settings, device_id: str) -> str:

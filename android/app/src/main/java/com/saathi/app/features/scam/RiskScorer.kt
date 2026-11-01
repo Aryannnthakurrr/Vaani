@@ -2,7 +2,8 @@ package com.saathi.app.features.scam
 
 /** Everything CallGuard knows about the current call (SPEC §7.6 F3). */
 data class CallSignals(
-    val savedContact: Boolean,
+    /** null: the other number isn't known (a call the user placed), so it neither raises nor lowers the score. */
+    val savedContact: Boolean?,
     val durationMs: Long = 0,
     val otpDuringCall: Boolean = false,
     val moneyAppDuringCall: Boolean = false,
@@ -22,7 +23,11 @@ object RiskScorer {
     fun score(s: CallSignals): RiskScore {
         var score = 0
         val reasons = mutableListOf<String>()
-        if (s.savedContact) score -= 3 else { score += 3; reasons += "unknown_caller" }
+        when (s.savedContact) {
+            true -> score -= 3
+            false -> { score += 3; reasons += "unknown_caller" }
+            null -> Unit
+        }
         if (s.durationMs > LONG_CALL_MS) { score += 1; reasons += "long_call" }
         if (s.otpDuringCall) { score += 4; reasons += "otp_during_call" }
         if (s.moneyAppDuringCall) { score += 3; reasons += "money_app_during_call" }

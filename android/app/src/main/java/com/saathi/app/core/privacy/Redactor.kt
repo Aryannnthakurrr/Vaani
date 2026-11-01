@@ -13,8 +13,9 @@ object Redactor {
     private val otpKeyword = Regex(
         "(?i)(\\botp\\b|one[ -]?time|verification code|code is|passcode|security code|ओटीपी|सत्यापन कोड)",
     )
-    // "P" and "#": digits inside a vault token (⟦P12⟧) or local slot (⟦#0⟧) are not a code.
-    private val otpDigits = Regex("(?<![\\d₹.,P#])\\d{4,8}(?![\\d,]|\\.\\d)")
+    // "P" and "#": digits inside a vault token (⟦P12⟧) or local slot (⟦#0⟧) are not a code. Nor are masked account
+    // digits (XX1234, **1234) or parts of a date (01-11-2026, 2026/11/01).
+    private val otpDigits = Regex("(?<![\\d₹.,P#Xx*/-])\\d{4,8}(?![\\d,/-]|\\.\\d)")
     private val cardLike = Regex("(?<!\\d)(?:\\d[ -]?){12,18}\\d(?!\\d)")
     private val aadhaar = Regex("(?<!\\d)\\d{4}[ ]?\\d{4}[ ]?\\d{4}(?!\\d)")
     private val accountKeyword = Regex("(?i)(a/c|acct|account|खाता|khata)")

@@ -149,7 +149,7 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
                     "Book karne ke liye hospital ko call kar rahe hain…"))
                 else -> b.callYourself?.let { phone ->
                     BigButton(s("Call to book: $phone", "बुक करने के लिए फ़ोन करें: $phone", "Book karne ke liye call karein: $phone"),
-                        { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))) })
+                        { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))) } })
                 }
             }
         }
@@ -158,13 +158,13 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
             ui.message?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
             ui.fallback.ifEmpty { ui.hospitals.map { it.hospital } }.filter { it.phone != null }.take(5).forEach { h ->
                 SecondaryButton("${h.name}${h.etaMinutes?.let { " · " + minutes(it, ::s) }.orEmpty()}",
-                    { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${h.phone}"))) })
+                    { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${h.phone}"))) } })
             }
         }
         if (opened && !running) {
             SecondaryButton(s("Start again", "फिर से शुरू करें", "Phir se shuru karein"), { c.care.start() })
         }
-        TextButton({ context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:108"))) }, Modifier.fillMaxWidth()) {
+        TextButton({ runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:108"))) } }, Modifier.fillMaxWidth()) {
             Text(s("Emergency? Call 108", "इमरजेंसी? 108 पर फ़ोन करें", "Emergency? 108 par call karein"),
                 style = MaterialTheme.typography.titleMedium, color = Danger)
         }
@@ -327,10 +327,10 @@ private fun Booked(b: BookingStatus, calendarAdded: Boolean, style: ReplyStyle, 
     )
     b.instructions?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = Muted) }
     b.calendar?.navigateUrl?.let { url ->
-        BigButton(s("Show the way", "रास्ता दिखाएँ", "Rasta dikhayein"), { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) })
+        BigButton(s("Show the way", "रास्ता दिखाएँ", "Rasta dikhayein"), { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } })
     }
     val summary = listOfNotNull(b.calendar?.title, whenText.ifBlank { null }, b.bookingRef?.let { "Ref $it" }).joinToString(", ")
     SecondaryButton(s("Share with family", "परिवार को भेजें", "Family ko bhejein"), {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/?text=" + Uri.encode(summary))))
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/?text=" + Uri.encode(summary)))) }
     })
 }

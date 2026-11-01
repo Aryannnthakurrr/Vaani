@@ -22,6 +22,7 @@ class MessageIngestor(private val container: AppContainer) {
     private val db get() = container.db
     private val reactor = ScamReactor(container)
     private val lock = Mutex()
+    private val classifyLock = Mutex()
 
     suspend fun ingest(sourcePkg: String, sender: String, text: String, ts: Long) {
         if (text.isBlank()) return
@@ -68,11 +69,14 @@ class MessageIngestor(private val container: AppContainer) {
     }
 
     /** Sends every still-unclassified, cloud-eligible message (already redacted) in one batch. */
-    suspend fun classifyPending() {
+    suspend fun classifyPending() = classifyLock.withLock {
+        // One batch at a time: two messages arriving together used to classify the same rows twice (two reminders).
         val rows = db.messages().unclassified()
             .filter { InboxPipeline.mayLeaveDevice(it.isOtp, it.fromContact) }
-        if (rows.isEmpty()) return
-        val results = InboxPipeline.classify(container.backend, rows.map { ClassifyItem(it.id.toString(), it.sender, it.redactedText) })
+        if (rows.isEmpty()) return@withLock
+        // The stored text only has vault tokens; the cloud copy is masked again (UPI IDs, long reference numbers).
+        val results = InboxPipeline.classify(container.backend,
+            rows.map { ClassifyItem(it.id.toString(), it.sender, Redactor.redact(it.redactedText).text) })
         val now = ZonedDateTime.now()
         for (res in results) {
             val row = rows.firstOrNull { it.id.toString() == res.id } ?: continue

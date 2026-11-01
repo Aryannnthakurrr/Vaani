@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import Settings
 from app.db import Database
@@ -19,6 +19,7 @@ log = logging.getLogger("saathi.links")
 router = APIRouter(dependencies=[Depends(require_device)])
 CACHE_SECONDS = 24 * 3600
 YOUNG_DOMAIN_DAYS = 30
+_SEVERITY = {"safe": 0, "suspicious": 1, "dangerous": 2}
 
 
 async def check_url(url: str, settings: Settings, llm: LLMClient) -> LinkCheckResponse:
@@ -42,14 +43,17 @@ async def check_url(url: str, settings: Settings, llm: LLMClient) -> LinkCheckRe
         if await browser.safe_browsing_hit(facts.url, settings.safe_browsing_api_key):
             signals.append("safe_browsing: Google flags this site as harmful")
         verdict, en, hi = rule_verdict(facts, signals)
-        if verdict != "dangerous" and settings.sandbox_enabled:
+        if verdict != "dangerous" and settings.sandbox_enabled and await browser.is_public_url(facts.url):
             try:
                 sandbox = await browser.sandbox_visit(facts.url)
             except Exception as exc:
                 log.warning("sandbox visit failed: %s", type(exc).__name__)
         if verdict != "dangerous":
             result = await llm.link_verdict(facts, signals, sandbox)
-            verdict, en, hi = result.verdict, result.reason_simple, result.reason_simple_hi
+            # The page's own title and screenshot are in the prompt, so a hostile page could talk the model into
+            # "safe": the model may only make the rules' verdict stricter, never milder.
+            if _SEVERITY.get(result.verdict, 0) >= _SEVERITY.get(verdict, 0):
+                verdict, en, hi = result.verdict, result.reason_simple, result.reason_simple_hi
     final_url = (sandbox or {}).get("final_url") or chain[-1]
     return LinkCheckResponse(
         url=first.url,
@@ -68,11 +72,14 @@ async def links_check(
     db: Database = Depends(db_dep),
     llm: LLMClient = Depends(llm_dep),
 ) -> LinkCheckResponse:
-    key = url_hash(privacy_url(req.url))
-    cached = db.cache_get(key, CACHE_SECONDS)
-    if cached:
-        return LinkCheckResponse(**{**cached, "cached": True})
-    result = await check_url(req.url, settings, llm)
+    try:
+        key = url_hash(privacy_url(req.url))
+        cached = db.cache_get(key, CACHE_SECONDS)
+        if cached:
+            return LinkCheckResponse(**{**cached, "cached": True})
+        result = await check_url(req.url, settings, llm)
+    except ValueError as exc:  # "http://a.com:99999", "http://[::1": not a URL we can check
+        raise HTTPException(status_code=422, detail="not a valid link") from exc
     db.cache_put(key, result.model_dump(exclude={"cached"}))
     log.info("links verdict=%s signals=%d", result.verdict, len(result.signals))
     return result

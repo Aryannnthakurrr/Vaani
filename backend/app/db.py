@@ -75,12 +75,17 @@ class Database:
         conn.execute("INSERT OR IGNORE INTO devices (device_id) VALUES (?)", (device_id,))
 
     def heartbeat(self, device_id: str, ts_ms: int) -> None:
+        # Never later than now: one heartbeat from a phone whose clock is ahead would otherwise keep the stored
+        # time in the future and silence the family alert for good.
+        now_ms = int(time.time() * 1000)
+        ts_ms = max(0, min(int(ts_ms), now_ms))
         with self._conn() as conn:
             self._ensure(conn, device_id)
+            # The stored value is capped at now too, so a future time saved before this fix heals itself.
             conn.execute(
-                "UPDATE devices SET last_heartbeat_ms = MAX(COALESCE(last_heartbeat_ms, 0), ?) "
+                "UPDATE devices SET last_heartbeat_ms = MAX(MIN(COALESCE(last_heartbeat_ms, 0), ?), ?) "
                 "WHERE device_id = ?",
-                (ts_ms, device_id),
+                (now_ms, ts_ms, device_id),
             )
 
     def configure(

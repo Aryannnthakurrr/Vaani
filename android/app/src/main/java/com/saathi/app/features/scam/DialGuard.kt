@@ -2,6 +2,8 @@ package com.saathi.app.features.scam
 
 import android.accessibilityservice.AccessibilityService
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.telecom.TelecomManager
 import android.view.accessibility.AccessibilityNodeInfo
 import com.saathi.app.core.AppContainer
@@ -18,6 +20,9 @@ import kotlinx.coroutines.launch
  * habit) and says plainly what it does. "No" clears the number; "Yes" lets it through for that code.
  */
 class DialGuard(private val container: AppContainer) {
+    private val main = Handler(Looper.getMainLooper())
+    private var pending: Runnable? = null
+    /** The forwarding code ("*401*") being asked about, or already allowed with "Yes" (reset by "No"). */
     @Volatile private var asking: String? = null
     @Volatile private var allowed: String? = null
 
@@ -28,9 +33,18 @@ class DialGuard(private val container: AppContainer) {
         runCatching { container.context.getSystemService(TelecomManager::class.java)?.defaultDialerPackage }.getOrNull()
     }
 
-    /** [text] is what the dialer's number field now shows. Main thread (accessibility events). */
+    /**
+     * [text] is what the dialer's number field now shows. Main thread (accessibility events). Asks once the typing
+     * pauses, so the question doesn't jump up between digits, and once per code (not again for every extra digit).
+     */
     fun onDialerText(text: String) {
+        pending?.let { main.removeCallbacks(it) }
         val (code, target) = UssdDetector.forwardingTarget(text) ?: return
+        if (code == asking || code == allowed) return
+        pending = Runnable { ask(code, target) }.also { main.postDelayed(it, SETTLE_MS) }
+    }
+
+    private fun ask(code: String, target: String) {
         if (code == asking || code == allowed) return
         val controller = OverlayService.controller ?: return
         asking = code
@@ -44,8 +58,9 @@ class DialGuard(private val container: AppContainer) {
         val shown = controller.showDialCheck(question, body,
             no = tr(style, "No, don't do it", "नहीं, मत कीजिए", "Nahi, mat kijiye"),
             yes = tr(style, "Yes, I want it on", "हाँ, मुझे चालू करना है", "Haan, mujhe on karna hai"),
-            onNo = { asking = null; clearDialer() },
-            onYes = { asking = null; allowed = code })
+            onNo = { asking = null; container.speaker.stop(); clearDialer(code) },
+            onYes = { asking = null; allowed = code; container.speaker.stop() },
+            onNotShown = { asking = null })
         if (!shown) { asking = null; return }
         container.scope.launch {
             container.db.events().insert(EventEntity(type = "call", level = ScamLevel.AMBER.wire,
@@ -55,28 +70,33 @@ class DialGuard(private val container: AppContainer) {
     }
 
     /** Empties the dialer's number field; if the field can't be found, leaves the phone app. */
-    private fun clearDialer() {
+    private fun clearDialer(code: String) {
         val svc = AgentService.instance ?: return
-        val field = svc.rootInActiveWindow?.let { findEditable(it) }
+        // The field holding the code, not the dialer's search box.
+        val field = svc.rootInActiveWindow?.let { root ->
+            editables(root).firstOrNull { n -> n.text?.toString().orEmpty().filter { it.isDigit() || it in "*#+" }.startsWith(code) }
+        }
         val cleared = field?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
         }) == true
         if (!cleared) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
     }
 
-    private fun findEditable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (node.isEditable) return node
-        for (i in 0 until node.childCount) node.getChild(i)?.let { c -> findEditable(c)?.let { return it } }
-        return null
+    private fun editables(node: AccessibilityNodeInfo, out: MutableList<AccessibilityNodeInfo> = mutableListOf()): List<AccessibilityNodeInfo> {
+        if (node.isEditable) out += node
+        for (i in 0 until node.childCount) node.getChild(i)?.let { editables(it, out) }
+        return out
     }
 
     /** Reads the number field after the phone app opens with a number already in it (a tapped tel: link). */
     fun scanWindow(root: AccessibilityNodeInfo?) {
         root ?: return
-        findEditable(root)?.text?.toString()?.let { onDialerText(it) }
+        editables(root).firstNotNullOfOrNull { n -> n.text?.toString()?.takeIf { UssdDetector.forwardingTarget(it) != null } }
+            ?.let { onDialerText(it) }
     }
 
     private companion object {
+        const val SETTLE_MS = 900L
         val KNOWN_DIALERS = setOf(
             "com.google.android.dialer", "com.samsung.android.dialer", "com.android.dialer",
             "com.android.contacts", "com.oneplus.dialer", "com.android.incallui",

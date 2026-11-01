@@ -32,9 +32,12 @@ object UrlExtractor {
     /** APK rule: anything that ends in .apk or has apk/download in its path is RED immediately. */
     fun isApkLink(url: String): Boolean {
         val p = path(url).substringBefore('#')
-        return p.substringBefore('?').endsWith(".apk") || host(url).endsWith(".apk") ||
-            p.contains("apk") || p.contains("/download")
+        return isApkFile(url) || p.contains("apk") || p.contains("/download")
     }
+
+    /** Certainly an app file: the link itself ends in .apk. */
+    fun isApkFile(url: String): Boolean =
+        path(url).substringBefore('#').substringBefore('?').endsWith(".apk") || host(url).endsWith(".apk")
 
     fun isShortener(url: String): Boolean = host(url) in shorteners
 }

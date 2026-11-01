@@ -123,12 +123,15 @@ class Assistant(private val c: AppContainer) {
     }
 
     private fun startLive(url: String) {
+        // A session can report its end twice (closed while still connecting, then the server's close reply); the
+        // second report would tear down a newer conversation started in between.
+        val endedOnce = java.util.concurrent.atomic.AtomicBoolean(false)
         val session = LiveVoiceSession(
             context = c.context,
             url = url,
             replyStyle = { style.wire },
             tools = LiveTools(c) { _live.value },
-            onEnded = { connected -> c.scope.launch { onLiveEnded(connected) } },
+            onEnded = { connected -> if (endedOnce.compareAndSet(false, true)) c.scope.launch { onLiveEnded(connected) } },
             sharedContext = {
                 val appt = c.settings.current.lastAppointment?.let {
                     runCatching { com.saathi.app.util.SaathiJson.decodeFromString(com.saathi.app.core.net.Appointment.serializer(), it) }.getOrNull()
@@ -203,7 +206,8 @@ class Assistant(private val c: AppContainer) {
         }
         when {
             // Never connected: fall back to one turn-based exchange so the tap still does something useful.
-            !connected -> listenOnce()
+            // (Not when a task was started meanwhile: listenOnce would cancel it.)
+            !connected -> if (job?.isActive != true) listenOnce()
             // Dropped without the user ending it: say so, instead of leaving them talking to nobody.
             !endRequested -> {
                 val msg = tr(style, "The connection dropped. Tap the mic to talk again.", "कनेक्शन टूट गया। फिर से बात करने के लिए माइक दबाइए।",

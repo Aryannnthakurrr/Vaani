@@ -48,22 +48,36 @@ class BolnaConfig:
 
 
 def _request(cfg: BolnaConfig, method: str, path: str, body: dict[str, object] | None = None) -> dict:
-    resp = httpx.request(
-        method, API + path, json=body, headers={"Authorization": f"Bearer {cfg.api_key}"}, timeout=15
-    )
+    # Timeouts and odd replies become BolnaError too: callers catch (BolnaError, OSError), and httpx.HTTPError
+    # is not an OSError, so a timeout used to 500 the route or kill a background care task silently.
+    try:
+        resp = httpx.request(
+            method, API + path, json=body, headers={"Authorization": f"Bearer {cfg.api_key}"}, timeout=15
+        )
+    except httpx.HTTPError as exc:
+        raise BolnaError(f"Bolna unreachable: {type(exc).__name__}") from exc
     if resp.status_code >= 300:
         try:
             message = resp.json().get("message", resp.text)
         except ValueError:
             message = resp.text
         raise BolnaError(f"Bolna {resp.status_code}: {message}")
-    return resp.json()
+    try:
+        data = resp.json()
+    except ValueError as exc:
+        raise BolnaError("Bolna sent a reply that isn't JSON") from exc
+    if not isinstance(data, dict):
+        raise BolnaError("Bolna sent an unexpected reply")
+    return data
 
 
 def place_call(cfg: BolnaConfig, to: str, user_data: dict[str, str]) -> str:
     """Queues an outbound call from the agent. Returns Bolna's execution id."""
     body = {"agent_id": cfg.agent_id, "recipient_phone_number": to, "user_data": user_data}
-    return str(_request(cfg, "POST", "/call", body)["execution_id"])
+    data = _request(cfg, "POST", "/call", body)
+    if "execution_id" not in data:
+        raise BolnaError("Bolna did not return an execution id")
+    return str(data["execution_id"])
 
 
 def get_execution(cfg: BolnaConfig, execution_id: str) -> dict:

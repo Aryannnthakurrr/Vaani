@@ -101,6 +101,8 @@ class LiveVoiceSession(
         }
         ws = client.newWebSocket(com.saathi.app.core.net.DeviceAuth.sign(Request.Builder().url(url)).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                // Ended while still connecting: don't come back to life (mic and speaker on, state overwritten).
+                if (_state.value != LiveState.CONNECTING) { webSocket.cancel(); return }
                 connected = true
                 webSocket.send(LiveWire.config(replyStyle(), sharedContext(), languageLocked()))
                 _state.value = LiveState.LISTENING

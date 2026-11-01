@@ -399,7 +399,8 @@ class EmergencyFlow(private val c: AppContainer) {
             session?.let { id -> c.scope.launch { runCatching { client.emergencyCancel(id) } } }
         }
         siren.stop()
-        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:108")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        // No dialer (Wi-Fi tablet, dialer disabled): never crash the emergency screen.
+        runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:108")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
     fun close() {
@@ -435,7 +436,8 @@ object CountdownWords {
     enum class Said { OK, SEND, NOTHING }
 
     private val NOT_OK = listOf("not ok", "not okay", "not fine", "theek nahi", "thik nahi", "ठीक नहीं", "cancel mat", "mat cancel",
-        "don't cancel", "dont cancel", "कैंसल मत")
+        "don't cancel", "dont cancel", "कैंसल मत", "mat roko", "roko mat", "rokna mat", "mat rokna", "मत रोको", "रोको मत",
+        "मत रोकिए", "rokiye mat", "mat rokiye", "don't stop", "dont stop", "do not stop", "do not cancel")
     private val OK = listOf("i'm ok", "im ok", "i am ok", "i'm okay", "im okay", "i am okay", "i'm fine", "i am fine",
         "theek hoon", "thik hoon", "theek hun", "thik hun", "theek hu", "ठीक हूँ", "ठीक हूं", "cancel", "कैंसल", "mat bhejo",
         "mat bulao", "मत भेजो", "मत बुलाओ", "zarurat nahi", "zaroorat nahi", "ज़रूरत नहीं", "जरूरत नहीं", "roko", "rokiye", "रोको")

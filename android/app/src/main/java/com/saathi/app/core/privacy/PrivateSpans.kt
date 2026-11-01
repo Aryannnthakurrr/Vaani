@@ -19,7 +19,7 @@ object PrivateSpans {
     private val SLOT = Regex("⟦#(\\d+)⟧")
 
     private val otpKeyword = Regex("(?i)(\\botp\\b|one[ -]?time|verification code|code is|passcode|security code|ओटीपी|सत्यापन कोड)")
-    private val otpDigits = Regex("(?<![\\d₹.,P#])\\d{4,8}(?![\\d,]|\\.\\d)")
+    private val otpDigits = Regex("(?<![\\d₹.,P#Xx*/-])\\d{4,8}(?![\\d,/-]|\\.\\d)")
     private val card = Regex("(?<!\\d)(?:\\d[ -]?){12,18}\\d(?!\\d)")
     private val aadhaar = Regex("(?<!\\d)\\d{4} ?\\d{4} ?\\d{4}(?!\\d)")
     private val pan = Regex("\\b[A-Z]{5}\\d{4}[A-Z]\\b")

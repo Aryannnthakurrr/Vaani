@@ -27,11 +27,14 @@ class AlertRouter(private val notifier: Notifier) {
 
     fun show(alert: ScamAlert) {
         val shownAsOverlay = alert.level == AlertLevel.RED && OverlayService.controller?.showAlert(alert) == true
-        if (!shownAsOverlay) {
-            notifier.post(
-                Notifier.CH_ALERTS, alert.title.hashCode(), alert.title, listOfNotNull(alert.from, alert.body).joinToString("\n"),
-                tap = notifier.openAppIntent("alerts"), fullScreen = alert.level == AlertLevel.RED,
-            )
-        }
+        if (!shownAsOverlay) notify(alert)
+    }
+
+    /** The notification form; also the fallback when the overlay window can't be added after all. */
+    fun notify(alert: ScamAlert) {
+        notifier.post(
+            Notifier.CH_ALERTS, alert.title.hashCode(), alert.title, listOfNotNull(alert.from, alert.body).joinToString("\n"),
+            tap = notifier.openAppIntent("alerts"), fullScreen = alert.level == AlertLevel.RED,
+        )
     }
 }

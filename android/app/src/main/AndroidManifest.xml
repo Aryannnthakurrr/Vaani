@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- RED scam alerts take over a locked screen when the overlay can't be drawn; ignored without this. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <!-- The phone's own number for hospital bookings (features/care/DevicePhone.kt). -->
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />

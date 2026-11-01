@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import ipaddress
 import logging
+import socket
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -20,6 +23,27 @@ log = logging.getLogger("saathi.sandbox")
 _UA = "Mozilla/5.0 (Linux; Android 14) SaathiLinkCheck/1.0"
 
 
+async def is_public_url(url: str) -> bool:
+    """True only when every address the host resolves to is on the public internet.
+
+    Links come from scam messages, so the checker must never be pointed at the server's own network
+    (cloud metadata at 169.254.169.254, other containers, localhost).
+    """
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+        if parts.scheme not in ("http", "https") or not host:
+            return False
+        infos = await asyncio.get_running_loop().getaddrinfo(host, parts.port or None, type=socket.SOCK_STREAM)
+    except (OSError, ValueError, UnicodeError):
+        return False
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if not ip.is_global or ip.is_multicast:
+            return False
+    return bool(infos)
+
+
 async def expand_url(url: str, client: httpx.AsyncClient | None = None, max_hops: int = 5) -> list[str]:
     """Follow redirects manually (HEAD, falling back to GET) without running any JavaScript."""
     chain = [normalize_url(url)]
@@ -27,6 +51,9 @@ async def expand_url(url: str, client: httpx.AsyncClient | None = None, max_hops
     client = client or httpx.AsyncClient(timeout=4.0, headers={"User-Agent": _UA})
     try:
         for _ in range(max_hops):
+            if not await is_public_url(chain[-1]):
+                log.info("expand stopped: non-public host")
+                break
             try:
                 resp = await client.head(chain[-1], follow_redirects=False)
                 if resp.status_code in (405, 403, 501):
@@ -104,6 +131,20 @@ async def sandbox_visit(url: str, timeout_ms: int = 10_000) -> dict[str, Any]:
             context = await browser.new_context(
                 accept_downloads=False, java_script_enabled=True, user_agent=_UA
             )
+            # Every request the page makes (redirects, scripts, images) must go to the public internet too.
+            allowed: dict[str, bool] = {}
+
+            async def guard(route: Any) -> None:
+                req_url = route.request.url
+                host = urlsplit(req_url).hostname or ""
+                if host not in allowed:
+                    allowed[host] = await is_public_url(req_url)
+                if allowed[host]:
+                    await route.continue_()
+                else:
+                    await route.abort()
+
+            await context.route("**/*", guard)
             page = await context.new_page()
             try:
                 await page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")

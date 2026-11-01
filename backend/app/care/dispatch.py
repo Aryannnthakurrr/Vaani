@@ -133,8 +133,13 @@ async def dispatch(
         return await _failed(session, notify, "NO_UNITS_AVAILABLE", "No ambulance available.")
     if resp.status_code != 201:
         return await _failed(session, notify, f"HTTP_{resp.status_code}", resp.text[:160])
-    created = resp.json()
-    em["dispatch_id"] = created["dispatch_id"]
+    try:
+        created = resp.json()
+        dispatch_id = str(created["dispatch_id"])
+    except (ValueError, KeyError, TypeError):
+        # A 201 we can't read: no ambulance id to follow, so the app must still be told to call 108.
+        return await _failed(session, notify, "BAD_REPLY", resp.text[:160])
+    em["dispatch_id"] = dispatch_id
     session.emit("dispatch_created", dispatch_id=created["dispatch_id"], trigger=trigger, priority=body["priority"],
                  service_level=body["service_level"],
                  driver_url=f"{base_url()}/driver/{created['dispatch_id']}?key={api_key()}")  # fmt: skip
@@ -166,7 +171,7 @@ async def track(session: CareSession, dispatch_id: str) -> None:
                 d = resp.json() if resp.status_code == 200 else None
             except (httpx.HTTPError, ValueError):
                 d = None
-            if d:
+            if isinstance(d, dict) and "status" in d:
                 polyline = d.get("route_polyline")
                 new_route = (
                     polyline is not None and polyline != last_polyline
@@ -180,7 +185,7 @@ async def track(session: CareSession, dispatch_id: str) -> None:
                                  route=route, timeline=d.get("timeline"),
                                  destination_hospital=d.get("destination_hospital"))  # fmt: skip
                 loc = d.get("location")
-                if loc and loc.get("updated_at") != last_at:
+                if isinstance(loc, dict) and "lat" in loc and "lng" in loc and loc.get("updated_at") != last_at:
                     last_at = loc.get("updated_at")
                     session.emergency["last_location"] = loc
                     session.emit("ambulance_location", lat=loc["lat"], lng=loc["lng"], heading=loc.get("heading"),

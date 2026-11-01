@@ -14,14 +14,14 @@ object UssdDetector {
     )
 
     /**
-     * The forwarding code in what is typed in the dialer ("*401*98765 43210"), once a number of at least 6 digits
-     * follows it; null otherwise. Spaces and dashes the dialer adds are ignored.
+     * The forwarding code ("*401*") and target number in what is typed in the dialer ("*401*98765 43210"), once a
+     * number of at least 6 digits follows it; null otherwise. Spaces and dashes the dialer adds are ignored.
      */
     fun forwardingTarget(dialed: String): Pair<String, String>? {
         val s = dialed.filter { it.isDigit() || it in "*#+" }
         val prefix = forwarding.filter { s.startsWith(it) }.maxByOrNull { it.length } ?: return null
         val target = s.removePrefix(prefix).trimEnd('#').substringBefore('*')
-        return if (target.count { it.isDigit() } >= 6) s to target else null
+        return if (target.count { it.isDigit() } >= 6) prefix to target else null
     }
     private val harmless = setOf("*#06#", "*#*#4636#*#*")
     private val codeRegex = Regex("(?<![\\w*#])[*#]{1,4}\\d{1,4}[*#][\\d*#+]*")

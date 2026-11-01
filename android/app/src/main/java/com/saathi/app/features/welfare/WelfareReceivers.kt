@@ -19,8 +19,10 @@ class CheckInReceiver : BroadcastReceiver() {
             if (!WelfareRules.needsCheckIn(s.lastUnlockTs, ZonedDateTime.now())) return@launchAsync
             val style = s.replyStyle
             val text = c.phrases.text("welfare_prompt", style)
+            // Not full-screen: a full-screen intent launches on its own on a locked phone, and this one sends
+            // "I'm okay" to the family, so it must only ever run from a real tap.
             c.notifier.post(Notifier.CH_WELFARE, 11_30, "Vaani", text,
-                tap = c.notifier.openAppIntent(null, ACTION_CHECK_IN), fullScreen = true)
+                tap = c.notifier.openAppIntent(null, ACTION_CHECK_IN), fullScreen = false)
             c.speaker.sayPhrase("welfare_prompt", style)
         }
     }

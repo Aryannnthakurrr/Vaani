@@ -8,6 +8,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -37,7 +38,10 @@ class BackendClient(
 
     private fun url(path: String) = baseUrl().trimEnd('/') + path
 
-    private fun request(path: String) = Request.Builder().url(url(path)).header(DEVICE_HEADER, deviceId())
+    // A bad saved server address is "backend unavailable" (which callers handle), not an IllegalArgumentException.
+    private fun request(path: String) = Request.Builder()
+        .url(url(path).toHttpUrlOrNull() ?: throw BackendUnavailable("bad server address"))
+        .header(DEVICE_HEADER, deviceId())
 
     private suspend fun execute(client: OkHttpClient, req: Request): ByteArray = withContext(Dispatchers.IO) {
         try {

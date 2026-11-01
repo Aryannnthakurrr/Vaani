@@ -323,23 +323,34 @@ class OverlayController(private val ctx: Context, private val container: AppCont
                 else params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM, type = type)
                     .apply { y = OverlayViews.dp(ctx, 24) }
             }
-            if (ok) alertView = v
+            // The caller was already told "shown": if the window couldn't be added, the alert must still reach them.
+            if (ok) alertView = v else container.alerts.notify(alert)
             vibrate()
         }
         return true
     }
 
     /** The call-forwarding question over the dialer (DialGuard). Returns false when overlays can't be drawn. */
-    fun showDialCheck(question: String, body: String, no: String, yes: String, onNo: () -> Unit, onYes: () -> Unit): Boolean {
+    fun showDialCheck(
+        question: String, body: String, no: String, yes: String,
+        onNo: () -> Unit, onYes: () -> Unit, onNotShown: () -> Unit,
+    ): Boolean {
         if (!canDraw()) return false
         ui {
             remove(dialCheckView)
             val close = { remove(dialCheckView); dialCheckView = null }
+            // Taps in the first moment are the user's next dialpad digit landing on the card, not an answer.
+            val shownAt = android.os.SystemClock.uptimeMillis()
+            val settled = { android.os.SystemClock.uptimeMillis() - shownAt > 700 }
             val v = OverlayViews.dialCheck(ctx, question, body, no, yes,
-                onNo = { close(); onNo() }, onYes = { close(); onYes() })
+                onNo = { if (settled()) { close(); onNo() } }, onYes = { if (settled()) { close(); onYes() } })
             if (add(v) { type -> params(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
-                    Gravity.TOP, type = type) }) dialCheckView = v
-            vibrate()
+                    Gravity.TOP, type = type) }) {
+                dialCheckView = v
+                vibrate()
+            } else {
+                onNotShown()
+            }
         }
         return true
     }

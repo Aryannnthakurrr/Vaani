@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.saathi.app.BuildConfig
 import com.saathi.app.core.AppContainer
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import com.saathi.app.core.agent.AgentService
 import com.saathi.app.core.agent.LiveScreenReader
 import com.saathi.app.core.agent.ScreenRecorder
@@ -376,7 +377,16 @@ private fun ConnectionCard(c: AppContainer, health: Result<Health>?, offline: Bo
         val urlNote = rememberNote()
         BigField(t("Server address", "सर्वर का पता", "Server ka address"), null, url) { url = it }
         IconButtonBig(t("Save address", "पता सेव करें", "Address save karein"), Icons.Filled.Save, {
-            urlNote.run(scope) { c.settings.setBackendUrl(url.trim()); t("Saved.", "सेव हो गया।", "Save ho gaya.") to true }
+            urlNote.run(scope) {
+                // "192.168.1.5:8000" means http://; anything that still isn't a web address is refused, not saved.
+                val raw = url.trim().let { if ("://" in it) it else "http://$it" }
+                if (raw.toHttpUrlOrNull() == null) {
+                    t("That isn't a server address.", "यह सर्वर का पता नहीं है।", "Yeh server ka address nahi hai.") to false
+                } else {
+                    c.settings.setBackendUrl(raw); url = raw
+                    t("Saved.", "सेव हो गया।", "Save ho gaya.") to true
+                }
+            }
         }, color = Paper, contentColor = Ink, border = Edge, enabled = !urlNote.busy, height = 56.dp)
         NoteLine(urlNote)
     }

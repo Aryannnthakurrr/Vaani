@@ -16,7 +16,8 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** Thrown with the backend's plain-language reason, or "can't reach the server". */
-class CareUnavailable(message: String) : Exception(message)
+/** [offline]: the server couldn't be reached or understood, so the message is technical and not for the user. */
+class CareUnavailable(message: String, val offline: Boolean = false) : Exception(message)
 
 /** The backend's symptom-to-care routes (backend `routers/care.py`). Triage can take ~20 s when Gemini is slow. */
 class CareClient(private val settings: () -> Settings) {
@@ -78,17 +79,23 @@ class CareClient(private val settings: () -> Settings) {
 
     private suspend fun <T> send(path: String, body: String?, serializer: KSerializer<T>): T = withContext(Dispatchers.IO) {
         val s = settings()
-        val req = Request.Builder().url(s.backendUrl.trimEnd('/') + path).header(BackendClient.DEVICE_HEADER, s.deviceId)
-            .apply { if (body != null) post(body.toRequestBody(json)) }
-            .build()
         try {
+            // Built inside the try: a mistyped server address in Settings is "can't reach", not a crash.
+            val req = Request.Builder().url(s.backendUrl.trimEnd('/') + path).header(BackendClient.DEVICE_HEADER, s.deviceId)
+                .apply { if (body != null) post(body.toRequestBody(json)) }
+                .build()
             http.newCall(req).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) throw CareUnavailable(detail(text) ?: "Server error ${resp.code}")
                 SaathiJson.decodeFromString(serializer, text)
             }
+        } catch (e: CareUnavailable) {
+            throw e
         } catch (e: IOException) {
-            throw CareUnavailable("Can't reach the Vaani server.")
+            throw CareUnavailable("Can't reach the Vaani server.", offline = true)
+        } catch (e: IllegalArgumentException) {
+            // Bad URL, or a reply that doesn't parse.
+            throw CareUnavailable("Bad server reply: ${e.message}", offline = true)
         }
     }
 

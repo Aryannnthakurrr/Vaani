@@ -130,7 +130,8 @@ class SpeechInput(
         val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val rec = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT, maxOf(minBuf, SAMPLE_RATE))
-        if (rec.state != AudioRecord.STATE_INITIALIZED) return@withContext null
+        // Mic busy (a call, another app): free the native recorder, or every retry leaks one.
+        if (rec.state != AudioRecord.STATE_INITIALIZED) { rec.release(); return@withContext null }
         val vad = Vad(SAMPLE_RATE)
         val out = ByteArrayOutputStream()
         val chunk = ShortArray(SAMPLE_RATE / 20) // 50 ms

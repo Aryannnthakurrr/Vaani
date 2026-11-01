@@ -42,6 +42,7 @@ class CallGuard(private val container: AppContainer) {
     /** When the last OTP arrived: scammers often trigger it just before they call, then ask for it. */
     @Volatile private var lastOtpAt = 0L
     @Volatile private var voipOtpAlertAt = 0L
+    @Volatile private var incoming = false
 
     val inCall: Boolean get() = state == TelephonyManager.EXTRA_STATE_OFFHOOK
 
@@ -59,6 +60,7 @@ class CallGuard(private val container: AppContainer) {
             TelephonyManager.EXTRA_STATE_RINGING -> if (state == TelephonyManager.EXTRA_STATE_IDLE) resetSignals()
             TelephonyManager.EXTRA_STATE_OFFHOOK -> if (state != TelephonyManager.EXTRA_STATE_OFFHOOK) {
                 offhookAt = System.currentTimeMillis()
+                incoming = state == TelephonyManager.EXTRA_STATE_RINGING
                 // An OTP that came in just before an incoming call counts as one during it. (Not for calls the user
                 // places: their number isn't known here, so a call to family would look like a stranger.)
                 if (state == TelephonyManager.EXTRA_STATE_RINGING && offhookAt - lastOtpAt < OTP_BEFORE_CALL_MS) {
@@ -136,7 +138,8 @@ class CallGuard(private val container: AppContainer) {
                 val recent = container.db.events().since(since).filter { it.type == "message" }
                     .fold(ScamLevel.NONE) { acc, e -> acc.max(ScamLevel.from(e.level)) }
                 val signals = CallSignals(
-                    savedContact = savedContact,
+                    // A call the user placed with no number known: not "a stranger" (it may be their son).
+                    savedContact = if (!incoming && number == null) null else savedContact,
                     durationMs = if (offhookAt > 0) System.currentTimeMillis() - offhookAt else 0,
                     otpDuringCall = otp, moneyAppDuringCall = moneyApp, remoteAppDuringCall = remoteApp,
                     recentMessageLevel = recent,

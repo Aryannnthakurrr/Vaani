@@ -23,7 +23,13 @@ class ScamReactor(private val container: AppContainer) {
         var result = MessageScanner.scan(rawText, fromContact)
         for (url in result.urlsToCheck.take(3)) {
             val verdict = withTimeoutOrNull(15_000) {
-                runCatching { container.backend.checkLink(url) }.getOrNull()
+                try {
+                    container.backend.checkLink(url)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e // cancelled from outside: stop, don't carry on with local rules
+                } catch (e: Exception) {
+                    null
+                }
             } ?: LocalLinkRules.verdict(url)
             result = MessageScanner.withVerdict(result, verdict.verdict)
         }

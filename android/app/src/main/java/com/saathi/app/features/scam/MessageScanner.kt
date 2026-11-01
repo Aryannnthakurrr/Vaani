@@ -44,7 +44,8 @@ object MessageScanner {
         val urls = UrlExtractor.extract(text)
         val toCheck = mutableListOf<String>()
         for (url in urls) {
-            if (UrlExtractor.isApkLink(url)) {
+            // "/downloads" on incometax.gov.in is a form, not an app: on official sites only a real .apk counts.
+            if (UrlExtractor.isApkLink(url) && (UrlExtractor.isApkFile(url) || !LocalLinkRules.isOfficial(UrlExtractor.host(url)))) {
                 raise(ScamLevel.RED, "apk_link", "scam_red_apk")
                 continue
             }

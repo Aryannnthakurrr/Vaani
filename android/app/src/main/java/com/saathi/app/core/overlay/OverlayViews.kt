@@ -228,7 +228,8 @@ internal object OverlayViews {
 
     /**
      * "Do you want to turn on call forwarding?": the dialer stays visible but dimmed behind (and can't be tapped),
-     * the question on a card at the bottom. A green No (the safe answer) and a soft grey Yes.
+     * the question on a card at the bottom. A soft grey Yes, and the green No (the safe answer) last, where a habitual
+     * tap on the dialpad or Call button would land.
      */
     fun dialCheck(ctx: Context, question: String, body: String, no: String, yes: String, onNo: () -> Unit, onYes: () -> Unit): View {
         val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
@@ -240,8 +241,8 @@ internal object OverlayViews {
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
             addView(alertText(ctx, "⚠️  $question", 26f, INK, bold = true))
             addView(alertText(ctx, body, 21f, INK), full(12))
-            addView(bigButton(ctx, no, GREEN, onNo), full(18))
-            addView(bigButton(ctx, yes, SOFT, onYes, fg = INK).apply { minHeight = dp(ctx, 64) }, full(10))
+            addView(bigButton(ctx, yes, SOFT, onYes, fg = INK).apply { minHeight = dp(ctx, 64) }, full(18))
+            addView(bigButton(ctx, no, GREEN, onNo), full(10))
         }
         return android.widget.FrameLayout(ctx).apply {
             setBackgroundColor(Color.argb(150, 0, 0, 0))

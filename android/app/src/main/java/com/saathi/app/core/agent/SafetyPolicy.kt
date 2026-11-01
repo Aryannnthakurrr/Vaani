@@ -80,6 +80,29 @@ object SafetyPolicy {
     fun isConfirmTarget(node: ScreenNode?): Boolean = node != null && CONFIRM_WORDS.containsMatchIn(node.allText())
 
     /**
+     * Whether tapping [node] would press a commit button. A tap lands on the nearest clickable node that contains
+     * it (the executor climbs to it), and a button's words often sit in child text views of a label-less clickable
+     * container (React Native, Compose rows). So the tapped node, that clickable node, and everything inside the
+     * clickable node's bounds are all checked.
+     */
+    fun pressesConfirm(s: ScreenSnapshot, node: ScreenNode): Boolean {
+        val clickTarget = if (node.clickable) node else s.nodes
+            .filter { it.clickable && encloses(it.bounds, node.bounds) }
+            .minByOrNull { area(it.bounds) }
+        val scope = listOfNotNull(node, clickTarget) +
+            (clickTarget ?: node).let { t -> s.nodes.filter { encloses(t.bounds, it.bounds) } }
+        return scope.any(::isConfirmTarget)
+    }
+
+    private fun encloses(outer: List<Int>, inner: List<Int>) =
+        outer.size == 4 && inner.size == 4 && inner[0] >= outer[0] && inner[1] >= outer[1] && inner[2] <= outer[2] && inner[3] <= outer[3]
+
+    private fun area(b: List<Int>) = if (b.size == 4) (b[2] - b[0]).toLong() * (b[3] - b[1]) else Long.MAX_VALUE
+
+    private fun confirmLabel(s: ScreenSnapshot, node: ScreenNode): String =
+        node.label.ifBlank { s.nodes.firstOrNull { encloses(node.bounds, it.bounds) && isConfirmTarget(it) }?.label.orEmpty() }
+
+    /**
      * Validates one action against the current screen.
      * @param confirmed true only when this action is the `then` of a `confirm` the user said yes to.
      * @param trustedDeeplinks URIs built by Saathi's own task code; nothing else may be opened.
@@ -100,7 +123,7 @@ object SafetyPolicy {
             AgentAction.TAP -> {
                 val node = s.node(action.id) ?: return Verdict.Block("no element ${action.id}")
                 if (s.pkg == Packages.SETTINGS && isRestrictedSettingsRow(node)) return Verdict.Block("Settings: only text size, sound and display")
-                if (isConfirmTarget(node) && !confirmed) Verdict.NeedsConfirm(node.label) else Verdict.Allow
+                if (!confirmed && pressesConfirm(s, node)) Verdict.NeedsConfirm(confirmLabel(s, node)) else Verdict.Allow
             }
             AgentAction.TAP_XY -> {
                 val x = action.x ?: return Verdict.Block("missing x")
@@ -108,7 +131,7 @@ object SafetyPolicy {
                 if (s.screenshotB64 == null && !s.needsScreenshot) return Verdict.Block("coordinates only with a screenshot")
                 val node = s.nodeAt(x, y)
                 if (s.pkg == Packages.SETTINGS && isRestrictedSettingsRow(node)) return Verdict.Block("Settings: only text size, sound and display")
-                if (isConfirmTarget(node) && !confirmed) Verdict.NeedsConfirm(node!!.label) else Verdict.Allow
+                if (!confirmed && node != null && pressesConfirm(s, node)) Verdict.NeedsConfirm(confirmLabel(s, node)) else Verdict.Allow
             }
             AgentAction.TYPE -> {
                 val node = s.node(action.id) ?: return Verdict.Block("no element ${action.id}")
