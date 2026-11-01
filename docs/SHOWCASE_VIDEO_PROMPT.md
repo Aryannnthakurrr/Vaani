@@ -10,7 +10,7 @@ Written 2026-11-01 from every document in this repo:
 
 Use it in one of three ways:
 - **Paste section 1** into an AI script or video tool (ChatGPT, Gemini, Claude, Runway, Synthesia, HeyGen, Pictory).
-- **Give sections 1 and 3** to whoever edits the video.
+- **Give sections 1 and 3** to whoever makes the visuals. The video uses generated visuals only, no app screenshots.
 - **Check claims against section 2.** Every number in it comes from a doc in this repo.
 
 The app is called **Vaani** (वाणी) on screen and in speech. The code and repo still use the earlier name, Saathi. The
@@ -30,14 +30,14 @@ FORMAT
 For every scene give:
 - the scene number and title, and its duration;
 - VOICEOVER: short spoken sentences, read at an easy pace;
-- ON SCREEN: phone recording, screenshot, animated diagram, laptop screen or text card;
+- ON SCREEN: generated visuals only (see VISUAL STYLE). No screenshots or screen recordings of the app;
 - SUPERS: on-screen text, at most 8 words;
 - SOUND: music changes, app voice lines, the siren.
 Then give:
 - YouTube chapter titles;
 - the 90-second cut, as a list of the scenes and lines to keep;
 - the 30-second teaser;
-- a list of every visual asset needed, marked "exists" or "to record".
+- a shot list of every generated visual, each with a one-paragraph prompt for an image or video generator.
 
 TONE AND AUDIENCE
 - Judges, investors and engineers will watch it.
@@ -45,6 +45,32 @@ TONE AND AUDIENCE
 - Narration is in English. Show the app's real Hindi and Hinglish voice lines with subtitles.
 - Calm music. No hype words ("revolutionary", "game-changing", "seamless").
 - Be honest about what is a demo. Honesty is part of the pitch.
+
+VISUAL STYLE (no app UI anywhere; every frame is generated)
+- The video is about the FEATURES, not the interface. Never show screenshots, screen recordings or mock-ups of
+  the app's screens.
+- Use three kinds of generated visuals:
+  1. ILLUSTRATED PEOPLE AND PLACES: a warm, flat 2D illustration style with soft grain, Indian settings (a Delhi
+     flat in the morning, a Gurugram park at dusk, a kirana shop aisle, a hospital reception desk). Ramesh,
+     Sunita and Arjun are consistent characters across every scene.
+  2. MOTION-GRAPHIC EXPLAINERS: clean diagrams that build step by step. White background, black lines and
+     type, one teal accent (#0F766E), square-ish corners, no gradients or shadows. Arrows, flows, checklists
+     and tables animate in as the narrator mentions them.
+  3. KINETIC TYPE AND DATA: big numbers and short lines of type for the measured facts ("0 of 22 secrets
+     leave the phone"), and the person's spoken line as an animated speech bubble with its English subtitle.
+- Represent Vaani as an abstract voice: a soft teal waveform or ring that pulses when it speaks or listens. It
+  is never a robot, a face or a phone screen.
+- Represent apps abstractly: a generic "cab app" and "house-help app" drawn as simple shapes (rows of labelled
+  boxes for Uber-style text, a blurred picture with a crosshair for Pronto-style vision). No real brand logos
+  or copied app screens.
+- Represent safety as a checkpoint: a teal gate or shield that an AI suggestion must pass before anything
+  happens, with a "haan?" bubble at every irreversible step.
+- Represent memory as one glowing folder per person, with seven small labelled streams (voice, care, tasks,
+  inbox, camera, abilities, family) flowing into it.
+- Represent compiled code as a small, glowing block of code that is put inside a sealed glass box (the
+  sandbox), tested against cards, then stamped "approved".
+- Every scene below has a VISUAL line. Follow it, and describe each shot precisely enough that an AI image or
+  video generator could produce it.
 
 WHAT VAANI IS
 Vaani is an Android app plus a cloud backend. It lets elderly, disabled and non-technical people use their
@@ -77,10 +103,12 @@ WHO IT IS FOR, AND WHY IT IS DESIGNED THIS WAY
 STRUCTURE (follow this order; durations are a guide)
 
 1. HOOK (0:00–0:25)
+   VISUAL: illustrated close-up of an older woman's hands holding a phone, a cab app's tiny buttons swimming out of focus; the phone buzzes with an unknown caller and an "OTP" bubble floats up in red. Cut to black, then the teal Vaani waveform breathes in.
    - A grandparent who can't book a cab. A scam caller asking for an OTP.
    - Line: "Phones were not built for her. Vaani is."
 
 2. MEET THE THREE PEOPLE (0:25–1:00)
+   VISUAL: three illustrated portraits in their homes (Ramesh with chai and a glucometer at dawn; Sunita with a BP cuff after her walk, a jar of achaar nearby; Arjun with a white cane and earphones). Each gets a label card: name, age, language, condition, quirk. The teal waveform splits into three, one per person.
    Vaani is shown through three demo users. Each stands for a different kind of user and gets a different
    assistant.
    - RAMESH SHARMA, 74, Lajpat Nagar, Delhi. An older person living with a chronic condition, who likes
@@ -103,6 +131,7 @@ STRUCTURE (follow this order; durations are a guide)
    - Line: "Same app. Three people. Three different assistants."
 
 3. HOW VAANI OPERATES OTHER APPS: TWO CASE STUDIES (1:00–2:20)
+   VISUAL: motion graphics only. Uber: a generic cab-app outline whose buttons turn into a numbered text list (1 "Where to?", 2 "Uber Go ₹184", 3 "Book") that the AI reads; a loop diagram Look → AI picks one action → Code checks → Act; the "Book" box hits the teal gate and a "Book karun?" bubble appears. Pronto: the same outline, but some boxes are blank; a camera-shutter flash, a blurred picture of the screen, a crosshair landing on "Go to cart" with x,y numbers; the gate checks what is under the crosshair. End on a split screen: "reads text" vs "reads text + picture".
    Vaani has no private access to Uber or Pronto. It uses the same screen a person sees, read through
    Android's accessibility service. When that isn't enough, it adds a screenshot.
 
@@ -142,12 +171,14 @@ STRUCTURE (follow this order; durations are a guide)
      treated as a scam. Even if the AI is fooled, the code refuses the action.
 
 4. "SHOW ME HOW": GUIDE MODE (2:20–2:40)
+   VISUAL: an abstract phone outline with a pulsing teal ring moving from one shape to the next; an illustrated finger (Ramesh's) does the tapping; a small "Well done!" burst at the end.
    - "Mujhe ye photo Aarav ko bhejni hai." A pulsing ring appears around the next button, and Vaani speaks
      the step.
    - The person does every tap; in this mode Vaani never taps. At the end: "Well done!"
    - Line: "Vaani can do it for you, or teach you to do it yourself."
 
 5. ONE MEMORY, MANY AGENTS: APPOINTMENT, THEN A CAB TO IT (2:40–3:20)
+   VISUAL: Sunita's glowing memory folder; seven labelled streams flow in. The care stream drops a card "Fortis, Sector 44, Tue 11:00 — learnt while the hospital was on the line" with a map pin. Time-lapse (calendar pages flip), then her speech bubble "doctor appointment ke liye cab" pulls that card out and a stylised cab drives along a line to the pin.
    - Each person has their own memory datapack in Meko, so one person's facts never show up in another's
      search.
    - Each part of Vaani writes to it as its own named agent: voice, care (doctor), tasks (apps), inbox,
@@ -164,6 +195,7 @@ STRUCTURE (follow this order; durations are a guide)
      it belongs to her.
 
 6. THE DOCTOR FEATURE (3:20–4:50)
+   VISUAL: a two-path flowchart (emergency left in red, appointment right in teal). Emergency: a big countdown ring 15 → 0, a siren icon, a map with an ambulance dot gliding along a road and an ETA ticking down. Appointment: a map with hospital pins appearing in widening rings (8, 15, 25 km), some greyed out with a reason tag ("no phone", "dental", "closed", "you said no"); score bars fill for the rest; three phone-call lines fan out at once with Hindi speech bubbles; check marks or crosses land beside "MRI", "Ayushman", "fee ≤ ₹500"; the list re-orders. A hold-music note, a "Book karun?" bubble, a "haan", and a ticket stamped with a token number. Honesty card: a hospital pin whose phone number is swapped for "our test phone".
    a) EMERGENCY FIRST
       - Every sentence goes through a rule-based safety net with 16 red flags, in English, Hindi and
         Hinglish. For example: chest pain with warning signs, stroke signs, not breathing, unconscious,
@@ -220,6 +252,7 @@ STRUCTURE (follow this order; durations are a guide)
       - Only numbers on an allowlist can ever be dialled.
 
 7. SKILLS THAT BECOME CODE (4:50–5:50)
+   VISUAL: Ramesh's morning repeated as a stack of identical speech bubbles; they compress into a small glowing block of code labelled "sugar_diary". Then the six abilities as six code tiles grouped under the three people. The lifecycle as a circular loop that lights up stage by stage; a red cross on one tile sends the arrow back to "AI handles it". A bar chart: cab ride, AI steps "without routine 40 / with routine 25" (38% fewer).
    Idea, from our earlier project Sorted, a household-admin assistant on Telegram: the AI learns, and small
    repeated parts become tested code.
    THREE KINDS:
@@ -252,6 +285,7 @@ STRUCTURE (follow this order; durations are a guide)
      version 2.
 
 8. THE SANDBOX ON DIGITALOCEAN (5:50–6:10)
+   VISUAL: the code block passes three checkpoints (size, safe imports, fingerprint) and is sealed inside a glass box drawn on a server rack in a Bangalore data centre. Icons on the box are crossed out: network, disk, privileges. A timer reads 0.55 s; a "memory bomb" block is crushed at 0.7 s.
    - Code written by a model is untrusted. Before anything runs:
      - a 20 kB size cap;
      - a static check: only safe imports like re, json, datetime and math; no files, no network, no eval or
@@ -264,6 +298,7 @@ STRUCTURE (follow this order; durations are a guide)
    - Any error means the AI answers instead, as if the skill never existed.
 
 9. CAMERA THAT KNOWS WHO IS HOLDING IT (6:10–6:35)
+   VISUAL: an illustrated shop aisle. The same viewfinder frame over a generic mango-drink carton and a generic chips packet (no real brand artwork). For Ramesh: 7 teaspoon icons drop into the drink. For Sunita: a salt meter fills to 18% of a daily 5 g bar, then a bowl of roasted makhana slides in. For Arjun: only the label is read aloud as a speech bubble.
    - The live shopping camera reads the product name, the printed MRP and the expiry, and warns about
      expired packs.
    - It guides the person to the right shelf (left, right, ahead; never colours), and can hand the product
@@ -275,6 +310,7 @@ STRUCTURE (follow this order; durations are a guide)
      say it, once per product, kindly. A nudge, never medical advice.
 
 10. SCAM SHIELD AND THE MORNING DIGEST (6:35–7:00)
+   VISUAL: an SMS bubble containing "*401*" gets a red underline and a warning badge; an incoming call from an unknown number, then an OTP bubble flies in and is caught by a shield, with an earpiece icon sending out sound waves; a link goes into a sealed box labelled "sandbox browser" instead of the phone. Then a sunrise with a short stack of digest cards (bill, renewal, appointment, delivery) read by the waveform, and at noon a Telegram-style paper plane goes to Priya.
    SCAM SHIELD
    - Flags call-forwarding codes (*401*, and Jio's *403, *405, *409, *002), APK links and lookalike bank
      sites.
@@ -291,6 +327,7 @@ STRUCTURE (follow this order; durations are a guide)
      family page showing the last check-in and alerts, never message contents.
 
 11. PRIVACY, MEASURED (7:00–7:25)
+   VISUAL: kinetic type, one number at a time (0 / 22, 0 / 26, 16 / 16, 10 / 10). A message bubble where the OTP and account number turn into tokens [P12], [P13] before an arrow leaves the phone; the phone keeps a small locked vault. A screen-share scammer's view goes black. Calendar pages tear off at 7 and 30 days.
    Not promised, measured by an audit script whose checks also run as tests:
    - 0 of 22 secrets (OTPs, account, card, Aadhaar and PAN numbers, UPI IDs, amounts) leave the phone.
    - 0 of 26 personal values appear in server logs, after 32 requests deliberately full of them.
@@ -308,6 +345,7 @@ STRUCTURE (follow this order; durations are a guide)
    - Line: "Vaani only looks where it must."
 
 12. COST, OPEN MODELS, SPEED (7:25–7:45)
+   VISUAL: a layered diagram: "open-weight Gemma 4 31B on DigitalOcean" at the centre, Qwen as a stronger helper beside it, Gemini as a small dotted fallback. Coins that would have gone to model calls are caught by code blocks. Counters: "~55,000 tokens / person / month", "3 KB messages / month", "0 API keys needed for mock mode".
    - Most of the thinking runs on Gemma 4 31B, an open-weight model, on DigitalOcean serverless inference.
      Qwen 3.8 Max is the stronger second opinion and the skill compiler. Gemini is only a fallback.
    - All model choices live in one server file, so we can switch providers without updating the app.
@@ -325,6 +363,7 @@ STRUCTURE (follow this order; durations are a guide)
    - About 300 backend tests and about 160 Android tests guard the safety rules.
 
 13. CLOSE (7:45–8:00)
+   VISUAL: back to the opening illustration; the same hands now just speak, and a stylised cab pulls up outside. The three characters together in one frame. The Vaani wordmark (वाणी) and the waveform.
    - Back to the grandparent, booking a cab by voice.
    - Line: "Your codes never leave your phone. Nothing happens until you say haan. Vaani."
    - Logo, then the team: Aryan, Keshav Goel, Anish Manchanda.
@@ -334,8 +373,8 @@ DO NOT CLAIM
   stand-in.
 - That the three people's abilities were compiled live from their voices. They are seeded to show the result
   of the learning loop, and they are tested for real at every start.
-- That the screens shown are real Uber or Pronto bookings, unless they were actually recorded that way. The
-  replay demo uses recorded screens.
+- Real brand logos, app screens or packaging (Uber, Pronto, Google, Frooti, Lay's, banks). Name them in the
+  narration if needed, but draw generic versions.
 - Any money saved in rupees or dollars. No prices are configured; only token counts are measured.
 - That Vaani pays, cancels or acts in banking or UPI apps. It never does.
 - That everything stays on the phone. During a task, screen text and screenshots from allowed apps go to a
@@ -442,54 +481,76 @@ voice assistant, and adds:
 
 ---
 
-## 3. Getting good visuals
+## 3. Generated visuals: style guide and ready-to-use prompts
 
-**Already in the repo:**
-- `docs/demo/`: `cab_booking.mp4`, `guide_mode.mp4`, `shopping_camera.mp4`, `scam_shield.mp4`.
-- `docs/screenshots/`: 18 stills, including the confirm sheet, the guide ring, the scam-in-call alert, the camera,
-  the digest, Hindi screens, dark mode, the activity log, the welfare test and the clinic call.
-- **These were captured on 31 Oct, before the Vaani rename and the black-and-white retheme.** They still say Saathi
-  and use the old colours. Use them only as B-roll, or re-record.
+The video uses **no screenshots or recordings of the app**. Everything on screen is generated: illustrations,
+motion graphics and kinetic type. That keeps the focus on what Vaani does, and it means nothing goes stale when the
+UI changes.
 
-**Re-recording sharper footage.** Use a debug build, with Settings → Developer → Demo replay on for the recorded
-screens.
-- `bash scripts/record_demos.sh all` re-records the four demos. The script records at 4 Mbit/s; for a showcase,
-  change `--bit-rate 4000000` to `12000000`.
-- From a real phone, `scrcpy --record=cab.mp4 --max-fps 60` is smoother than the emulator.
-- Stills at full resolution: `adb exec-out screencap -p > home.png`.
-- Use light mode and the same profile across takes, so frames match.
-- Drive scenes without speaking:
-  `adb shell am broadcast -a com.saathi.app.DEBUG_SAY --es text "'Saket ke liye cab book kar do'" -p com.saathi.app`.
-  Record a natural voiceover of the line separately.
+### Style guide (give this to every tool and every person making visuals)
 
-**Scenes worth capturing:**
-
-| Scene | How |
+| Element | Rule |
 |---|---|
-| Profile switch | Settings → Profile → Ramesh / Sunita / Arjun |
-| Uber, real | A real phone with Uber signed in. Stop at the confirm sheet and say "no" |
-| Pronto with screenshots | A real phone with Pronto. The debug log shows each screenshot step |
-| Guide mode | "Mujhe ye photo Aarav ko bhejni hai" in replay mode |
-| Abilities | Speak the lines in PERSONAL_ABILITIES.md §6. On a laptop, `curl localhost:8000/abilities`, formatted as a card |
-| What Vaani learnt | `GET /memory/learned` with `X-Saathi-Profile: sunita`, made into a table graphic |
-| Appointment, then cab | Book through the doctor flow, then say "mere doctor appointment ke liye cab" |
-| Emergency and ambulance map | `bash scripts/mock_ambulance.sh`, then say an emergency phrase. Also film the crew page on a laptop |
-| Hospital calls | Screen-record the live transcript on the phone while a teammate answers the test number on speaker |
-| Scam Shield | `bash scripts/scam_demo.sh` (four scenarios) |
-| Digest | `bash scripts/seed_inbox.sh`, then open My updates |
-| Family page and welfare | Settings → Test welfare alert. Open the family link on a laptop |
-| Camera warnings | Mock mode shows Frooti for Ramesh and Lay's for Sunita. For real footage, film a real pack on a phone |
-| Privacy numbers | `python scripts/privacy_audit.py` regenerates PRIVACY_AUDIT.md; animate its headline table |
+| Palette | White `#FFFFFF`, ink black `#111111`, one teal accent `#0F766E`. Red `#DC2626` only for emergencies and scams, amber `#D97706` only for warnings |
+| Type | One clean sans-serif (Inter or similar), plus Noto Sans Devanagari for Hindi. Big: numbers at least 120 px at 1080p |
+| Illustration | Flat 2D, soft paper grain, warm light, Indian homes and streets. No 3D renders, no stock-photo look |
+| Characters | Ramesh (74, kurta, reading glasses, chai), Sunita (67, salwar suit, walking shoes, BP cuff), Arjun (41, dark glasses, white cane, earphones). Keep them the same in every shot |
+| Vaani | A soft teal waveform or ring. Never a robot, face or phone screen |
+| Apps | Generic outlines with labelled boxes. No real logos, screens or pack artwork |
+| Motion | Elements build in step by step with the narration. Ease in and out, no bounces, nothing faster than 300 ms |
+| Format | 16:9 at 1920×1080 for the main video; 9:16 at 1080×1920 for the teaser |
 
-**Diagrams to animate.** Each one exists as text in the docs; redraw them in Figma, Keynote or After Effects:
-- the healthcare flow (HEALTHCARE_KT.md §2);
-- the compiled-code lifecycle (COMPILED_CODE.md §3);
-- the seven Meko agents feeding one datapack (MEKO_STATE.md §2);
-- the Uber agent loop (APP_CASE_STUDIES.md Part 0), and Uber versus Pronto side by side;
-- the architecture diagram in README.md.
+### Image or video generator prompts (Midjourney, Ideogram, DALL·E, Runway, Pika, Kling, Veo)
 
-**Never show on screen:**
-- the `.env` file or any API key;
-- the server's IP address;
-- a real hospital's phone number, or a teammate's;
-- real messages from anyone's phone.
+Add the style line to each prompt: *"flat 2D illustration, soft paper grain, warm light, white background, black
+line work, single teal accent #0F766E, no text, no logos, 16:9"*.
+
+1. **Ramesh's morning:** a 74-year-old Indian man in a kurta sits at a small table in a Delhi flat at dawn, a cup
+   of chai and a glucometer beside him, speaking toward a soft teal sound wave floating in the air.
+2. **Sunita after her walk:** a 67-year-old Indian woman in a salwar suit and walking shoes on a bench in a
+   Gurugram park at dusk, a blood-pressure cuff on her arm, a small jar of achaar in her tote bag.
+3. **Arjun at home:** a 41-year-old blind Indian man with dark glasses and earphones, a white cane resting
+   against a sofa, listening calmly, with a teal sound wave near his ear.
+4. **The scam call:** an older woman's hands holding a phone with an unknown incoming call, a red speech bubble
+   asking for an OTP, a teal shield appearing between the phone and the bubble.
+5. **The hospital call:** a hospital reception desk in India, a receptionist on a landline, a teal sound wave
+   coming from the receiver, a calendar and a token slip on the counter.
+6. **The ambulance:** a top-down stylised city map with roads as black lines, a small white ambulance moving
+   along a teal route toward a house pin.
+7. **The shop aisle:** an Indian kirana shop aisle with shelves of generic drinks and snack packets (no brand
+   names), a square camera viewfinder frame hovering over one packet.
+8. **The sandbox:** a small glowing block of code inside a sealed glass cube on a server rack, with network and
+   disk icons crossed out around it.
+9. **One memory:** a glowing folder with a person's silhouette on it, seven thin labelled streams of light
+   flowing into it from small icons (microphone, stethoscope, cab, envelope, camera, code, family).
+10. **The close:** the same older woman from shot 4, now smiling and speaking to her phone, a stylised cab
+    pulling up outside her gate.
+
+### Motion graphics to build (After Effects, Keynote, Figma, Canva, Jitter or Rive)
+
+Each one comes straight from a doc; the doc has the exact steps and numbers.
+
+| Graphic | Source | What it shows |
+|---|---|---|
+| The Vaani loop | APP_CASE_STUDIES.md Part 0 | Hear → Launch → Look → Think → Check → Ask → Act, with who decides each step |
+| Uber vs Pronto | APP_CASE_STUDIES.md §2.7 | Text list vs text plus picture with a crosshair tap |
+| The safety gate | PRIVACY_PITCH.md §3 | An AI suggestion meets the code gate; "Book" becomes "haan?" |
+| Seven agents, one memory | MEKO_STATE.md §2 | Seven streams into one person's folder, then the appointment card reused by the cab |
+| Emergency vs appointment | HEALTHCARE_KT.md §2 | The two-path flow, the countdown and the ambulance map |
+| Find, filter, score, call | HEALTHCARE_KT.md §4 | Pins in widening rings, filtered pins, score bars, three calls at once, re-ranking |
+| Score weights | HEALTHCARE_KT.md §4.2 | Three stacked bars: urgent, normal, routine |
+| Skill lifecycle | COMPILED_CODE.md §3 | The loop from AI to candidate, tested, approved, shadow, active and degraded |
+| Sandbox layers | COMPILED_CODE.md §4 | Size cap, static check, fingerprint, sealed container, time and output limits |
+| Sugar and salt meters | PERSONAL_ABILITIES.md §4 | Teaspoons dropping into a drink; a salt bar filling to 18% of 5 g |
+| Tokens instead of secrets | PRIVACY_AUDIT.md §1 | An SMS whose OTP and account number turn into [P12] tokens before leaving |
+| Privacy scoreboard | PRIVACY_AUDIT.md headline | 0/22, 0/26, 16/16, 10/10 |
+| Cost and models | LEARNING.md "Models", SIMULATION.md | Gemma at the centre, the 38% bar, the monthly token counter |
+
+### Sound
+
+- Calm acoustic or lo-fi bed, dropping out for the emergency scene (siren and countdown only) and the scam scene.
+- App lines (Hindi or Hinglish) voiced by a warm female voice, matching Vaani's own voice, with English subtitles.
+- A soft chime when the teal gate checks something; a low tone when a red warning appears.
+
+**Never show:** API keys, the `.env` file, server addresses, real phone numbers, real messages, or real brand logos
+and packaging.
