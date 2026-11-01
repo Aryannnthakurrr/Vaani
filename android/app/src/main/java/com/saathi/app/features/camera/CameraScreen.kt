@@ -15,6 +15,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -49,29 +51,23 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.saathi.app.core.AppContainer
-import com.saathi.app.core.net.ProductCard
-import com.saathi.app.core.net.Slots
 import com.saathi.app.core.voice.tr
-import com.saathi.app.features.tasks.Tasks
-import com.saathi.app.ui.theme.Amber
 import com.saathi.app.ui.theme.Danger
 import com.saathi.app.ui.theme.Leaf
 import java.util.concurrent.Executors
 
-/** Full-screen CameraX preview with the product card at the bottom (SPEC §7.3). */
+/** Full-screen CameraX preview with what Vaani is saying and the Mute and Close buttons (SPEC §7.3). */
 @Composable
 fun CameraScreen(container: AppContainer, onBack: () -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val session = remember { CameraSession(container) }
-    val card by session.card.collectAsState()
     val caption by session.caption.collectAsState()
     val ended by session.ended.collectAsState()
     val muted by session.muted.collectAsState()
@@ -110,7 +106,13 @@ fun CameraScreen(container: AppContainer, onBack: () -> Unit) {
                         runCatching {
                             val provider = providerFuture.get()
                             val preview = Preview.Builder().build().also { it.setSurfaceProvider(view.surfaceProvider) }
+                            // Analysis defaults to 640x480: too small for a pack's dot-printed MRP and expiry, which
+                            // the model then half-read and kept correcting. Ask for full HD (or the nearest the camera has).
                             val analysis = ImageAnalysis.Builder()
+                                .setResolutionSelector(ResolutionSelector.Builder()
+                                    .setResolutionStrategy(ResolutionStrategy(android.util.Size(1920, 1080),
+                                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER))
+                                    .build())
                                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                                 .build()
@@ -150,12 +152,8 @@ fun CameraScreen(container: AppContainer, onBack: () -> Unit) {
                     }
                 }
             }
-            card?.let { ProductCardView(it, style = style, onReadAgain = session::readAgain, onOrder = {
-                // Stop first, so leaving the camera can't cut off the task's first line.
-                session.stop()
-                container.assistant.startTask(Tasks.SHOP, Slots(product = it.name))
-                onBack()
-            }) }
+            // No product card over the picture: it covered most of the screen, so the shopper couldn't see the pack
+            // they were holding. Vaani says what it reads, and the caption above shows it.
             // Mute only does something while Saathi is listening; otherwise say why it can't hear.
             val micNote = when (mic) {
                 CameraSession.Mic.OFFLINE -> tr(style, "Asking by voice needs the internet. Vaani will still read the pack.",
@@ -178,38 +176,6 @@ fun CameraScreen(container: AppContainer, onBack: () -> Unit) {
                     else -> Unit
                 }
                 CamButton(tr(style, "Close", "बंद करें", "Band karein"), Danger, Modifier.weight(1f), onBack)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProductCardView(card: ProductCard, style: com.saathi.app.core.net.ReplyStyle, onReadAgain: () -> Unit, onOrder: () -> Unit) {
-    val (badge, color) = when (card.expiryStatus) {
-        "expired" -> tr(style, "EXPIRED", "एक्सपायर", "EXPIRED") to Danger
-        "soon" -> tr(style, "Expires soon", "जल्दी एक्सपायर", "Jaldi expire") to Amber
-        "ok" -> tr(style, "Fresh", "ठीक है", "Theek hai") to Leaf
-        else -> tr(style, "Expiry not read", "एक्सपायरी नहीं पढ़ी", "Expiry nahi padhi") to Color.Gray
-    }
-    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
-        Column(Modifier.padding(Space.xl), verticalArrangement = Arrangement.spacedBy(Space.sm)) {
-            Text(card.name ?: "…", style = MaterialTheme.typography.headlineMedium)
-            Text(listOfNotNull(card.quantity, card.mrpText?.let { "MRP $it" }).joinToString("  ·  "), style = MaterialTheme.typography.titleLarge)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-                Surface(color = color, shape = MaterialTheme.shapes.medium) {
-                    Text(badge, color = OnFill, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = Space.md, vertical = Space.sm))
-                }
-                card.expiryIso?.let { Text(tr(style, "Expiry: $it", "एक्सपायरी: $it", "Expiry: $it"), style = MaterialTheme.typography.bodyLarge) }
-            }
-            card.healthWarning?.let { warning ->
-                Surface(color = if (card.healthLevel == "high") Danger else Amber, shape = MaterialTheme.shapes.medium) {
-                    Text("⚠ $warning", color = OnFill, style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(horizontal = Space.lg, vertical = Space.md))
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(Space.md)) {
-                CamButton(tr(style, "🔊 Read again", "🔊 फिर से सुनें", "🔊 Phir se sunein"), MaterialTheme.colorScheme.primary, Modifier.weight(1f), onReadAgain)
-                CamButton(tr(style, "🛒 Order online", "🛒 ऑनलाइन मंगाएँ", "🛒 Order karein"), Leaf, Modifier.weight(1f), onOrder)
             }
         }
     }

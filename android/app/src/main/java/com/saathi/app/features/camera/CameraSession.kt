@@ -66,11 +66,14 @@ class CameraSession(private val c: AppContainer) {
         // Opened by voice, the assistant has just said this (or the live conversation will): don't say it twice.
         val welcome = System.currentTimeMillis() - instructedAt > INSTRUCTED_FRESH_MS && c.assistant.live.value == null
         instructedAt = 0L
-        // Finish the welcome line before the model starts talking, so the two voices never overlap. On the main
-        // thread, like stop(), so a Close during the welcome line can't race the socket opening.
+        // Connect first and say the welcome line meanwhile: the camera pictures then stream during the line, so the
+        // model has seen a few sharp seconds of the pack by the time the user asks. Connecting only after the line
+        // left it one or two blurry, still-focusing frames, and the first question got "I can't identify it". The
+        // voices can't overlap: the model only answers the user, and the mic is off while the welcome line plays.
+        // On the main thread, like stop(), so a Close during the welcome line can't race the socket opening.
         startJob = c.scope.launch(Dispatchers.Main) {
-            if (welcome) sayLocal(instruction)
             connect()
+            if (welcome) sayLocal(instruction)
         }
         watchdog = c.scope.launch(Dispatchers.Main) {
             while (isActive) {
@@ -145,10 +148,14 @@ class CameraSession(private val c: AppContainer) {
         }
     }
 
+    /**
+     * MRP and expiry are tiny dot-printed text: at 768 px and quality 75 the model half-read them ("₹14", "10/04"),
+     * said a wrong value and corrected itself a frame later. 1280 px at quality 88 keeps the digits legible.
+     */
     private fun jpeg(src: Bitmap): ByteArray {
-        val scale = minOf(1f, 768f / maxOf(src.width, src.height))
+        val scale = minOf(1f, MAX_SIDE_PX / maxOf(src.width, src.height))
         val scaled = if (scale < 1f) Bitmap.createScaledBitmap(src, (src.width * scale).toInt(), (src.height * scale).toInt(), true) else src
-        return ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.JPEG, 75, it) }.toByteArray()
+        return ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }.toByteArray()
     }
 
     private fun onEvent(e: LiveEvent) {
@@ -160,11 +167,14 @@ class CameraSession(private val c: AppContainer) {
                 turnText.append(e.text)
                 _caption.value = turnText.toString().trim()
             }
-            is LiveEvent.Audio -> { audioThisTurn = true; player?.write(e.pcm) }
+            is LiveEvent.Audio -> { audioThisTurn = true; liveVoice = true; player?.write(e.pcm) }
             LiveEvent.TurnComplete -> {
-                // Only text-only replies (mock mode, offline demo) are spoken on the phone, once, as a whole.
+                // Only text-only replies (mock mode, offline demo) are spoken on the phone, once, as a whole. Once the
+                // model has spoken with its own voice, never: its transcript often trails in after its turn ends (and
+                // a card update ends a turn with no audio), and the phone then read the whole description again in a
+                // second voice.
                 val text = turnText.toString().trim()
-                if (!audioThisTurn && text.isNotEmpty()) speak(text)
+                if (!audioThisTurn && !liveVoice && text.isNotEmpty()) speak(text)
                 turnText.clear()
                 audioThisTurn = false
             }
@@ -180,6 +190,8 @@ class CameraSession(private val c: AppContainer) {
 
     private val turnText = StringBuilder()
     @Volatile private var audioThisTurn = false
+    /** The model has spoken with its own (Gemini) voice in this session: the phone then never speaks its text. */
+    @Volatile private var liveVoice = false
     @Volatile private var localSpeaking = false
     @Volatile private var online = false
 
@@ -268,6 +280,8 @@ class CameraSession(private val c: AppContainer) {
 
     companion object {
         const val FRAME_INTERVAL_MS = 1_000L
+        private const val MAX_SIDE_PX = 1280f
+        private const val JPEG_QUALITY = 88
         const val INACTIVITY_MS = 3 * 60_000L
         private const val INSTRUCTED_FRESH_MS = 15_000L
 

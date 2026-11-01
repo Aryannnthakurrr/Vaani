@@ -446,27 +446,31 @@ class CareFlow(private val c: AppContainer) {
     private suspend fun patientDetails(): CarePatient {
         patient?.let { return it }
         // The profile name is the phone's owner; the patient may be a family member ("Papa is unwell").
-        val own = c.settings.current.userName.ifBlank { null }
+        val profile = c.profiles.current()
+        val own = c.settings.current.userName.ifBlank { null } ?: profile?.name
         val forSelf = own != null && run {
             say(s("Is this appointment for you, $own?", "क्या यह अपॉइंटमेंट आपके लिए है, $own?", "Kya yeh appointment aapke liye hai, $own?"))
             yesNo()
         }
-        // Name and age in one question; only a part that wasn't heard is asked again.
-        val reply = if (forSelf) {
-            say(s("And your age?", "और आपकी उम्र?", "Aur aapki umar?"))
-            PatientReply.parse(listen()).copy(name = own)
-        } else {
-            say(s("What is the patient's name and age?", "मरीज़ का नाम और उम्र क्या है?", "Patient ka naam aur umar kya hai?"))
-            PatientReply.parse(listen(expectName = true))
+        // For themselves with a profile chosen: its age, no question. Otherwise name and age in one question. The age
+        // is asked once: "Aur aapki umar?" followed by "Aur umar?" sounded like Saathi repeating itself; the hospital
+        // can ask on the call if it wasn't heard.
+        val reply = when {
+            forSelf && profile != null -> PatientReply.Parsed(name = own, age = profile.age)
+            forSelf -> {
+                say(s("And your age?", "और आपकी उम्र?", "Aur aapki umar?"))
+                PatientReply.parse(listen()).copy(name = own)
+            }
+            else -> {
+                say(s("What is the patient's name and age?", "मरीज़ का नाम और उम्र क्या है?", "Patient ka naam aur umar kya hai?"))
+                PatientReply.parse(listen(expectName = true))
+            }
         }
         val name = reply.name ?: run {
             say(s("And the patient's name?", "और मरीज़ का नाम?", "Aur patient ka naam?"))
             PatientReply.parse(listen(expectName = true)).name
         }
-        val age = reply.age ?: run {
-            say(s("And the age?", "और उम्र?", "Aur umar?"))
-            PatientReply.parse(listen()).age
-        }
+        val age = reply.age
         // This phone's own number when the SIM has it; asked only when it doesn't.
         val phone = DevicePhone.number(c.context)?.also {
             val last = it.takeLast(4)

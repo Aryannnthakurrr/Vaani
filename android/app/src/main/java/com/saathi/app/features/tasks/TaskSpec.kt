@@ -115,6 +115,8 @@ object Tasks {
         // Landmarks seen in Pronto on a real phone (2026-10-31 and 11-01): home has Instant / Schedule for Later at the
         // top and an "All house help services" list below the fold; the slot screen shows few slots per tab.
         addendum = "Close any promo pop-up with its close (×) button. " +
+            "Pronto shows each service with its old price crossed out next to the price to pay (cart: ₹125 then ₹45): " +
+            "the lower one is the price; never say the crossed-out one as the price. " +
             "If the goal names a chore (washroom/bathroom/toilet, kitchen, dusting, utensils, laundry…), scroll down on the " +
             "home screen to 'All house help services' and open the matching service; scroll again if it is not listed yet. " +
             "On a service page (e.g. 'Bathroom Cleaning') each duration card has its own 'Add' button. If the user did not say " +
