@@ -46,3 +46,21 @@ def test_model_tokens_and_cost() -> None:
     assert priced["usd_total"] == round((2000 * 0.1 + 100 * 0.4) / 1e6, 6)
     unpriced = cost(snap, {"gemini-3.5-flash-lite": {"input_per_m": None, "output_per_m": None}})
     assert unpriced["usd_total"] == 0 and unpriced["unpriced"] == ["gemini-3.5-flash-lite"]
+
+
+def test_reading_usage_does_not_create_a_device() -> None:
+    m = Meter()
+    assert m.snapshot("never-seen")["totals"]["requests"] == 0
+    assert m.snapshot()["totals"]["requests"] == 0
+    assert "never-seen" not in m._devices
+
+
+def test_unmatched_paths_share_one_bucket_and_bad_length_is_ignored(client) -> None:
+    METER.reset()
+    for path in ("/wp-admin", "/.env", "/random/123"):
+        assert client.get(path, headers=HEADERS).status_code == 404
+    r = client.post("/intent", json={"utterance": "namaste"}, headers={**HEADERS, "Content-Length": "abc"})
+    assert r.status_code != 500
+    routes = METER.snapshot()["routes"]
+    assert routes["GET (unmatched)"]["count"] == 3
+    assert not any("wp-admin" in k or ".env" in k for k in routes)

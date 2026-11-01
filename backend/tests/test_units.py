@@ -201,3 +201,29 @@ def test_intent_rules_photo_send_is_guide_and_app_name_is_not_product() -> None:
     assert detect_intent("Flipkart se biscuit mangao") == "shop_online"
     assert extract_slots("Flipkart se biscuit mangao", "shop_online").product == "biscuit"
     assert extract_slots("order Parle-G biscuits from Amazon", "shop_online").product == "Parle-G biscuits"
+
+
+# --------------------------------------------------------------------------- family-safe scam summaries
+@pytest.mark.parametrize(
+    ("summary", "leaked"),
+    [
+        ("Caller asked for ₹500 by UPI.", "500"),
+        ("He wants Rs. 999 now", "999"),
+        ("Pay INR 2,50,000 today.", "2,50,000"),
+        ("Rs500 fee", "500"),
+        ("OTP 4821 was read out", "4821"),
+        ("Call 98765 43210 back", "98765"),
+        ("Card 4111-1111-1111-1111", "4111"),
+    ],
+)
+def test_family_safe_hides_amounts_and_numbers(summary: str, leaked: str) -> None:
+    from app.routers.welfare import family_safe
+
+    assert leaked not in family_safe(summary)
+
+
+def test_family_safe_keeps_ordinary_words() -> None:
+    from app.routers.welfare import family_safe
+
+    assert family_safe("He called 2 times in 3 hours.") == "He called 2 times in 3 hours."
+    assert family_safe("Asked for ₹500.") == "Asked for ….", "the full stop stays"

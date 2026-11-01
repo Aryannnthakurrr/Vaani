@@ -62,7 +62,11 @@ class Meter:
 
     def snapshot(self, device: str | None = None) -> dict[str, Any]:
         with self._lock:
-            devices = [self._devices[device]] if device is not None else list(self._devices.values())
+            # Checked first: indexing the defaultdict would create an empty entry for every device that asks.
+            if device is not None:
+                devices = [self._devices[device]] if device in self._devices else []
+            else:
+                devices = list(self._devices.values())
             routes: dict[str, RouteStats] = defaultdict(RouteStats)
             models: dict[str, ModelStats] = defaultdict(ModelStats)
             for d in devices:
