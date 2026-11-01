@@ -74,7 +74,12 @@ async def test_expand_url_follows_redirects_without_network() -> None:
     assert rule_verdict(analyse(chain[-1]))[0] == "dangerous"
 
 
-async def test_expand_url_stops_after_five_hops() -> None:
+async def test_expand_url_stops_after_five_hops(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def public(_url: str) -> bool:  # "loop.example" never resolves; don't let the test depend on DNS
+        return True
+
+    monkeypatch.setattr(browser, "is_public_url", public)
+
     def handler(request: httpx.Request) -> httpx.Response:
         n = int(request.url.path.strip("/") or 0)
         return httpx.Response(302, headers={"location": f"/{n + 1}"})

@@ -27,7 +27,7 @@ def _req(*lines: tuple[str, str], style: str = "en") -> ClinicCallRequest:
 
 def test_full_happy_call() -> None:
     first = mock_turn(_req())
-    assert "Saathi" in first.say and "Kamla" in first.say and "Dr. Anil Mehta" in first.say and not first.done
+    assert "Vaani" in first.say and "Kamla" in first.say and "Dr. Anil Mehta" in first.say and not first.done
     second = mock_turn(_req(("agent", first.say), ("clinic", "Yes, confirmed for 4 pm.")))
     assert "waiting time" in second.say and second.confirmed is True
     third = mock_turn(
@@ -74,7 +74,7 @@ def test_route_requires_device_and_runs(client) -> None:  # noqa: ANN001
     assert client.post("/calls/clinic/turn", json=body).status_code == 401
     r = client.post("/calls/clinic/turn", json=body, headers={"X-Saathi-Device": "test-device-123"})
     assert r.status_code == 200
-    assert "Saathi" in r.json()["say"]
+    assert "Vaani" in r.json()["say"]
 
 
 def _book(*lines: tuple[str, str], style: str = "en") -> ClinicCallRequest:
