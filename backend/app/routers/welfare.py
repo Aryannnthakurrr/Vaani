@@ -35,7 +35,7 @@ async def heartbeat(
     req: Heartbeat, db: Database = Depends(db_dep), caller: str = Depends(require_device)
 ) -> dict[str, bool]:
     same_device(caller, req.device_id)
-    db.heartbeat(req.device_id, req.ts)
+    db.heartbeat(caller, req.ts)  # caller: the checked, trimmed id
     return {"ok": True}
 
 
@@ -47,8 +47,8 @@ async def config(
     caller: str = Depends(require_device),
 ) -> dict[str, bool | str]:
     same_device(caller, req.device_id)
-    db.configure(req.device_id, req.user_name, [c.model_dump() for c in req.contacts], req.check_time)
-    return {"ok": True, "dashboard_path": dashboard_path(settings, req.device_id)}
+    db.configure(caller, req.user_name, [c.model_dump() for c in req.contacts], req.check_time)
+    return {"ok": True, "dashboard_path": dashboard_path(settings, caller)}
 
 
 @router.post("/welfare/test", response_model=SendResult)
@@ -59,7 +59,7 @@ async def welfare_test(
     caller: str = Depends(require_device),
 ) -> SendResult:
     same_device(caller, req.device_id)
-    device = db.get_device(req.device_id)
+    device = db.get_device(caller)
     if device is None:
         raise HTTPException(status_code=404, detail="device not configured; POST /welfare/config first")
     text = "[TEST] " + alert_text(device, datetime.now(ZoneInfo(settings.timezone)))
@@ -75,7 +75,7 @@ async def notify_family(
     caller: str = Depends(require_device),
 ) -> SendResult:
     same_device(caller, req.device_id)
-    device = db.get_device(req.device_id)
+    device = db.get_device(caller)
     if device is None:
         raise HTTPException(status_code=404, detail="device not configured; POST /welfare/config first")
     text = f"Vaani Scam Shield: {device.user_name} ji may be talking to a scammer. {family_safe(req.summary)} Please call them."
