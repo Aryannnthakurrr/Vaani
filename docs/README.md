@@ -47,7 +47,7 @@ Everything written about Vaani, grouped by what you want to do. The project over
 
 | Path | What it is |
 |---|---|
-| [media/showcase.mp4](media/showcase.mp4) | The 96-second showcase video |
+| [media/showcase.mp4](media/showcase.mp4) | The 96-second showcase video ([play in the browser](https://cdn.jsdelivr.net/gh/Aryannnthakurrr/Vaani@master/docs/media/showcase.mp4)); `showcase_preview.gif` is its sped-up preview |
 | [media/app/](media/app) | Screens from the current build |
 | [media/demo/](media/demo) | Four short demo recordings from the first build (`scripts/record_demos.sh`) |
 | [media/earlier-ui/](media/earlier-ui) | Screenshots of the first UI, before the redesign |
