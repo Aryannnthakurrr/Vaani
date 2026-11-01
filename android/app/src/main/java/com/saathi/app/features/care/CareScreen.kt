@@ -121,6 +121,15 @@ fun CareScreen(c: AppContainer, onBack: () -> Unit) {
                 else s("Speak freely, I'm listening", "बेझिझक बोलिए, मैं सुन रही हूँ", "Aaram se boliye, main sun rahi hoon"),
                 MaterialTheme.colorScheme.primary)
         }
+        // Mute keeps the intake conversation open while the user talks to someone else; Saathi just stops hearing.
+        val intake by c.care.liveSession.collectAsState()
+        intake?.takeIf { ui.phase == CarePhase.INTAKE }?.let { session ->
+            val muted by session.muted.collectAsState()
+            SecondaryButton(
+                if (muted) s("Mic is off. Tap to unmute", "माइक बंद है। चालू करने के लिए दबाइए", "Mic band hai. Chalu karne ke liye dabaiye")
+                else s("Mute my microphone", "मेरा माइक बंद करें", "Mera mic band karein"),
+                { session.setMuted(!muted) })
+        }
         if (ui.phase != CarePhase.RECOMMEND) Answering(asking, c, ::s)
 
         ui.note?.let { note -> NoteCard(note, ::s) }

@@ -172,6 +172,12 @@ class Assistant(private val c: AppContainer) {
         session.start()
     }
 
+    /** Mutes or unmutes the user's mic in the open conversation (home or doctor intake) without ending it. */
+    fun toggleMute() {
+        val live = _live.value ?: c.care.live ?: return
+        live.setMuted(!live.muted.value)
+    }
+
     fun endLive() {
         endRequested = true
         _live.value?.end()

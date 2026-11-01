@@ -1,39 +1,77 @@
 package com.saathi.app.ui
 
 import android.content.pm.PackageManager
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.saathi.app.BuildConfig
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.agent.AgentService
@@ -46,12 +84,24 @@ import com.saathi.app.core.overlay.AlertLevel
 import com.saathi.app.core.overlay.ScamAlert
 import com.saathi.app.core.voice.tr
 import com.saathi.app.ui.theme.Danger
+import com.saathi.app.ui.theme.Danger50
+import com.saathi.app.ui.theme.Edge
+import com.saathi.app.ui.theme.Ink
 import com.saathi.app.ui.theme.Leaf
+import com.saathi.app.ui.theme.Leaf50
+import com.saathi.app.ui.theme.Muted
+import com.saathi.app.ui.theme.Sky
+import com.saathi.app.ui.theme.Sky50
+import com.saathi.app.ui.theme.Soft
 import com.saathi.app.util.Packages
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * Settings (Stitch "3.2"): one outlined card per group (language, name, family on Telegram, daily check-in, scam
+ * alerts to family, apps, connection), every heading with its second-language line, then "Run setup again".
+ */
 @Composable
 fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
     SecureWindow() // private data: no screenshots or screen recording
@@ -59,181 +109,324 @@ fun SettingsScreen(c: AppContainer, onBack: () -> Unit, onSetup: () -> Unit) {
     val scope = rememberCoroutineScope()
     val s by c.settings.flow.collectAsState()
     val style = s.replyStyle
+    fun t(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
+    fun a(en: String, hi: String) = alt(style, en, hi)
     // Null while checking; the result is kept (not a sentence) so it follows a language change.
     var health by remember { mutableStateOf<Result<Health>?>(null) }
     // A save that reached the phone but not the server says so, instead of crashing the screen.
-    fun synced(ok: Boolean) = if (ok) tr(style, "Saved.", "सेव हो गया।", "Save ho gaya.")
-        else tr(style, "Saved on this phone, but the Saathi server could not be reached. Your family's alerts will update when it is back.",
+    fun synced(ok: Boolean) = if (ok) t("Saved.", "सेव हो गया।", "Save ho gaya.")
+        else t("Saved on this phone, but the Saathi server could not be reached. Your family's alerts will update when it is back.",
             "फ़ोन में सेव हो गया, पर साथी सर्वर से जुड़ नहीं पाए। सर्वर मिलते ही परिवार वाले अलर्ट अपडेट होंगे।",
             "Phone mein save ho gaya, par Saathi server se connect nahi ho paya. Server milte hi family alerts update honge.")
-    val saving = tr(style, "Saving…", "सेव हो रहा है…", "Save ho raha hai…")
+    val saving = t("Saving…", "सेव हो रहा है…", "Save ho raha hai…")
 
     LaunchedEffect(s.backendUrl, s.useFakeBackend) {
         health = null
         health = runCatching { c.backend.health() }.onSuccess { c.assistant.speech.cloudSpeech = it.sarvam }
     }
 
-    SaathiScaffold(tr(style, "Settings", "सेटिंग्स", "Settings"), onBack) {
-        if (c.profiles.all.isNotEmpty()) SettingsCard("🧑‍🦳", tr(style, "Demo profile", "डेमो प्रोफ़ाइल", "Demo profile")) {
-            var switching by remember { mutableStateOf(false) }
-            Text(tr(style, "Switch to a demo user: their health, preferences, messages and next appointment.",
-                "डेमो उपयोगकर्ता चुनें: उनकी सेहत, पसंद, संदेश और अगला अपॉइंटमेंट।",
-                "Demo user chunein: unki health, pasand, messages aur agla appointment."), style = MaterialTheme.typography.bodyMedium)
-            c.profiles.all.forEach { p ->
-                val active = s.profileId == p.id
-                BigButton("${if (active) "✓ " else ""}${p.name}, ${p.age} · ${p.conditions.joinToString(", ")}",
-                    { if (!switching) scope.launch { switching = true; c.profiles.switchTo(p); switching = false } },
-                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    enabled = !switching)
-            }
-            if (s.profileId.isNotEmpty()) {
-                BigButton(tr(style, "Back to my own profile", "अपनी प्रोफ़ाइल पर वापस", "Apni profile par wapas"),
-                    { scope.launch { c.profiles.clear() } })
+    SaathiScaffold(t("Settings", "सेटिंग्स", "Settings"), onBack, subtitle = a("Settings", "आपकी सेटिंग्स")) {
+        // Intro line and whether Saathi is connected, at a glance.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(t("Language, family and daily check-ins", "भाषा, परिवार और रोज़ की जाँच", "Bhasha, family aur daily check-in"),
+                style = MaterialTheme.typography.bodyLarge, color = Muted, modifier = Modifier.weight(1f))
+            when (health?.isSuccess) {
+                true -> StatusPill(t("Connected", "जुड़ा है", "Connected"), Leaf, filled = false, dot = true)
+                false -> StatusPill(t("Offline", "ऑफ़लाइन", "Offline"), Danger, filled = false, dot = true)
+                null -> Unit
             }
         }
-        SettingsCard("🗣️", tr(style, "Language", "भाषा", "Bhasha")) {
-        listOf("auto" to tr(style, "Auto", "ऑटो", "Auto"), "en" to "English", "hi" to "हिन्दी", "hinglish" to "Hinglish").chunked(2).forEach { pair ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pair.forEach { (code, label) ->
-                    BigButton(label, { scope.launch { c.settings.setLanguage(code) } }, Modifier.weight(1f),
-                        color = if (s.language == code) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (s.language == code) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+
+        if (c.profiles.all.isNotEmpty()) SectionCard(Icons.Filled.Person, t("Demo profile", "डेमो प्रोफ़ाइल", "Demo profile"),
+            t("Switch to a demo user: their health, preferences, messages and next appointment.",
+                "डेमो उपयोगकर्ता चुनें: उनकी सेहत, पसंद, संदेश और अगला अपॉइंटमेंट।",
+                "Demo user chunein: unki health, pasand, messages aur agla appointment.")) {
+            var switching by remember { mutableStateOf(false) }
+            c.profiles.all.forEach { p ->
+                val active = s.profileId == p.id
+                Choice("${p.name}, ${p.age}", p.conditions.joinToString(", "), active, Modifier.fillMaxWidth()) {
+                    if (!switching) scope.launch { switching = true; c.profiles.switchTo(p); switching = false }
+                }
+            }
+            if (s.profileId.isNotEmpty()) {
+                IconButtonBig(t("Back to my own profile", "अपनी प्रोफ़ाइल पर वापस", "Apni profile par wapas"), Icons.Filled.Person,
+                    { scope.launch { c.profiles.clear() } }, color = Color.White, contentColor = Ink, border = Edge, height = 56.dp)
+            }
+        }
+
+        SectionCard(Icons.Filled.Translate, t("Language", "भाषा चुनें", "Bhasha chunein") + " (" + a("Language", "भाषा") + ")",
+            t("Choose the language for voice and screen", "आवाज़ और स्क्रीन की भाषा चुनें", "Awaaz aur screen ki bhasha chuniye")) {
+            listOf(
+                Triple("auto", t("Auto", "ऑटो", "Auto"), a("Auto", "अपने आप")),
+                Triple("en", "English", null),
+                Triple("hi", "हिन्दी", "Hindi"),
+                Triple("hinglish", "Hinglish", null),
+            ).chunked(2).forEach { pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    pair.forEach { (code, label, sub) ->
+                        Choice(label, sub, s.language == code, Modifier.weight(1f)) { scope.launch { c.settings.setLanguage(code) } }
+                    }
+                }
+            }
+            InfoBox(Icons.Filled.Info, t("Auto replies in the same language you speak.", "ऑटो: आप जिस भाषा में बोलेंगे, उसी में जवाब।",
+                "Auto: aap jis bhasha mein bolenge, usi mein jawab."),
+                a("Auto replies in the same language you speak.", "जिस भाषा में बोलेंगे, उसी में उत्तर मिलेगा।"), Muted, Soft)
+        }
+
+        SectionCard(Icons.Filled.Badge, t("Your name", "आपका नाम", "Aapka naam") + " (" + a("Your name", "आपका नाम") + ")",
+            t("How Saathi addresses you", "साथी आपको किस नाम से बुलाए", "Saathi aapko kis naam se bulaye")) {
+            var name by remember(s.userName) { mutableStateOf(s.userName) }
+            val nameNote = rememberNote()
+            BigField(null, null, name, placeholder = t("e.g. Ramesh Sharma", "जैसे रमेश शर्मा", "jaise Ramesh Sharma")) { name = it }
+            IconButtonBig(if (nameNote.busy) saving else t("Save name", "नाम सेव करें", "Naam save karein"), Icons.Filled.Check, {
+                nameNote.run(scope) { c.settings.setUserName(name.trim()); c.welfare.pushConfig().let { synced(it) to it } }
+            }, second = if (nameNote.busy) null else a("Save name", "नाम सहेजें"), enabled = !nameNote.busy)
+            NoteLine(nameNote)
+        }
+
+        SectionCard(Icons.Filled.Groups, t("Family (Telegram)", "परिवार (टेलीग्राम)", "Parivaar (Telegram)"),
+            t("Family get your alerts and daily updates", "परिवार को आपके अलर्ट और रोज़ की जानकारी मिलती है",
+                "Family ko aapke alerts aur daily updates milte hain")) {
+            InfoBox(Icons.AutoMirrored.Filled.Send,
+                t("How family joins", "परिवार कैसे जुड़े", "Family kaise jude") + ": " +
+                    t("Your family member opens the Saathi bot in Telegram and sends /start. The bot replies with a chat ID. Type it below.",
+                        "परिवार का सदस्य टेलीग्राम में साथी बॉट खोलकर /start भेजे। बॉट एक चैट आईडी भेजेगा। उसे नीचे लिखिए।",
+                        "Family member Telegram mein Saathi bot khol ke /start bheje. Bot ek chat ID bhejega. Use neeche likhiye."),
+                null, Sky, Sky50)
+
+            val familyNote = rememberNote()
+            var removing by remember { mutableStateOf<FamilyContact?>(null) }
+            if (s.contacts.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(t("Linked family", "जुड़े सदस्य", "Jude sadasya").uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                        color = Muted, modifier = Modifier.weight(1f))
+                    StatusPill(t("${s.contacts.size} connected", "${s.contacts.size} जुड़े", "${s.contacts.size} connected"), Leaf, filled = false)
+                }
+            }
+            s.contacts.forEach { contact ->
+                Surface(shape = RoundedCornerShape(14.dp), color = Color.White, border = BorderStroke(1.5.dp, Edge)) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(48.dp).clip(CircleShape).background(Leaf50), contentAlignment = Alignment.Center) {
+                            Text(initials(contact.name), fontWeight = FontWeight.Bold, color = Leaf, fontSize = 18.sp)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(contact.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                            Text(t("Chat ID", "चैट आईडी", "Chat ID") + ": " + contact.telegramChatId, fontSize = 16.sp, color = Muted)
+                        }
+                        Surface(onClick = { removing = contact }, enabled = !familyNote.busy, shape = RoundedCornerShape(12.dp),
+                            color = Danger50, contentColor = Danger, modifier = Modifier.heightIn(min = 52.dp)) {
+                            Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Filled.Delete, null, modifier = Modifier.size(22.dp))
+                                Text(t("Remove", "हटाएँ", "Hatayein"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+            // Removing someone stops their alerts, so it is asked once more.
+            removing?.let { contact ->
+                AlertDialog(
+                    onDismissRequest = { removing = null },
+                    title = { Text(t("Remove ${contact.name}?", "${contact.name} को हटाएँ?", "${contact.name} ko hatayein?")) },
+                    text = { Text(t("They will stop getting your alerts on Telegram.", "उन्हें टेलीग्राम पर आपके अलर्ट मिलने बंद हो जाएँगे।",
+                        "Unhe Telegram par aapke alerts milna band ho jayega."), style = MaterialTheme.typography.bodyLarge) },
+                    confirmButton = {
+                        TextButton({
+                            removing = null
+                            familyNote.run(scope) { c.settings.setContacts(c.settings.fresh().contacts - contact); c.welfare.pushConfig().let { synced(it) to it } }
+                        }) { Text(t("Remove", "हटाएँ", "Hatayein"), color = Danger, style = MaterialTheme.typography.titleMedium) }
+                    },
+                    dismissButton = {
+                        TextButton({ removing = null }) { Text(t("Keep", "रहने दें", "Rehne dein"), style = MaterialTheme.typography.titleMedium) }
+                    },
+                )
+            }
+            // Adding someone: its own soft panel inside the card.
+            Surface(shape = RoundedCornerShape(14.dp), color = Soft) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Filled.PersonAdd, null, tint = MaterialTheme.colorScheme.primary)
+                        Text(t("Add a family member", "नया सदस्य जोड़ें", "Naya sadasya jodein"), style = MaterialTheme.typography.titleMedium)
+                    }
+                    var cName by remember { mutableStateOf("") }
+                    var cId by remember { mutableStateOf("") }
+                    BigField(t("Family member's name", "परिवार के सदस्य का नाम", "Family member ka naam"), null, cName,
+                        placeholder = t("e.g. Priya Sharma", "जैसे प्रिया शर्मा", "jaise Priya Sharma")) { cName = it }
+                    BigField(t("Telegram chat ID", "टेलीग्राम चैट आईडी", "Telegram chat ID"), null, cId, placeholder = "738291039") {
+                        cId = it.filter { ch -> ch.isDigit() || ch == '-' }
+                    }
+                    IconButtonBig(if (familyNote.busy) saving else t("Add family member", "सदस्य जोड़ें", "Member jodein"), Icons.Filled.PersonAdd, {
+                        if (cName.isNotBlank() && cId.isNotBlank()) familyNote.run(scope) {
+                            c.settings.setContacts(c.settings.fresh().contacts + FamilyContact(cName.trim(), cId.trim()))
+                            cName = ""; cId = ""
+                            c.welfare.pushConfig().let { synced(it) to it }
+                        } else familyNote.show(t("Please write the name and the chat ID.", "कृपया नाम और चैट आईडी लिखिए।",
+                            "Please naam aur chat ID likhiye."), ok = false)
+                    }, second = if (familyNote.busy) null else a("Add family member", "सदस्य जोड़ें"), enabled = !familyNote.busy)
+                }
+            }
+            NoteLine(familyNote)
+        }
+
+        SectionCard(Icons.Filled.Schedule, t("Daily check-in", "रोज़ की जाँच", "Rozana haal-chaal"),
+            t("A morning check-in. Family is told if you don't reply.", "सुबह हाल-चाल पूछना। जवाब न मिले तो परिवार को बताना।",
+                "Subah haal-chaal. Jawab na mile to family ko batana.")) {
+            var check by remember(s.welfareCheckTime) { mutableStateOf(s.welfareCheckTime) }
+            var prompt by remember(s.welfarePromptTime) { mutableStateOf(s.welfarePromptTime) }
+            BigField(t("Ask me at", "मुझसे पूछें", "Pehle mujhse poochein") + " (HH:MM)", Icons.Filled.Alarm, prompt, trailing = Icons.Filled.Schedule) { prompt = it }
+            BigField(t("Alert family if I don't reply, at", "जवाब न दूँ तो परिवार को बताएँ", "Jawab na doon to family ko batayein") + " (HH:MM)",
+                Icons.Filled.NotificationsActive, check, trailing = Icons.Filled.Schedule) { check = it }
+            val checkNote = rememberNote()
+            var testing by remember { mutableStateOf(false) }
+            IconButtonBig(if (checkNote.busy) saving else t("Save times", "समय सेव करें", "Time save karein"), Icons.Filled.Save, {
+                val ok = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
+                if (ok.matches(check) && ok.matches(prompt)) checkNote.run(scope) {
+                    c.settings.setWelfareTimes(check, prompt)
+                    c.welfare.scheduleDailyPrompt(prompt)
+                    c.welfare.pushConfig().let { synced(it) to it }
+                } else checkNote.show(t("Please write the time like 11:30", "समय ऐसे लिखिए: 11:30", "Time aise likhiye: 11:30"), ok = false)
+            }, second = if (checkNote.busy) null else a("Save times", "समय सहेजें"), enabled = !checkNote.busy)
+            // One test at a time: every tap messages the family.
+            IconButtonBig(if (testing) t("Sending…", "भेज रहे हैं…", "Bhej rahe hain…") else t("Test welfare alert", "जाँच संदेश भेजकर देखें", "Test welfare alert"),
+                Icons.AutoMirrored.Filled.Send, {
+                    if (!testing) scope.launch {
+                        testing = true
+                        try { checkNote.show(c.welfare.sendTestAlert(), ok = null, millis = 10_000) } finally { testing = false }
+                    }
+                }, color = Color.White, contentColor = Ink, border = Edge, enabled = !testing, height = 56.dp)
+            NoteLine(checkNote)
+        }
+
+        SectionCard(Icons.Filled.Security, t("Tell family about scams", "धोखे की चेतावनी परिवार को", "Scam alert family ko"),
+            t("Telegram alert on suspicious calls", "संदिग्ध कॉल पर टेलीग्राम अलर्ट", "Suspicious call par Telegram alert"),
+            tint = Danger, tintBg = Danger50,
+            trailing = {
+                Switch(checked = s.notifyFamilyOnScam, onCheckedChange = { scope.launch { c.settings.setNotifyFamilyOnScam(it) } },
+                    colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
+            })
+
+        SectionCard(Icons.Filled.Apps, t("Apps Saathi can use", "ऐप्स जिनमें साथी काम कर सकता है", "Apps jinmein Saathi kaam kar sakta hai"),
+            a("Apps Saathi can use", "साथी किन ऐप्स में मदद करता है")) {
+            Packages.ACT_ALLOWLIST.filter { it != Packages.SELF }.forEach { pkg ->
+                val installed = runCatching { ctx.packageManager.getPackageInfo(pkg, 0); true }.getOrElse { it !is PackageManager.NameNotFoundException }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(if (installed) Icons.Filled.CheckCircle else Icons.Filled.Cancel, null, tint = if (installed) Leaf else Muted)
+                    Text(Packages.displayName(pkg), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Text(if (installed) t("installed", "इंस्टॉल है", "installed hai") else t("not installed", "इंस्टॉल नहीं", "installed nahi"),
+                        fontSize = 17.sp, color = if (installed) Leaf else Muted)
                 }
             }
         }
-        Text(tr(style, "Auto replies in the same language you speak.", "ऑटो: आप जिस भाषा में बोलेंगे, उसी में जवाब।",
-            "Auto: aap jis bhasha mein bolenge, usi mein jawab."), style = MaterialTheme.typography.bodyMedium)
 
-        var name by remember(s.userName) { mutableStateOf(s.userName) }
-        val nameNote = rememberNote()
-        BigField(tr(style, "Your name", "आपका नाम", "Aapka naam"), name) { name = it }
-        BigButton(if (nameNote.busy) saving else tr(style, "Save name", "नाम सेव करें", "Naam save karein"), {
-            nameNote.run(scope) { c.settings.setUserName(name.trim()); c.welfare.pushConfig().let { synced(it) to it } }
-        }, enabled = !nameNote.busy)
-        NoteLine(nameNote)
+        ConnectionCard(c, health, s.useFakeBackend, s.backendUrl, style, scope)
 
-        }
-        SettingsCard("👨‍👩‍👧", tr(style, "Family (Telegram)", "परिवार (टेलीग्राम)", "Family (Telegram)")) {
-        InfoCard(
-            title = tr(style, "How family joins", "परिवार कैसे जुड़े", "Family kaise jude"),
-            body = tr(style, "Your family member opens the Saathi bot in Telegram and sends /start. The bot replies with a chat ID. Type it below.",
-                "परिवार का सदस्य टेलीग्राम में साथी बॉट खोलकर /start भेजे। बॉट एक चैट आईडी भेजेगा। उसे नीचे लिखिए।",
-                "Family member Telegram mein Saathi bot khol ke /start bheje. Bot ek chat ID bhejega. Use neeche likhiye."),
-        )
-        val familyNote = rememberNote()
-        var removing by remember { mutableStateOf<FamilyContact?>(null) }
-        s.contacts.forEach { contact ->
-            InfoCard(title = contact.name, body = tr(style, "Chat ID", "चैट आईडी", "Chat ID") + " " + contact.telegramChatId) {
-                BigButton(tr(style, "Remove", "हटाएँ", "Hatayein"), { removing = contact }, color = Danger, enabled = !familyNote.busy)
+        // Setup again: a plain row, as quiet as the History link on Home.
+        val (press, pressMotion) = rememberPress()
+        Surface(onClick = onSetup, interactionSource = press, shape = RoundedCornerShape(16.dp), color = Color.White,
+            border = BorderStroke(1.5.dp, Edge), modifier = Modifier.fillMaxWidth().then(pressMotion).semantics { role = Role.Button }) {
+            Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Icon(Icons.Filled.Refresh, null, tint = Ink, modifier = Modifier.size(28.dp))
+                TwoLine(t("Run setup again", "सेटअप फिर से", "Setup phir se"), a("Run setup again", "शुरुआती सेटअप दोबारा करें"),
+                    Modifier.weight(1f))
             }
-        }
-        // Removing someone stops their alerts, so it is asked once more.
-        removing?.let { contact ->
-            AlertDialog(
-                onDismissRequest = { removing = null },
-                title = { Text(tr(style, "Remove ${contact.name}?", "${contact.name} को हटाएँ?", "${contact.name} ko hatayein?")) },
-                text = { Text(tr(style, "They will stop getting your alerts on Telegram.", "उन्हें टेलीग्राम पर आपके अलर्ट मिलने बंद हो जाएँगे।",
-                    "Unhe Telegram par aapke alerts milna band ho jayega."), style = MaterialTheme.typography.bodyLarge) },
-                confirmButton = {
-                    TextButton({
-                        removing = null
-                        familyNote.run(scope) { c.settings.setContacts(c.settings.fresh().contacts - contact); c.welfare.pushConfig().let { synced(it) to it } }
-                    }) { Text(tr(style, "Remove", "हटाएँ", "Hatayein"), color = Danger, style = MaterialTheme.typography.titleMedium) }
-                },
-                dismissButton = {
-                    TextButton({ removing = null }) { Text(tr(style, "Keep", "रहने दें", "Rehne dein"), style = MaterialTheme.typography.titleMedium) }
-                },
-            )
-        }
-        var cName by remember { mutableStateOf("") }
-        var cId by remember { mutableStateOf("") }
-        BigField(tr(style, "Family member's name", "परिवार के सदस्य का नाम", "Family member ka naam"), cName) { cName = it }
-        BigField(tr(style, "Telegram chat ID", "टेलीग्राम चैट आईडी", "Telegram chat ID"), cId) { cId = it.filter { ch -> ch.isDigit() || ch == '-' } }
-        BigButton(if (familyNote.busy) saving else tr(style, "Add family member", "सदस्य जोड़ें", "Member jodein"), {
-            if (cName.isNotBlank() && cId.isNotBlank()) familyNote.run(scope) {
-                c.settings.setContacts(c.settings.fresh().contacts + FamilyContact(cName.trim(), cId.trim()))
-                cName = ""; cId = ""
-                c.welfare.pushConfig().let { synced(it) to it }
-            } else familyNote.show(tr(style, "Please write the name and the chat ID.", "कृपया नाम और चैट आईडी लिखिए।",
-                "Please naam aur chat ID likhiye."), ok = false)
-        }, enabled = !familyNote.busy)
-        NoteLine(familyNote)
-
-        }
-        SettingsCard("💛", tr(style, "Daily check-in", "रोज़ की जाँच", "Daily check-in")) {
-        var check by remember(s.welfareCheckTime) { mutableStateOf(s.welfareCheckTime) }
-        var prompt by remember(s.welfarePromptTime) { mutableStateOf(s.welfarePromptTime) }
-        BigField(tr(style, "Ask me at (HH:MM)", "मुझसे पूछें (HH:MM)", "Mujhse poochein (HH:MM)"), prompt) { prompt = it }
-        BigField(tr(style, "Alert family at (HH:MM)", "परिवार को बताएँ (HH:MM)", "Family ko batayein (HH:MM)"), check) { check = it }
-        val checkNote = rememberNote()
-        var testing by remember { mutableStateOf(false) }
-        BigButton(if (checkNote.busy) saving else tr(style, "Save times", "समय सेव करें", "Time save karein"), {
-            val ok = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
-            if (ok.matches(check) && ok.matches(prompt)) checkNote.run(scope) {
-                c.settings.setWelfareTimes(check, prompt)
-                c.welfare.scheduleDailyPrompt(prompt)
-                c.welfare.pushConfig().let { synced(it) to it }
-            } else checkNote.show(tr(style, "Please write the time like 11:30", "समय ऐसे लिखिए: 11:30", "Time aise likhiye: 11:30"), ok = false)
-        }, enabled = !checkNote.busy)
-        // One test at a time: every tap messages the family.
-        BigButton(if (testing) tr(style, "Sending…", "भेज रहे हैं…", "Bhej rahe hain…") else tr(style, "Test welfare alert", "जाँच संदेश भेजकर देखें", "Test welfare alert"), {
-            if (!testing) scope.launch {
-                testing = true
-                try { checkNote.show(c.welfare.sendTestAlert(), ok = null, millis = 10_000) } finally { testing = false }
-            }
-        }, color = MaterialTheme.colorScheme.secondary, enabled = !testing)
-        NoteLine(checkNote)
-        ToggleRow(tr(style, "Tell family about scam alerts", "धोखे की चेतावनी परिवार को भी भेजें", "Scam alert family ko bhi bhejein"), s.notifyFamilyOnScam) {
-            scope.launch { c.settings.setNotifyFamilyOnScam(it) }
-        }
-
-        }
-        SettingsCard("📱", tr(style, "Apps Saathi can use", "ऐप्स जिनमें साथी काम कर सकता है", "Apps jinmein Saathi kaam kar sakta hai")) {
-        Packages.ACT_ALLOWLIST.filter { it != Packages.SELF }.forEach { pkg ->
-            val installed = runCatching { ctx.packageManager.getPackageInfo(pkg, 0); true }.getOrElse { it !is PackageManager.NameNotFoundException }
-            Text(
-                (if (installed) "✅  " else "⬜  ") + Packages.displayName(pkg) + " · " +
-                    if (installed) tr(style, "installed", "इंस्टॉल है", "installed hai") else tr(style, "not installed", "इंस्टॉल नहीं", "installed nahi"),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-
-        }
-        SettingsCard("🔌", tr(style, "Connection", "कनेक्शन", "Connection")) {
-        health?.let { InfoCard(title = healthLine(it, style), accent = if (it.isSuccess) Leaf else Danger) }
-        var url by remember(s.backendUrl) { mutableStateOf(s.backendUrl) }
-        val urlNote = rememberNote()
-        BigField(tr(style, "Server address", "सर्वर का पता", "Server ka address"), url) { url = it }
-        BigButton(tr(style, "Save address", "पता सेव करें", "Address save karein"), {
-            urlNote.run(scope) { c.settings.setBackendUrl(url.trim()); tr(style, "Saved.", "सेव हो गया।", "Save ho gaya.") to true }
-        }, enabled = !urlNote.busy)
-        NoteLine(urlNote)
-        ToggleRow(tr(style, "Work offline (no backend)", "बिना सर्वर के चलाएँ", "Bina server ke chalayein"), s.useFakeBackend) {
-            scope.launch { c.settings.setUseFakeBackend(it) }
-        }
-        BigButton(tr(style, "Run setup again", "सेटअप फिर से", "Setup phir se"), onSetup,
-            color = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
-
         }
 
         if (BuildConfig.DEBUG) DebugSection(c, style, s.replayMode)
+
+        Text("Saathi v${BuildConfig.VERSION_NAME}", fontSize = 16.sp, color = Muted, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth())
     }
 }
+
+@Composable
+private fun ConnectionCard(c: AppContainer, health: Result<Health>?, offline: Boolean, backendUrl: String, style: ReplyStyle, scope: CoroutineScope) {
+    fun t(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
+    val ok = health?.isSuccess
+    val line = when (ok) {
+        true -> t("Connected to Saathi", "साथी से जुड़ा है", "Saathi se connected")
+        false -> t("Not connected", "जुड़ा नहीं है", "Connected nahi")
+        null -> t("Checking…", "जाँच रहे हैं…", "Check kar rahe hain…")
+    }
+    SectionCard(null, t("Connection", "कनेक्शन", "Connection"), line,
+        trailing = { Icon(if (ok == false) Icons.Filled.WifiOff else Icons.Filled.Wifi, null,
+            tint = if (ok == false) Danger else Leaf, modifier = Modifier.size(30.dp)) }) {
+        health?.let { r ->
+            InfoBox(if (r.isSuccess) Icons.Filled.CheckCircle else Icons.Filled.ErrorOutline, healthLine(r, style), null,
+                if (r.isSuccess) Leaf else Danger, if (r.isSuccess) Leaf50 else Danger50)
+        }
+        // Offline: its own soft panel with the switch, as in the design.
+        Surface(shape = RoundedCornerShape(14.dp), color = Soft) {
+            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                IconBubble(Icons.Filled.CloudOff, Ink, Color.White, size = 44.dp, round = true)
+                TwoLine(t("Work offline", "बिना इंटरनेट", "Offline chalayein"),
+                    t("Use the phone's own checks", "फ़ोन की अपनी जाँच से चलाएँ", "Phone ki apni checks se chalayein"), Modifier.weight(1f))
+                Switch(checked = offline, onCheckedChange = { scope.launch { c.settings.setUseFakeBackend(it) } },
+                    colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
+            }
+        }
+        var url by remember(backendUrl) { mutableStateOf(backendUrl) }
+        val urlNote = rememberNote()
+        BigField(t("Server address", "सर्वर का पता", "Server ka address"), null, url) { url = it }
+        IconButtonBig(t("Save address", "पता सेव करें", "Address save karein"), Icons.Filled.Save, {
+            urlNote.run(scope) { c.settings.setBackendUrl(url.trim()); t("Saved.", "सेव हो गया।", "Save ho gaya.") to true }
+        }, color = Color.White, contentColor = Ink, border = Edge, enabled = !urlNote.busy, height = 56.dp)
+        NoteLine(urlNote)
+    }
+}
+
+/** A choice button (language, demo profile): filled teal with a tick when chosen, outlined white otherwise. */
+@Composable
+private fun Choice(label: String, sub: String?, chosen: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val (press, pressMotion) = rememberPress()
+    Surface(
+        onClick = onClick, interactionSource = press, shape = RoundedCornerShape(16.dp),
+        color = if (chosen) MaterialTheme.colorScheme.primary else Color.White,
+        contentColor = if (chosen) Color.White else Ink,
+        border = if (chosen) null else BorderStroke(1.5.dp, Edge),
+        modifier = modifier.heightIn(min = 64.dp).then(pressMotion).semantics { role = Role.RadioButton; selected = chosen },
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center) {
+            if (chosen) Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.padding(end = 8.dp).size(24.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(label, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                sub?.let { Text(it, fontSize = 15.sp, lineHeight = 19.sp, textAlign = TextAlign.Center,
+                    color = if (chosen) Color.White.copy(alpha = 0.85f) else Muted) }
+            }
+        }
+    }
+}
+
+/** A tinted note with a leading icon (how family joins, the Auto hint, the connection status). */
+@Composable
+private fun InfoBox(icon: ImageVector, text: String, second: String?, tint: Color, bg: Color) {
+    Surface(shape = RoundedCornerShape(14.dp), color = bg) {
+        Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
+            TwoLine(text, second, Modifier.weight(1f), mainStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 19.sp, lineHeight = 26.sp),
+                mainColor = Ink)
+        }
+    }
+}
+
+private fun initials(name: String) = name.split(' ').filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }
 
 /** The Connection card's status line, in the current language. */
 private fun healthLine(r: Result<Health>, style: ReplyStyle): String = r.fold(
     { h ->
-        "✅ " + listOf(
+        listOf(
             if (h.mock) tr(style, "Practice mode (no AI keys)", "अभ्यास मोड (AI चाबी नहीं)", "Practice mode (AI keys nahi)")
             else tr(style, "Live AI", "AI चालू", "Live AI"),
             tr(style, "voice: ", "आवाज़: ", "awaaz: ") + if (h.sarvam) "Sarvam" else tr(style, "on the phone", "फ़ोन पर", "phone par"),
             "Telegram: " + if (h.telegram) tr(style, "on", "चालू", "on") else tr(style, "log only", "सिर्फ़ लॉग", "sirf log"),
         ).joinToString(" · ")
     },
-    { tr(style, "⚠️ Server not reachable. Saathi is using the phone's own voice and checks.",
-        "⚠️ सर्वर से नहीं जुड़ पाए। साथी फ़ोन की अपनी आवाज़ और जाँच से काम कर रहा है।",
-        "⚠️ Server se connect nahi ho paya. Saathi phone ki apni awaaz aur checks se kaam kar raha hai.") },
+    { tr(style, "Server not reachable. Saathi is using the phone's own voice and checks.",
+        "सर्वर से नहीं जुड़ पाए। साथी फ़ोन की अपनी आवाज़ और जाँच से काम कर रहा है।",
+        "Server se connect nahi ho paya. Saathi phone ki apni awaaz aur checks se kaam kar raha hai.") },
 )
 
 /**
@@ -282,7 +475,13 @@ private fun rememberNote(): Note {
 
 @Composable
 private fun NoteLine(note: Note) {
-    note.text?.let { InfoCard(title = it, accent = when (note.ok) { true -> Leaf; false -> Danger; null -> null }) }
+    note.text?.let {
+        when (note.ok) {
+            true -> InfoBox(Icons.Filled.CheckCircle, it, null, Leaf, Leaf50)
+            false -> InfoBox(Icons.Filled.ErrorOutline, it, null, Danger, Danger50)
+            null -> InfoBox(Icons.Filled.Info, it, null, Muted, Soft)
+        }
+    }
 }
 
 @Composable
@@ -291,8 +490,11 @@ private fun DebugSection(c: AppContainer, style: ReplyStyle, replay: Boolean) {
     val ctx = LocalContext.current
     var status by remember { mutableStateOf("") }
     val report: (String) -> Unit = { status = it }
-    SettingsCard("🛠️", "Developer") {
-    ToggleRow("Demo replay: run tasks on recorded screens", replay) { scope.launch { c.settings.setReplayMode(it) } }
+    SectionCard(Icons.Filled.Build, "Developer", tint = Muted, tintBg = Soft) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Demo replay: run tasks on recorded screens", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(checked = replay, onCheckedChange = { scope.launch { c.settings.setReplayMode(it) } })
+    }
     BigButton("Record screen in 5 s", {
         scope.launch {
             report("Switch to the app now…")
@@ -320,35 +522,28 @@ private fun DebugSection(c: AppContainer, style: ReplyStyle, replay: Boolean) {
     }
 }
 
-/** One settings group: a card with an icon and a heading. */
+/** A labelled text field: the label above (with an optional icon), a tall white box, an optional trailing icon. */
 @Composable
-private fun SettingsCard(icon: String, title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-    ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(icon, fontSize = 30.sp)
-                Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+private fun BigField(
+    label: String?, icon: ImageVector?, value: String, placeholder: String? = null, trailing: ImageVector? = null,
+    onChange: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        label?.let {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                icon?.let { Icon(it, null, tint = Ink, modifier = Modifier.size(22.dp)) }
+                Text(label, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Ink)
             }
-            content()
         }
-    }
-}
-
-@Composable
-private fun BigField(label: String, value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(value = value, onValueChange = onChange, label = { Text(label) }, singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp))
-}
-
-@Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
+        OutlinedTextField(
+            value = value, onValueChange = onChange, singleLine = true,
+            placeholder = placeholder?.let { { Text(it, style = MaterialTheme.typography.bodyLarge, color = Muted) } },
+            trailingIcon = trailing?.let { { Icon(it, null, tint = Ink) } },
+            textStyle = MaterialTheme.typography.bodyLarge, shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = Edge, focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedContainerColor = Color.White, focusedContainerColor = Color.White),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+        )
     }
 }

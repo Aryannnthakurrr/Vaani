@@ -72,6 +72,15 @@ class LiveVoiceSession(
     private val _state = MutableStateFlow(LiveState.CONNECTING)
     val state: StateFlow<LiveState> = _state
 
+    /** True while the user has muted their mic: the conversation stays open, but nothing they say is sent. */
+    private val _muted = MutableStateFlow(false)
+    val muted: StateFlow<Boolean> = _muted
+
+    fun setMuted(value: Boolean) {
+        _muted.value = value
+        if (value) _micLevel.value = 0f
+    }
+
     /** Loudness of the user's voice, 0–1, for the voice-wave animation. */
     private val _micLevel = MutableStateFlow(0f)
     val micLevel: StateFlow<Float> = _micLevel
@@ -210,7 +219,9 @@ class LiveVoiceSession(
                 rec.startRecording()
                 while (isActive && !paused) {
                     val n = rec.read(chunk, 0, chunk.size)
-                    if (n > 0) {
+                    if (n > 0 && _muted.value) {
+                        _micLevel.value = 0f
+                    } else if (n > 0) {
                         ws?.send(LiveWire.audio(chunk, n).also { com.saathi.app.core.net.UsageMeter.record("live_voice", it.length.toLong(), 0, request = false) })
                         _micLevel.value = VoiceLevel.rms16(chunk, n)
                     }

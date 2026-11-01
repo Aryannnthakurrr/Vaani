@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -85,24 +86,37 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /**
- * Screen frame: a teal header band with rounded bottom corners (title in white, a round back button), then the
- * screen's content on the warm page. The colour block at the top tells every screen apart from the page below it.
+ * Screen frame: a plain header (round back button, title, and the title in the other language beneath it), then
+ * the screen's content on the warm page. [bottomBar] stays fixed above the system bar (Onboarding's Start).
  */
 @Composable
 fun SaathiScaffold(
     title: String,
     onBack: (() -> Unit)?,
     scroll: Boolean = true,
+    subtitle: String? = null,
+    bottomBar: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { HeaderBand { HeaderBar(title, onBack) } },
+        topBar = { HeaderBand { HeaderBar(title, subtitle, onBack) } },
+        bottomBar = {
+            bottomBar?.let {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    Column(Modifier.navigationBarsPadding()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                        Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) { it() }
+                    }
+                }
+            }
+        },
     ) { pad ->
-        val base = Modifier.fillMaxSize().padding(pad).padding(horizontal = 16.dp)
+        val base = Modifier.fillMaxSize().padding(pad).padding(horizontal = 20.dp)
         Column(
-            modifier = (if (scroll) base.verticalScroll(rememberScrollState()) else base).navigationBarsPadding(),
+            modifier = (if (scroll) base.verticalScroll(rememberScrollState()) else base)
+                .then(if (bottomBar == null) Modifier.navigationBarsPadding() else Modifier),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box(Modifier.padding(top = 4.dp))
@@ -112,61 +126,152 @@ fun SaathiScaffold(
     }
 }
 
-/** The teal block behind a screen's title, running up under the status bar (whose icons turn white over it). */
+/** The top of a screen: plain page colour under the status bar, dark title; no coloured block. */
 @Composable
-fun HeaderBand(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    LightStatusBarIcons()
-    Surface(
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = Color.White,
-        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 14.dp), content = content)
-    }
+fun HeaderBand(modifier: Modifier = Modifier, statusBarInset: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth().then(if (statusBarInset) Modifier.statusBarsPadding() else Modifier)
+        .padding(horizontal = 16.dp, vertical = 12.dp), content = content)
 }
 
 @Composable
-private fun HeaderBar(title: String, onBack: (() -> Unit)?) {
+private fun HeaderBar(title: String, subtitle: String?, onBack: (() -> Unit)?) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         val style = com.saathi.app.SaathiApp.container.settings.flow.collectAsState().value.replyStyle
         if (onBack != null) RoundIconButton(Icons.AutoMirrored.Filled.ArrowBack, tr(style, "Back", "वापस", "Wapas"), onBack)
-        Text(title, style = MaterialTheme.typography.headlineMedium, color = Color.White,
-            modifier = Modifier.weight(1f).semantics { heading() })
-    }
-}
-
-/** A white-on-teal round button for header bands (back, settings): 56dp, a soft lighter circle behind the icon. */
-@Composable
-fun RoundIconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val (press, pressMotion) = rememberPress()
-    Surface(onClick = onClick, interactionSource = press, shape = CircleShape, color = Color.White.copy(alpha = 0.18f),
-        modifier = Modifier.size(56.dp).then(pressMotion).semantics { contentDescription = label }) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+        Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
+            Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+            subtitle?.let { Text(it, fontSize = 17.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
 
 /**
- * White status bar icons while a teal header is on screen. Counted, so during a screen change the incoming header
- * keeps them white even when the outgoing screen lets go afterwards.
+ * The same words in the user's second script, shown smaller under the main line (as in the Stitch designs):
+ * Hindi under English and Hinglish, English under Hindi.
  */
+fun alt(style: ReplyStyle, en: String, hi: String): String = if (style == ReplyStyle.HI) en else hi
+
+/** A line of text with its [alt] translation beneath it. */
 @Composable
-fun LightStatusBarIcons() {
-    val view = LocalView.current
-    DisposableEffect(Unit) {
-        val window = (view.context as? android.app.Activity)?.window
-        lightIconHolders++
-        window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = false }
-        onDispose {
-            lightIconHolders--
-            if (lightIconHolders == 0) window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = true }
+fun TwoLine(
+    main: String,
+    second: String?,
+    modifier: Modifier = Modifier,
+    mainStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
+    secondColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    secondSize: androidx.compose.ui.unit.TextUnit = 17.sp,
+    mainColor: Color = Color.Unspecified,
+    align: TextAlign? = null,
+) {
+    Column(modifier) {
+        Text(main, style = mainStyle, color = mainColor, textAlign = align)
+        if (!second.isNullOrBlank() && second != main) {
+            Text(second, fontSize = secondSize, lineHeight = secondSize * 1.35f, color = secondColor, textAlign = align,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
         }
     }
 }
 
-private var lightIconHolders = 0
+/** An icon on a soft tinted circle (or rounded square), the leading mark of cards and rows. */
+@Composable
+fun IconBubble(icon: ImageVector, tint: Color, bg: Color, size: androidx.compose.ui.unit.Dp = 48.dp, round: Boolean = false) {
+    Box(Modifier.size(size).clip(if (round) CircleShape else RoundedCornerShape(12.dp)).background(bg), contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(size * 0.54f))
+    }
+}
+
+/**
+ * One group of a screen (Settings sections, the Scam Shield status): a white card with a clear outline, an icon
+ * square, a heading with a one-line description, then its content.
+ */
+@Composable
+fun SectionCard(
+    icon: ImageVector?,
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    tintBg: Color = MaterialTheme.colorScheme.primaryContainer,
+    container: Color = Color.White,
+    border: Color = com.saathi.app.ui.theme.Edge,
+    trailing: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit = {},
+) {
+    Surface(shape = RoundedCornerShape(16.dp), color = container, border = BorderStroke(1.5.dp, border), modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                icon?.let { IconBubble(it, tint, tintBg) }
+                Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    subtitle?.let { Text(it, fontSize = 17.sp, lineHeight = 23.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                trailing?.invoke()
+            }
+            content()
+        }
+    }
+}
+
+/** A filled status label with an optional leading icon ("DANGER • खतरा", "● LIVE"). */
+@Composable
+fun StatusPill(text: String, color: Color, filled: Boolean = true, icon: ImageVector? = null, dot: Boolean = false) {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(if (filled) color else color.copy(alpha = 0.12f))
+            .then(if (filled) Modifier else Modifier.border(1.5.dp, color.copy(alpha = 0.5f), RoundedCornerShape(50)))
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        val fg = if (filled) Color.White else color
+        if (dot) Box(Modifier.size(9.dp).clip(CircleShape).background(fg))
+        icon?.let { Icon(it, null, tint = fg, modifier = Modifier.size(18.dp)) }
+        Text(text, fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = fg)
+    }
+}
+
+/** A full-width button with a leading icon and an optional second-language line (Stitch's primary CTA). */
+@Composable
+fun IconButtonBig(
+    text: String,
+    icon: ImageVector?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    second: String? = null,
+    color: Color = MaterialTheme.colorScheme.primary,
+    contentColor: Color = Color.White,
+    border: Color? = null,
+    enabled: Boolean = true,
+    height: androidx.compose.ui.unit.Dp = 64.dp,
+) {
+    val (press, pressMotion) = rememberPress()
+    Button(
+        onClick = onClick, enabled = enabled, interactionSource = press,
+        modifier = modifier.fillMaxWidth().heightIn(min = height).then(pressMotion),
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor),
+        border = border?.let { BorderStroke(1.5.dp, it) },
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+    ) {
+        icon?.let { Icon(it, null, modifier = Modifier.size(26.dp)) }
+        Column(Modifier.padding(start = if (icon != null) 12.dp else 0.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+            if (!second.isNullOrBlank() && second != text) Text(second, fontSize = 16.sp, lineHeight = 20.sp,
+                textAlign = TextAlign.Center, color = contentColor.copy(alpha = 0.85f))
+        }
+    }
+}
+
+/** A round icon button for the top of a screen (back, settings): 48dp, white with a hairline border. */
+@Composable
+fun RoundIconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val (press, pressMotion) = rememberPress()
+    Surface(onClick = onClick, interactionSource = press, shape = CircleShape, color = Color.White,
+        border = BorderStroke(1.5.dp, com.saathi.app.ui.theme.Edge),
+        modifier = Modifier.size(52.dp).then(pressMotion).semantics { contentDescription = label }) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(26.dp))
+        }
+    }
+}
 
 /** A full-width button with at least a 64dp touch target and large label. */
 @Composable
@@ -183,8 +288,8 @@ fun BigButton(
         onClick = onClick,
         enabled = enabled,
         interactionSource = press,
-        modifier = modifier.fillMaxWidth().heightIn(min = 72.dp).then(pressMotion),
-        shape = RoundedCornerShape(20.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 64.dp).then(pressMotion),
+        shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = contentColor),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
     ) { Text(text, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
@@ -252,9 +357,9 @@ fun InfoCard(
         modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) {
             contentDescription = listOfNotNull(badge, title, body).joinToString(". ")
         },
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         // The accent stripe is drawn, not laid out: an intrinsic-height row mis-measures Devanagari text.
         Row(Modifier.drawBehind { if (accent != null) drawRect(accent, size = Size(8.dp.toPx(), size.height)) }) {
@@ -308,7 +413,7 @@ fun ActionRow(
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.primary,
     tintBg: Color = MaterialTheme.colorScheme.primaryContainer,
-    border: Color = MaterialTheme.colorScheme.outline,
+    border: Color = com.saathi.app.ui.theme.Edge,
 ) {
     val (press, pressMotion) = rememberPress()
     Surface(
@@ -316,9 +421,9 @@ fun ActionRow(
         interactionSource = press,
         modifier = modifier.fillMaxWidth().heightIn(min = 96.dp).then(pressMotion)
             .semantics(mergeDescendants = true) { role = Role.Button; contentDescription = label },
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
-        border = BorderStroke(1.5.dp, border),
+        border = BorderStroke(1.dp, border),
     ) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(18.dp)) {

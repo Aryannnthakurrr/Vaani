@@ -12,11 +12,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,17 +26,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.GppGood
+import androidx.compose.material.icons.filled.GppMaybe
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LocalTaxi
+import androidx.compose.material.icons.filled.Mail
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.outlined.CleaningServices
-import androidx.compose.material.icons.outlined.LocalTaxi
-import androidx.compose.material.icons.outlined.MailOutline
-import androidx.compose.material.icons.outlined.MedicalServices
-import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -44,15 +49,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -60,39 +69,35 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.saathi.app.core.AppContainer
 import com.saathi.app.core.AssistantState
 import com.saathi.app.core.net.ReplyStyle
 import com.saathi.app.core.voice.LiveState
 import com.saathi.app.core.voice.tr
 import com.saathi.app.features.tasks.Tasks
-import com.saathi.app.ui.theme.Accent
-import com.saathi.app.ui.theme.Accent50
 import com.saathi.app.ui.theme.Amber
 import com.saathi.app.ui.theme.Amber50
-import com.saathi.app.ui.theme.Coral
-import com.saathi.app.ui.theme.Coral50
 import com.saathi.app.ui.theme.Danger
 import com.saathi.app.ui.theme.Danger50
+import com.saathi.app.ui.theme.Edge
 import com.saathi.app.ui.theme.Ink
 import com.saathi.app.ui.theme.Leaf
 import com.saathi.app.ui.theme.Leaf50
 import com.saathi.app.ui.theme.Muted
-import com.saathi.app.ui.theme.Sky
-import com.saathi.app.ui.theme.Sky50
-import com.saathi.app.ui.theme.Soft
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * A teal header with the date, the greeting and any warnings, then the actions as a grid of coloured tiles that
- * fits on one screen, and the talk button fixed at the bottom (SPEC §6.8).
+ * Home (Stitch "3.1 Home"): the date and greeting with their Hindi lines, today's warnings, whether Scam Shield is
+ * guarding the phone, the six actions as two-line tiles, History, and the talk button fixed at the bottom.
  */
 @Composable
 fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
@@ -104,18 +109,29 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
     val messages by c.db.messages().recent().collectAsState(initial = emptyList())
     val style = settings.replyStyle
     fun s(en: String, hi: String, hinglish: String) = tr(style, en, hi, hinglish)
+    fun a(en: String, hi: String) = alt(style, en, hi)
 
     val dayAgo = System.currentTimeMillis() - 24 * 3600_000L
     val weekAgo = System.currentTimeMillis() - 7 * 24 * 3600_000L
     val alerts = events.count { it.ts >= dayAgo && (it.level == "red" || it.level == "amber") }
     val updates = messages.count { it.receivedAt >= weekAgo && it.category in USEFUL }
 
+    // Scam Shield runs only with the messages-and-calls permissions; re-checked whenever Home comes back.
+    val ctx = LocalContext.current
+    val shieldStep = remember { Permissions.steps.first { it.id == "sms_calls" } }
+    var shieldOn by remember { mutableStateOf(shieldStep.granted(ctx)) }
+    LifecycleResumeEffect(Unit) {
+        shieldOn = shieldStep.granted(ctx)
+        onPauseOrDispose { }
+    }
+
     val busy by c.assistant.taskActive.collectAsState()
     val live by c.assistant.live.collectAsState()
     val liveState = live?.state?.collectAsState()?.value
+    val muted = live?.muted?.collectAsState()?.value ?: false
     val talking = live != null || state == AssistantState.LISTENING || state == AssistantState.THINKING
     Scaffold(containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = { MicBar(state, liveState, busy, talking, style) { c.assistant.onMicTapped() } }) { pad ->
+        bottomBar = { MicBar(state, liveState, busy, talking, style, muted, canMute = live != null, onMute = { c.assistant.toggleMute() }) { c.assistant.onMicTapped() } }) { pad ->
         // Talking and the tiles cross-fade, with a slight zoom, instead of jumping.
         AnimatedContent(talking, label = "talk",
             transitionSpec = { (fadeIn(tween(320)) + scaleIn(tween(320), initialScale = 0.96f)) togetherWith fadeOut(tween(180)) },
@@ -136,33 +152,65 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
             )
             return@AnimatedContent
         }
-        Column(Modifier.fillMaxSize().padding(bottom = pad.calculateBottomPadding()).verticalScroll(rememberScrollState())) {
-            HomeHeader(settings.userName, alerts, style, onSettings = { navigate("settings") }, onAlerts = { navigate("alerts") })
+        // Scaffold already consumed the status-bar inset, so the header must use its top padding itself.
+        Column(Modifier.fillMaxSize().padding(top = pad.calculateTopPadding(), bottom = pad.calculateBottomPadding())
+            .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            HomeHeader(settings.userName, style) { navigate("settings") }
 
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                TileRow {
-                    // Straight to the Doctor screen, which starts the conversation itself and shows it getting ready.
-                    Tile(s("Doctor", "डॉक्टर", "Doctor"), Icons.Outlined.MedicalServices, Accent, Accent50, { navigate("care") },
-                        Modifier.weight(1f).riseIn(0))
-                    // Tasks ask their first question in a card; while one runs the other task tiles wait (Stop ends it).
-                    Tile(s("Cab", "कैब", "Cab"), Icons.Outlined.LocalTaxi, Amber, Amber50, { c.assistant.startTask(Tasks.UBER) },
-                        Modifier.weight(1f).riseIn(1), enabled = !busy)
-                }
-                TileRow {
-                    Tile(s("House help", "घर की मदद", "House help"), Icons.Outlined.CleaningServices, Leaf, Leaf50,
-                        { c.assistant.startTask(Tasks.HOUSE_HELP) }, Modifier.weight(1f).riseIn(2), enabled = !busy)
-                    Tile(s("Updates", "अपडेट", "Updates"), Icons.Outlined.MailOutline, Sky, Sky50, { navigate("digest") },
-                        Modifier.weight(1f).riseIn(3), badge = updates.takeIf { it > 0 }?.toString())
-                }
-                TileRow {
-                    Tile(s("Check product", "सामान जाँचें", "Saamaan jaanchein"), Icons.Outlined.PhotoCamera, Coral, Coral50,
-                        { navigate("camera") }, Modifier.weight(1f).riseIn(4))
-                    Tile(s("Teach me", "सिखाओ", "Sikhao"), Icons.AutoMirrored.Outlined.HelpOutline, Ink, Soft,
-                        { c.assistant.startGuide(null) }, Modifier.weight(1f).riseIn(5), enabled = !busy)
-                }
-                // Rarely needed (mostly by family): a quiet link instead of a tile.
-                TextButton({ navigate("log") }, Modifier.fillMaxWidth().heightIn(min = 56.dp).riseIn(6)) {
-                    Text(s("History", "इतिहास", "History"), style = MaterialTheme.typography.titleMedium)
+            // Warnings come first, where they are seen; hidden on a quiet day.
+            if (alerts > 0) {
+                StatusCard(
+                    icon = Icons.Filled.Shield, tint = Danger, bg = Danger50, iconBg = Danger.copy(alpha = 0.12f),
+                    title = s("$alerts warnings today", "आज $alerts चेतावनी", "Aaj $alerts warnings"),
+                    second = a("$alerts warnings today", "आज $alerts सुरक्षा चेतावनियाँ"),
+                    titleColor = Danger, chevron = true, onClick = { navigate("alerts") },
+                    modifier = Modifier.riseIn(0),
+                )
+            }
+            // Whether Saathi is really guarding messages and calls (the permissions), not a decoration.
+            if (shieldOn) StatusCard(
+                icon = Icons.Filled.GppGood, tint = Leaf, bg = Leaf50, iconBg = Color.White,
+                title = s("Saathi is keeping you safe", "साथी आपकी सुरक्षा कर रही है", "Saathi aapko safe rakh rahi hai"),
+                second = a("Saathi is keeping you safe", "साथी आपकी सुरक्षा के लिए तैयार है"),
+                titleColor = Ink, trailing = { StatusPill("LIVE", Leaf, filled = false, dot = true) },
+                onClick = { navigate("alerts") }, modifier = Modifier.riseIn(1),
+            ) else StatusCard(
+                icon = Icons.Filled.GppMaybe, tint = Amber, bg = Amber50, iconBg = Color.White,
+                title = s("Scam Shield is off. Tap to turn on", "धोखा-रक्षक बंद है। चालू करने के लिए दबाइए", "Scam Shield band hai. On karne ke liye dabaiye"),
+                second = a("Scam Shield is off", "धोखा-रक्षक बंद है"),
+                titleColor = Ink, chevron = true, onClick = { navigate("alerts") }, modifier = Modifier.riseIn(1),
+            )
+
+            TileRow {
+                // Straight to the Doctor screen, which starts the conversation itself and shows it getting ready.
+                Tile(s("Doctor", "डॉक्टर", "Doctor"), a("Doctor", "डॉक्टर"), Icons.Filled.MedicalServices,
+                    { navigate("care") }, Modifier.weight(1f).riseIn(2))
+                // Tasks ask their first question in a card; while one runs the other task tiles wait (Stop ends it).
+                Tile(s("Cab", "कैब", "Cab"), a("Cab", "गाड़ी / कैब"), Icons.Filled.LocalTaxi,
+                    { c.assistant.startTask(Tasks.UBER) }, Modifier.weight(1f).riseIn(3), enabled = !busy)
+            }
+            TileRow {
+                Tile(s("House help", "घर की मदद", "House help"), a("House help", "सफ़ाई / मदद"), Icons.Filled.CleaningServices,
+                    { c.assistant.startTask(Tasks.HOUSE_HELP) }, Modifier.weight(1f).riseIn(4), enabled = !busy)
+                Tile(s("Updates", "अपडेट", "Updates"), a("Updates", "अपडेट्स"), Icons.Filled.Mail, { navigate("digest") },
+                    Modifier.weight(1f).riseIn(5), badge = updates.takeIf { it > 0 }?.toString())
+            }
+            TileRow {
+                Tile(s("Check item", "सामान जाँचें", "Saamaan jaanchein"), a("Check item", "सामान जाँचें"), Icons.Filled.PhotoCamera,
+                    { navigate("camera") }, Modifier.weight(1f).riseIn(6))
+                Tile(s("Teach me", "मुझे सिखाओ", "Sikhao"), a("Teach me", "मुझे सिखाएँ"), Icons.AutoMirrored.Filled.Help,
+                    { c.assistant.startGuide(null) }, Modifier.weight(1f).riseIn(7), enabled = !busy)
+            }
+            // Rarely needed (mostly by family): a quiet link instead of a tile.
+            val (press, pressMotion) = rememberPress()
+            Surface(onClick = { navigate("log") }, interactionSource = press, color = Color.Transparent,
+                modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 56.dp).then(pressMotion).riseIn(8)) {
+                Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.History, null, tint = Muted)
+                    Text(s("History", "इतिहास", "History") + " / " + a("History", "पुराना इतिहास"),
+                        style = MaterialTheme.typography.titleMedium, textDecoration = TextDecoration.Underline, color = Ink)
                 }
             }
         }
@@ -173,60 +221,73 @@ fun HomeScreen(c: AppContainer, navigate: (String) -> Unit) {
 private val USEFUL = setOf("bill_due", "subscription_renewal", "appointment", "delivery", "payment_done", "scam_suspected")
 
 @Composable
-private fun HomeHeader(name: String, alerts: Int, style: ReplyStyle, onSettings: () -> Unit, onAlerts: () -> Unit) {
+private fun HomeHeader(name: String, style: ReplyStyle, onSettings: () -> Unit) {
     val hour = LocalTime.now().hour
+    val ji = name.takeIf { it.isNotBlank() }
     val greeting = when {
         hour < 12 -> tr(style, "Good morning", "सुप्रभात", "Good morning")
         hour < 17 -> tr(style, "Good afternoon", "नमस्ते", "Namaste")
         else -> tr(style, "Good evening", "शुभ संध्या", "Good evening")
-    } + name.takeIf { it.isNotBlank() }?.let { ", $it ji" }.orEmpty()
-    val locale = if (style == ReplyStyle.HI) Locale("hi", "IN") else Locale("en", "IN")
-    val date = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM", locale))
+    } + ji?.let { ", $it ji" }.orEmpty()
+    val greetingAlt = when {
+        hour < 12 -> alt(style, "Good morning", "सुप्रभात")
+        hour < 17 -> alt(style, "Good afternoon", "नमस्ते")
+        else -> alt(style, "Good evening", "शुभ संध्या")
+    } + ji?.let { if (style == ReplyStyle.HI) ", $it ji" else ", $it जी" }.orEmpty()
+    val today = LocalDate.now()
+    val hiDate = today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("hi", "IN")))
+    val enDate = today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("en", "IN")))
 
-    HeaderBand {
-        Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(top = 8.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(date, style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.85f))
-                Text(greeting, style = MaterialTheme.typography.headlineLarge, color = Color.White, modifier = Modifier.semantics { heading() })
+    Row(verticalAlignment = Alignment.Top) {
+        TwoLine(if (style == ReplyStyle.HI) hiDate else enDate, if (style == ReplyStyle.HI) enDate else hiDate, Modifier.weight(1f),
+            mainStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp), mainColor = Muted, secondColor = Muted)
+        RoundIconButton(Icons.Outlined.Settings, tr(style, "Settings", "सेटिंग्स", "Settings"), onSettings)
+    }
+    Column(Modifier.semantics(mergeDescendants = true) { heading() }) {
+        Text(greeting, style = MaterialTheme.typography.headlineLarge, color = Ink)
+        Text(greetingAlt, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** A full-width status strip: icon circle, a title with its second-language line, then a chevron or a pill. */
+@Composable
+private fun StatusCard(
+    icon: ImageVector, tint: Color, bg: Color, iconBg: Color, title: String, second: String, titleColor: Color,
+    onClick: () -> Unit, modifier: Modifier = Modifier, chevron: Boolean = false, trailing: (@Composable () -> Unit)? = null,
+) {
+    val (press, pressMotion) = rememberPress()
+    Surface(onClick = onClick, interactionSource = press, shape = RoundedCornerShape(16.dp), color = bg,
+        border = BorderStroke(1.5.dp, tint.copy(alpha = 0.35f)),
+        modifier = modifier.fillMaxWidth().then(pressMotion).semantics(mergeDescendants = true) { role = Role.Button }) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            IconBubble(icon, tint, iconBg, size = 52.dp, round = true)
+            // A pill goes under the words, not beside them, so the title keeps the card's width.
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TwoLine(title, second, mainStyle = MaterialTheme.typography.titleMedium, mainColor = titleColor,
+                    secondColor = if (titleColor == Danger) Danger else Leaf)
+                trailing?.invoke()
             }
-            RoundIconButton(Icons.Outlined.Settings, tr(style, "Settings", "सेटिंग्स", "Settings"), onSettings)
-        }
-        // Warnings live in the header, where they are seen first, instead of as one more tile.
-        if (alerts > 0) {
-            val (press, pressMotion) = rememberPress()
-            Surface(onClick = onAlerts, interactionSource = press, shape = RoundedCornerShape(20.dp), color = Color.White,
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp).then(pressMotion)
-                    .semantics(mergeDescendants = true) { role = Role.Button }) {
-                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(Modifier.size(48.dp).background(Danger50, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Shield, null, tint = Danger, modifier = Modifier.size(28.dp))
-                    }
-                    Text(tr(style, "$alerts warnings today", "आज $alerts चेतावनी", "Aaj $alerts warnings"),
-                        style = MaterialTheme.typography.titleLarge, color = Danger, modifier = Modifier.weight(1f))
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Danger)
-                }
+            if (chevron) Box(Modifier.size(40.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = tint)
             }
-        } else {
-            Box(Modifier.padding(bottom = 8.dp))
         }
     }
 }
 
 @Composable
 private fun TileRow(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) =
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), content = content)
+    // Both tiles of a row take the taller one's height.
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(14.dp), content = content)
 
 /**
- * One action as a soft coloured tile: a white icon disc on top, the label below. Each action has its own colour, so
- * they are told apart at a glance. A disabled tile fades back and ignores taps.
+ * One action: a white outlined card, the icon on a pale teal square, the label and its second-language line.
+ * A disabled tile fades back and ignores taps; a count sits in the top-right corner.
  */
 @Composable
 private fun Tile(
     label: String,
+    second: String,
     icon: ImageVector,
-    tint: Color,
-    tintBg: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -237,43 +298,41 @@ private fun Tile(
         onClick = onClick,
         enabled = enabled,
         interactionSource = press,
-        shape = RoundedCornerShape(26.dp),
-        color = tintBg,
-        border = BorderStroke(1.dp, tint.copy(alpha = 0.18f)),
-        modifier = modifier.height(100.dp).then(pressMotion).alpha(if (enabled) 1f else 0.45f)
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.5.dp, Edge),
+        modifier = modifier.fillMaxHeight().heightIn(min = 148.dp).then(pressMotion).alpha(if (enabled) 1f else 0.45f)
             .semantics(mergeDescendants = true) {
                 role = Role.Button
                 contentDescription = listOfNotNull(label, badge).joinToString(", ")
             },
     ) {
-        // Icon beside the label keeps three rows of tiles on one screen even with the phone's large text.
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                // The count sits on the icon's corner, like a phone's app badge, so it never covers the label.
-                Box {
-                    Box(Modifier.size(44.dp).background(Color.White, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-                    }
-                    badge?.let {
-                        Box(Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-6).dp).background(tint, CircleShape)
-                            .padding(horizontal = 7.dp, vertical = 1.dp)) {
-                            Text(it, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
+        // Icon on top, words below across the whole tile: long Hinglish labels ("Saamaan jaanchein") wrap
+        // between words instead of breaking inside one, even with the phone's large text.
+        Column(Modifier.heightIn(min = 148.dp).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                IconBubble(icon, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, size = 48.dp)
+                Box(Modifier.weight(1f))
+                badge?.let {
+                    Box(Modifier.size(32.dp).background(MaterialTheme.colorScheme.primary, CircleShape), contentAlignment = Alignment.Center) {
+                        Text(it, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-                Text(label, style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp, lineHeight = 24.sp),
-                    color = Ink, maxLines = 2, modifier = Modifier.weight(1f))
             }
+            TwoLine(label, second, Modifier.fillMaxWidth(),
+                mainStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 21.sp, lineHeight = 26.sp), mainColor = Ink,
+                secondSize = 17.sp)
         }
     }
 }
 
 @Composable
-private fun MicBar(state: AssistantState, live: LiveState?, busy: Boolean, talking: Boolean, style: ReplyStyle, onClick: () -> Unit) {
+private fun MicBar(state: AssistantState, live: LiveState?, busy: Boolean, talking: Boolean, style: ReplyStyle,
+                   muted: Boolean, canMute: Boolean, onMute: () -> Unit, onClick: () -> Unit) {
     val idle = state == AssistantState.IDLE && !busy
     // While the talking view is up it already shows what is happening; the bar only adds a line while a task runs.
     val status = when {
+        talking && muted -> tr(style, "Mic is muted. Saathi cannot hear you.", "माइक बंद है। साथी आपको सुन नहीं सकती।", "Mic band hai. Saathi aapko sun nahi sakti.")
         talking -> null
         live == LiveState.CONNECTING -> tr(style, "Connecting…", "जुड़ रही हूँ…", "Connect ho rahi hoon…")
         state == AssistantState.RUNNING -> tr(style, "Working on it. Press Stop anytime.", "काम कर रही हूँ। कभी भी रोकें।", "Kaam kar rahi hoon. Kabhi bhi Stop dabaiye.")
@@ -286,26 +345,48 @@ private fun MicBar(state: AssistantState, live: LiveState?, busy: Boolean, talki
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 status?.let {
-                    Text(it, style = MaterialTheme.typography.titleMedium, color = Muted,
+                    Text(it, style = MaterialTheme.typography.bodyLarge, color = Muted,
                         modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }, textAlign = TextAlign.Center)
+                }
+                // Mute keeps the conversation open but stops sending the user's voice; End closes it.
+                if (canMute) {
+                    val (mutePress, muteMotion) = rememberPress()
+                    Button(onClick = onMute, interactionSource = mutePress,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).then(muteMotion),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (muted) Ink else Color.White,
+                            contentColor = if (muted) Color.White else Ink),
+                        border = if (muted) null else BorderStroke(1.5.dp, Edge),
+                    ) {
+                        Icon(if (muted) Icons.Filled.MicOff else Icons.Filled.Mic, null, modifier = Modifier.size(28.dp))
+                        Text(
+                            if (muted) tr(style, "Unmute", "माइक चालू करें", "Mic chalu karein") else tr(style, "Mute", "माइक बंद करें", "Mic band karein"),
+                            style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 10.dp))
+                    }
                 }
                 val (press, pressMotion) = rememberPress()
                 Button(
                     onClick = onClick,
                     interactionSource = press,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 84.dp).then(pressMotion),
-                    shape = RoundedCornerShape(24.dp),
-                    // Stop reads as stop: soft red with red text, clear without being alarming.
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp).then(pressMotion),
+                    shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (idle) MaterialTheme.colorScheme.primary else Danger50,
                         contentColor = if (idle) Color.White else Danger),
                     border = if (idle) null else BorderStroke(1.5.dp, Danger.copy(alpha = 0.4f)),
                 ) {
-                    Icon(if (idle) Icons.Filled.Mic else Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(34.dp))
-                    Text(
-                        if (idle) tr(style, "Talk to Saathi", "साथी से बात करें", "Saathi se baat karein") else endLabel,
-                        style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 12.dp),
-                    )
+                    // The mic sits on a lighter disc, like the Stitch talk button.
+                    Box(Modifier.size(48.dp).clip(CircleShape).background(if (idle) Color.White.copy(alpha = 0.2f) else Danger.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center) {
+                        Icon(if (idle) Icons.Filled.Mic else Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(28.dp))
+                    }
+                    Column(Modifier.padding(start = 14.dp)) {
+                        Text(if (idle) tr(style, "Talk to Saathi", "साथी से बात करें", "Saathi se baat karein") else endLabel,
+                            style = MaterialTheme.typography.titleMedium)
+                        if (idle) Text(alt(style, "Talk to Saathi", "साथी से बात करें"), fontSize = 17.sp,
+                            color = Color.White.copy(alpha = 0.85f))
+                    }
                 }
             }
         }

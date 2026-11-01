@@ -14,18 +14,19 @@ import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.sp
 
 /*
- * Calm and plain for older eyes (palette from our CareCompass app): warm off-white page, white cards, near-black
- * text, one teal for actions. Colour only as soft tints behind small icons, so each action is easy to tell apart
- * without anything loud. Red only for emergencies, green for "done / safe".
+ * Quiet and legible for older eyes: a neutral page, white surfaces with hairline borders, near-black text and a
+ * single deep teal for actions. No colour blocks; red only for emergencies, green for "done / safe".
  */
-val Paper = Color(0xFFFAF8F4)
-val Ink = Color(0xFF16202A)
-val Muted = Color(0xFF66707B)
-val Line = Color(0xFFE6E0D5)
-val Soft = Color(0xFFF6F3EC)
-val Accent = Color(0xFF0B7A64)
-val AccentDark = Color(0xFF08624F)
-val Accent50 = Color(0xFFE7F3EF)
+val Paper = Color(0xFFF6F6F3)
+val Ink = Color(0xFF14181C)
+val Muted = Color(0xFF5E666E)
+val Line = Color(0xFFE3E3DF)
+/** Edge of tappable cards and buttons: 3:1 against white so every control is clearly outlined. */
+val Edge = Color(0xFF8A9096)
+val Soft = Color(0xFFEEEEEA)
+val Accent = Color(0xFF0E6B5A)
+val AccentDark = Color(0xFF0A5445)
+val Accent50 = Color(0xFFE4F0EC)
 val Leaf = Color(0xFF177245)
 val Leaf50 = Color(0xFFE6F4EC)
 val Danger = Color(0xFFC42121)

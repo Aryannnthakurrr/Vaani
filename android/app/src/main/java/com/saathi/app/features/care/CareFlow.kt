@@ -37,7 +37,10 @@ class CareFlow(private val c: AppContainer) {
 
     /** The live intake conversation while it runs, so voice animations can follow its mic and speech. */
     @Volatile var live: LiveVoiceSession? = null
-        private set
+        private set(value) { field = value; _liveSession.value = value }
+    private val _liveSession = MutableStateFlow<LiveVoiceSession?>(null)
+    /** The same conversation as a flow, so the screen can show its mute button the moment it opens. */
+    val liveSession: StateFlow<LiveVoiceSession?> = _liveSession
     private val _ui = MutableStateFlow(CareUi())
     val ui: StateFlow<CareUi> = _ui
     private var job: Job? = null
