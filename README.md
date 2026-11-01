@@ -7,10 +7,11 @@
 Speak in Hindi, English or Hinglish. Vaani books the cab, finds and books the doctor by phoning hospitals for you, and
 stops scammers. Nothing irreversible happens until you say **“haan”**.
 
-<a href="docs/media/showcase.mp4"><img src="docs/media/showcase_poster.jpg" alt="Vaani showcase video (1:36)" width="760"></a>
+<a href="https://cdn.jsdelivr.net/gh/Aryannnthakurrr/Vaani@master/docs/media/showcase.mp4"><img src="docs/media/showcase_preview.gif" alt="Vaani showcase, sped-up preview" width="760"></a>
 
-[▶ Showcase video (1:36)](docs/media/showcase.mp4) ·
-[Slide deck](docs/presentation/Vaani_presentation.pptx) · [All documentation](docs/README.md)
+**[▶ Watch the full showcase with sound (1:36)](https://cdn.jsdelivr.net/gh/Aryannnthakurrr/Vaani@master/docs/media/showcase.mp4)** ·
+[Download](docs/media/showcase.mp4) · [Slide deck](docs/presentation/Vaani_presentation.pptx) ·
+[All documentation](docs/README.md)
 
 </div>
 
