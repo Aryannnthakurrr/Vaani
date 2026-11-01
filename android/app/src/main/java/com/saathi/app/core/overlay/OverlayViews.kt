@@ -180,29 +180,42 @@ internal object OverlayViews {
         return root to input
     }
 
-    /** "From Ramesh on WhatsApp" as a white pill, so who sent it is the first thing read under the title. */
-    private fun fromPill(ctx: Context, from: String, color: Int) = text(ctx, from, 22f, color, bold = true).apply {
-        gravity = Gravity.CENTER
-        background = rounded(Color.WHITE, dp(ctx, 18).toFloat())
-        setPadding(dp(ctx, 16), dp(ctx, 6), dp(ctx, 16), dp(ctx, 6))
-    }
+    private val SOFT_WHITE = Color.argb(225, 255, 255, 255)
+
+    /** Alert text on red: Mukta's default font padding leaves huge gaps between lines, so it is switched off. */
+    private fun alertText(ctx: Context, s: String, sp: Float, color: Int = Color.WHITE, bold: Boolean = false) =
+        text(ctx, s, sp, color, bold).apply {
+            includeFontPadding = false
+            setLineSpacing(dp(ctx, 4).toFloat(), 1f)
+        }
 
     /**
      * Scam alert for a message: a red card at the bottom, so the app (and the message in it) stays visible above.
-     * Touches outside the card reach the app.
+     * Touches outside the card reach the app. Only the button looks like a button: who sent it is a plain line
+     * under the title.
      */
     fun alertCard(ctx: Context, alert: ScamAlert, safeLabel: String, onSafe: (TextView) -> Unit): View {
         val bg = if (alert.level == AlertLevel.RED) RED else Color.rgb(176, 110, 0)
         val full = { top: Int -> LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, top) } }
+        val header = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(alertText(ctx, "⚠️", 30f).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
+            addView(alertText(ctx, alert.title, 26f, bold = true),
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(ctx, 12) })
+        }
         val card = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             background = rounded(bg, dp(ctx, 28).toFloat())
             elevation = dp(ctx, 16).toFloat()
-            setPadding(dp(ctx, 22), dp(ctx, 20), dp(ctx, 22), dp(ctx, 20))
+            setPadding(dp(ctx, 22), dp(ctx, 22), dp(ctx, 22), dp(ctx, 20))
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
-            addView(text(ctx, "⚠️  ${alert.title}", 28f, Color.WHITE, bold = true))
-            alert.from?.let { addView(fromPill(ctx, it, bg), full(10)) }
-            addView(text(ctx, alert.body, 21f, Color.WHITE), full(10))
+            addView(header)
+            alert.from?.let { addView(alertText(ctx, it, 19f, SOFT_WHITE), full(6)) }
+            // A thin line between "what and who" and "what to do".
+            addView(View(ctx).apply { setBackgroundColor(Color.argb(70, 255, 255, 255)) },
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 1)).apply { topMargin = dp(ctx, 16) })
+            addView(alertText(ctx, alert.body, 21f), full(16))
             val safe = bigButton(ctx, safeLabel, Color.WHITE, {}, fg = bg).apply { minHeight = dp(ctx, 68) }
             safe.setOnClickListener { onSafe(safe) }
             addView(safe, full(16))
@@ -227,8 +240,7 @@ internal object OverlayViews {
             addView(text(ctx, "⚠️", 72f, Color.WHITE).apply { gravity = Gravity.CENTER })
             addView(text(ctx, alert.title, 34f, Color.WHITE, bold = true).apply { gravity = Gravity.CENTER })
             alert.from?.let {
-                addView(fromPill(ctx, it, bg), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(ctx, 12) })
+                addView(alertText(ctx, it, 22f, SOFT_WHITE).apply { gravity = Gravity.CENTER; setPadding(0, dp(ctx, 10), 0, 0) })
             }
             addView(text(ctx, alert.body, 24f, Color.WHITE).apply {
                 gravity = Gravity.CENTER
