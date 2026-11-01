@@ -33,6 +33,12 @@ IST = ZoneInfo("Asia/Kolkata")
         ("https://www.amazon.in/dp/B00ABC", "safe"),
         ("https://www.irctc.co.in", "safe"),
         ("https://www.wikipedia.org", "safe"),
+        ("http://kotak-kyc-update.in/verify", "dangerous"),
+        ("https://airtel-recharge-offer.xyz", "dangerous"),
+        ("https://licindia-bonus.com/claim", "dangerous"),
+        ("https://www.kotak.com/en/home.html", "safe"),
+        ("https://www.airtel.in/recharge", "safe"),
+        ("https://unifiedportal-mem.epfindia.gov.in", "safe"),
     ],
 )
 def test_rule_verdicts(url: str, expected: str) -> None:
@@ -74,7 +80,12 @@ async def test_expand_url_follows_redirects_without_network() -> None:
     assert rule_verdict(analyse(chain[-1]))[0] == "dangerous"
 
 
-async def test_expand_url_stops_after_five_hops() -> None:
+async def test_expand_url_stops_after_five_hops(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def public(_url: str) -> bool:  # "loop.example" never resolves; don't let the test depend on DNS
+        return True
+
+    monkeypatch.setattr(browser, "is_public_url", public)
+
     def handler(request: httpx.Request) -> httpx.Response:
         n = int(request.url.path.strip("/") or 0)
         return httpx.Response(302, headers={"location": f"/{n + 1}"})
@@ -188,7 +199,7 @@ def test_bare_domain_is_not_flagged_insecure():
     bare = analyse("airtel.in/pay")
     assert not any(s.startswith("no_https") for s in bare.signals)
     assert rule_verdict(bare)[0] == "safe"
-    explicit = analyse("http://airtel-offers.example/pay")
+    explicit = analyse("http://recharge-offers.example/pay")  # no brand name: only "not secure"
     assert any(s.startswith("no_https") for s in explicit.signals)
     assert rule_verdict(explicit)[0] == "suspicious"
 
@@ -201,3 +212,69 @@ def test_intent_rules_photo_send_is_guide_and_app_name_is_not_product() -> None:
     assert detect_intent("Flipkart se biscuit mangao") == "shop_online"
     assert extract_slots("Flipkart se biscuit mangao", "shop_online").product == "biscuit"
     assert extract_slots("order Parle-G biscuits from Amazon", "shop_online").product == "Parle-G biscuits"
+
+
+# --------------------------------------------------------------------------- family-safe scam summaries
+@pytest.mark.parametrize(
+    ("summary", "leaked"),
+    [
+        ("Caller asked for ₹500 by UPI.", "500"),
+        ("He wants Rs. 999 now", "999"),
+        ("Pay INR 2,50,000 today.", "2,50,000"),
+        ("Rs500 fee", "500"),
+        ("OTP 4821 was read out", "4821"),
+        ("Call 98765 43210 back", "98765"),
+        ("Card 4111-1111-1111-1111", "4111"),
+    ],
+)
+def test_family_safe_hides_amounts_and_numbers(summary: str, leaked: str) -> None:
+    from app.routers.welfare import family_safe
+
+    assert leaked not in family_safe(summary)
+
+
+def test_family_safe_keeps_ordinary_words() -> None:
+    from app.routers.welfare import family_safe
+
+    assert family_safe("He called 2 times in 3 hours.") == "He called 2 times in 3 hours."
+    assert family_safe("Asked for ₹500.") == "Asked for ….", "the full stop stays"
+
+
+@pytest.mark.parametrize("url", ["https://surl.li/abcde", "http://u.to/x1y2", "https://clck.ru/3AbCd"])
+def test_more_shorteners_hide_the_destination(url: str) -> None:
+    facts = analyse(url)
+    assert facts.shortener and rule_verdict(facts)[0] == "suspicious"
+
+
+@pytest.mark.parametrize(
+    ("summary", "leaked"),
+    [
+        ("Asked to pay ramesh.k@okaxis now", "okaxis"),
+        ("Send to fraud99@ybl", "fraud"),
+        ("Mail your KYC to help.desk@sbi-support.in", "help.desk"),
+    ],
+)
+def test_family_safe_hides_upi_ids_and_emails(summary: str, leaked: str) -> None:
+    from app.routers.welfare import family_safe
+
+    assert leaked not in family_safe(summary)
+
+
+def test_extract_urls_lists_a_repeated_link_once() -> None:
+    text = "Pay now: sbi-kyc.in/now. Last chance sbi-kyc.in/now! Help: bit.ly/x1"
+    assert extract_urls(text) == ["sbi-kyc.in/now", "bit.ly/x1"]
+
+
+def test_last_seen_phrase_counts_days_when_older_than_yesterday() -> None:
+    from app.welfare.scheduler import last_seen_phrase
+
+    now = datetime(2026, 10, 31, 12, 0, tzinfo=IST)
+
+    def ms(d: datetime) -> int:
+        return int(d.timestamp() * 1000)
+
+    assert last_seen_phrase(ms(datetime(2026, 10, 31, 9, 5, tzinfo=IST)), now) == "today 9:05 am"
+    assert last_seen_phrase(ms(datetime(2026, 10, 30, 21, 0, tzinfo=IST)), now) == "yesterday 9:00 pm"
+    assert (
+        last_seen_phrase(ms(datetime(2026, 10, 28, 8, 30, tzinfo=IST)), now) == "28 Oct 8:30 am (3 days ago)"
+    )

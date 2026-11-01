@@ -15,6 +15,13 @@ BRANDS: dict[str, tuple[str, ...]] = {
     "hdfc": ("hdfcbank.com", "hdfc.bank.in", "hdfclife.com"),
     "icici": ("icicibank.com", "icici.bank.in"),
     "axis": ("axisbank.com", "axis.bank.in"),
+    "kotak": ("kotak.com", "kotak.bank.in", "kotaksecurities.com"),
+    "canarabank": ("canarabank.com", "canarabank.bank.in"),
+    "bankofbaroda": ("bankofbaroda.in", "bankofbaroda.bank.in"),
+    "pnbindia": ("pnbindia.in", "pnb.bank.in"),
+    "licindia": ("licindia.in",),
+    "epfindia": ("epfindia.gov.in",),
+    "airtel": ("airtel.in", "airtel.com"),
     "paytm": ("paytm.com", "paytmbank.com"),
     "phonepe": ("phonepe.com",),
     "amazon": ("amazon.in", "amazon.com", "amazon.co.in"),
@@ -33,7 +40,7 @@ BRANDS: dict[str, tuple[str, ...]] = {
 }
 SHORTENERS = frozenset(
     "bit.ly tinyurl.com t.co goo.gl is.gd cutt.ly rb.gy ow.ly shorturl.at t.ly rebrand.ly tiny.cc "
-    "s.id v.gd bitly.ws".split()
+    "s.id v.gd bitly.ws shorturl.asia surl.li u.to buff.ly lnkd.in tinyurl.co qr.ae is.gy clck.ru".split()
 )
 MULTI_PART_SUFFIXES = ("co.in", "gov.in", "org.in", "net.in", "ac.in", "bank.in", "co.uk", "com.au")
 # Visually confusable characters folded to their ASCII lookalike before comparing to brands.
@@ -86,7 +93,9 @@ class UrlFacts:
 
 
 def extract_urls(text: str) -> list[str]:
-    return [m.group(0).rstrip(".,);!?'\"") for m in _URL_RE.finditer(text or "")]
+    """Links in a message, in order, each once: scam texts often repeat the same link two or three times."""
+    found = (m.group(0).rstrip(".,);!?'\"") for m in _URL_RE.finditer(text or ""))
+    return list(dict.fromkeys(found))
 
 
 def normalize_url(raw: str) -> str:

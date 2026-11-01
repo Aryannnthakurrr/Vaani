@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import logging
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 
 from fastapi import FastAPI, Request, Response
 
@@ -92,6 +92,14 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Vaani backend", version="0.1.0", lifespan=lifespan)
 
 
+def _content_length(headers: Mapping[str, str]) -> int:
+    """The Content-Length header as bytes; 0 when missing or malformed (a bad header must not turn into a 500)."""
+    try:
+        return max(int(headers.get("content-length", "0") or 0), 0)
+    except ValueError:
+        return 0
+
+
 @app.middleware("http")
 async def access_log(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     """Logs route, status, size and latency only — never request bodies. Also meters usage per device."""
@@ -102,14 +110,15 @@ async def access_log(request: Request, call_next: Callable[[Request], Awaitable[
         response = await call_next(request)
     finally:
         usage.current_device.reset(token)
-    route = getattr(
-        request.scope.get("route"), "path", request.url.path
-    )  # template, e.g. /care/{session_id}/events
+    # The route template (e.g. /care/{session_id}/events). Unmatched paths share one bucket, so scanners probing
+    # random URLs can't grow the meter without bound.
+    matched = request.scope.get("route")
+    route = getattr(matched, "path", None) or "(unmatched)"
     usage.METER.request(
-        device,
+        device.strip(),  # the same id require_device returns, so /usage finds these numbers
         f"{request.method} {route}",
-        int(request.headers.get("content-length", "0") or 0),
-        int(response.headers.get("content-length", "0") or 0),
+        _content_length(request.headers),
+        _content_length(response.headers),
         (time.perf_counter() - started) * 1000,
     )
     log.info(
