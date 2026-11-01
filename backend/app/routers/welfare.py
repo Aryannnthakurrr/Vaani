@@ -23,8 +23,12 @@ _NUMBERS = re.compile(
 )
 
 
+# Email addresses and UPI IDs (ramesh@okaxis, someone@ybl) are personal and a scammer's collection address alike.
+_HANDLES = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*", re.IGNORECASE)
+
+
 def family_safe(summary: str) -> str:
-    return _NUMBERS.sub("…", summary)[:300]
+    return _NUMBERS.sub("…", _HANDLES.sub("…", summary))[:300]
 
 
 router = APIRouter()

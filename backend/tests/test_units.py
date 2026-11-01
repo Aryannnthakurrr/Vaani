@@ -244,3 +244,17 @@ def test_family_safe_keeps_ordinary_words() -> None:
 def test_more_shorteners_hide_the_destination(url: str) -> None:
     facts = analyse(url)
     assert facts.shortener and rule_verdict(facts)[0] == "suspicious"
+
+
+@pytest.mark.parametrize(
+    ("summary", "leaked"),
+    [
+        ("Asked to pay ramesh.k@okaxis now", "okaxis"),
+        ("Send to fraud99@ybl", "fraud"),
+        ("Mail your KYC to help.desk@sbi-support.in", "help.desk"),
+    ],
+)
+def test_family_safe_hides_upi_ids_and_emails(summary: str, leaked: str) -> None:
+    from app.routers.welfare import family_safe
+
+    assert leaked not in family_safe(summary)
