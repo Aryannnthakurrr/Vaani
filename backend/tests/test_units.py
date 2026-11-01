@@ -238,3 +238,9 @@ def test_family_safe_keeps_ordinary_words() -> None:
 
     assert family_safe("He called 2 times in 3 hours.") == "He called 2 times in 3 hours."
     assert family_safe("Asked for ₹500.") == "Asked for ….", "the full stop stays"
+
+
+@pytest.mark.parametrize("url", ["https://surl.li/abcde", "http://u.to/x1y2", "https://clck.ru/3AbCd"])
+def test_more_shorteners_hide_the_destination(url: str) -> None:
+    facts = analyse(url)
+    assert facts.shortener and rule_verdict(facts)[0] == "suspicious"
