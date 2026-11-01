@@ -52,7 +52,7 @@ LLM handles it ──► candidate ──► tested ──► (family approves) 
 | Step | Routine | Recogniser | Personal ability |
 |---|---|---|---|
 | **Becomes a candidate** | `SKILL_MIN_RUNS` (3) successful model runs of the task, or new runs since the last compile | `SKILL_MIN_SAMPLES` (40) model answers | That user repeats the same kind of request; the demo users' abilities are seeded with this history |
-| **Compiled by** | The strong model (`gemini-4-argon`, fallback `gemini-3.1-pro-preview`), or a heuristic for simple tasks | The strong model | The same loop; seeded for the demo |
+| **Compiled by** | The strong model (`skill_compiler`: Qwen 3.8 Max with high thinking, fallback Gemini 3.5 Flash Lite), or a heuristic for simple tasks | The strong model | The same loop; seeded for the demo |
 | **Tested on** | 70% of runs shown to the compiler, **30% held out** (at least 1). Every visible run must replay; **90% of held-out runs** must replay | Held-out samples: **95% precision** on the ones it answers and **30% coverage** | Its cases, held-out ones included, in the sandbox **at every backend start**; all must pass |
 | **Retries** | Up to 2 attempts, failures fed back to the compiler | Same | — |
 | **Approval** | Family (Telegram button or dashboard), or `SKILL_AUTO_APPROVE=1` for demos | Same | Approved with the persona seed |
