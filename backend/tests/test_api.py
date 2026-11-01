@@ -12,6 +12,7 @@ def test_health_is_open_and_reports_mock(client) -> None:
     assert body["status"] == "ok"
     assert body["mock"] is True
     assert body["models"]["agent_step"]
+    assert body["version"] and body["uptime_s"] >= 0
 
 
 @pytest.mark.parametrize(
